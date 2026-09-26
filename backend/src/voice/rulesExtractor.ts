@@ -26,7 +26,8 @@ function alt(words: string[]): string {
   return [...new Set(words)]
     .map((w) => w.normalize("NFC"))
     .sort((a, b) => b.length - a.length)
-    .map((w) => esc(w).split(NUKTA).join(`${NUKTA}?`).replace(/ /g, "\\s*"))
+    // A nukta is optional both ways: "खरीदना" matches "ख़रीदना" and vice versa (recognisers emit both).
+    .map((w) => esc(w).split(NUKTA).join("").replace(/([\u0915-\u0939])/g, `$1${NUKTA}?`).replace(/ /g, "\\s*"))
     .join("|");
 }
 

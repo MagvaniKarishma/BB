@@ -32,6 +32,7 @@ enum LeadSource {
   MAGICBRICKS
   WEBSITE
   SOCIAL_MEDIA
+  AI_CALL_ASSISTANT
   OTHER
 }
 
@@ -94,6 +95,7 @@ enum RequirementSource {
   VOICE_NOTE
   PORTAL_LEAD
   WHATSAPP
+  AI_CALL
 }
 
 enum VoiceLanguage {
@@ -119,6 +121,7 @@ enum NoteSource {
   MANUAL
   CALLER_SCREEN
   NOTIFICATION
+  AI_CALL
 }
 
 enum MessageDirection {
@@ -178,6 +181,9 @@ model Brokerage {
   whatsappAccounts WhatsAppAccount[]
   whatsappContacts WhatsAppContact[]
   whatsappMessages WhatsAppMessage[]
+  callAssistant    CallAssistantSettings?
+  callGreetings    CallGreeting[]
+  callSessions     CallSession[]
 }
 
 model User {
@@ -513,4 +519,140 @@ model WhatsAppMessage {
   @@index([brokerageId, clientId, sentAt])
   @@index([brokerageId, review])
   @@index([processedAt])
+}
+
+// ---------- AI Call Assistant ----------
+
+/** How calls to the business number are handled. */
+enum CallMode {
+  DIRECT          // ring the team only; the AI never answers
+  AI_RECEPTIONIST // the AI answers every call
+  SMART_ASSISTANT // ring the team first; the AI answers if nobody picks up, the line is busy or it's after hours
+}
+
+/** Voice after the recorded greeting. Only RECORDED_STANDARD is implemented today. */
+enum AssistantVoice {
+  RECORDED_STANDARD // broker's recording, then the telephony provider's standard voice
+  RECORDED_NATURAL  // broker's recording, then a natural TTS voice (planned)
+  CUSTOM_AI_VOICE   // provider voice creation with the broker's verified consent (planned)
+}
+
+enum GreetingLanguage {
+  HINGLISH
+  HINDI
+  ENGLISH
+  MARATHI
+}
+
+/** What the AI does when it can't understand the caller after the allowed retries. */
+enum UnclearBehavior {
+  TAKE_CALLBACK // note the number and promise a callback
+  TRANSFER      // hand over to a person (when a transfer number is set and within hours)
+}
+
+enum HumanTransfer {
+  ON_REQUEST // when the caller asks for a person
+  NEVER      // always take a callback instead
+}
+
+model CallAssistantSettings {
+  brokerageId          String           @id
+  brokerage            Brokerage        @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  enabled              Boolean          @default(false)
+  mode                 CallMode         @default(DIRECT)
+  voice                AssistantVoice   @default(RECORDED_STANDARD)
+  customGreetingEnabled Boolean         @default(false)
+  defaultLanguage      GreetingLanguage @default(HINGLISH)
+  /** {"days":[1,2,3,4,5,6],"start":"09:30","end":"20:00","timeZone":"Asia/Kolkata"} (ISO weekdays, 1 = Monday) */
+  businessHours        Json
+  /** Create a follow-up for every AI call with a callback request. */
+  callbackReminder     Boolean          @default(true)
+  /** Minutes after the call the callback follow-up is due. */
+  callbackDelayMinutes Int              @default(15)
+  /** Who gets callback follow-ups; null = the owner. */
+  callbackAssigneeId   String?
+  unclearBehavior      UnclearBehavior  @default(TAKE_CALLBACK)
+  maxUnclearRetries    Int              @default(2)
+  humanTransfer        HumanTransfer    @default(ON_REQUEST)
+  /** E.164 number calls are handed to when a caller asks for a person. */
+  transferNumber       String?
+  /** Business number(s) this configuration answers for, as the provider reports them (E.164). */
+  businessNumbers      String[]
+  updatedAt            DateTime         @updatedAt
+}
+
+/** One greeting per language. The audio is in blob storage; the script is editable text. */
+model CallGreeting {
+  id          String           @id @default(cuid())
+  brokerageId String
+  brokerage   Brokerage        @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  language    GreetingLanguage
+  script      String
+  storageKey  String?          @unique
+  mimeType    String?
+  size        Int?
+  durationMs  Int?
+  updatedById String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([brokerageId, language])
+}
+
+enum CallSessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  INTERRUPTED // the caller hung up or the line dropped mid-conversation
+  TRANSFERRED
+  FAILED
+}
+
+/** One call handled by the assistant. (provider, providerCallId) makes webhook retries idempotent. */
+model CallSession {
+  id                String            @id @default(cuid())
+  brokerageId       String
+  brokerage         Brokerage         @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  provider          String
+  providerCallId    String
+  /** In-app "Test your assistant" conversations: never saved to the CRM. */
+  isTest            Boolean           @default(false)
+  fromNumber        String?
+  toNumber          String?
+  status            CallSessionStatus @default(IN_PROGRESS)
+  language          GreetingLanguage?
+  /** Conversation state: collected fields (with the caller's words as evidence), retries, pending question. */
+  state             Json
+  /** Provider event ids already applied (duplicate deliveries are ignored). */
+  seenEvents        String[]
+  callbackRequested Boolean           @default(false)
+  humanRequested    Boolean           @default(false)
+  summary           String?
+  clientId          String?
+  inquiryId         String?
+  /** Set once the call has been saved to the CRM (never saved twice). */
+  savedAt           DateTime?
+  startedAt         DateTime          @default(now())
+  endedAt           DateTime?
+  durationSec       Int?
+  turns             CallTurn[]
+
+  @@unique([provider, providerCallId])
+  @@index([brokerageId, startedAt])
+}
+
+enum CallTurnRole {
+  CALLER
+  ASSISTANT
+}
+
+model CallTurn {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   CallSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  seq       Int
+  role      CallTurnRole
+  text      String
+  createdAt DateTime     @default(now())
+
+  @@unique([sessionId, seq])
 }

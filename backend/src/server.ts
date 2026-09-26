@@ -2,6 +2,7 @@ import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { prisma } from "./db.js";
 import { processPending } from "./whatsapp/processor.js";
+import { sweepCalls } from "./callAssistant/sessions.js";
 
 // Fail fast on missing secrets rather than at first login.
 void config.jwtSecret;
@@ -13,6 +14,8 @@ const server = createApp().listen(config.port, () => {
 // Retry WhatsApp messages whose processing didn't finish (e.g. after a restart).
 const sweeper = setInterval(() => {
   processPending().catch((err) => console.error("WhatsApp sweep failed", err));
+  // AI calls whose "ended" webhook never came, and CRM saves to retry.
+  sweepCalls().catch((err) => console.error("AI call sweep failed", err));
 }, 60_000);
 
 const shutdown = () => {
