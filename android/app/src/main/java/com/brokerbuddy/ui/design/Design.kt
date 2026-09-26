@@ -427,7 +427,7 @@ fun Furnishing.chipLabel() = when (this) {
     Furnishing.FULLY_FURNISHED -> "Furnished"
 }
 
-/** Listing card: picture (placeholder until photos are supported), title, area, price, chips. */
+/** Listing card: cover photo (stock artwork when the listing has none), title, area, price, chips. */
 @Composable
 fun PropertyCard(
     property: Property,
