@@ -154,7 +154,7 @@ object ReminderScheduler {
 class ReminderSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val container = (applicationContext as BrokerBuddyApp).container
-        if (!container.sessionStore.current().isLoggedIn) return Result.success()
+        if (!container.sessionStore.current().isRealAccount) return Result.success()
         val now = Instant.now()
         val reminders = container.api.call {
             reminders(

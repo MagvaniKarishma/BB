@@ -15,7 +15,17 @@ private val Context.dataStore by preferencesDataStore(name = "session")
 
 data class Session(val serverUrl: String, val token: String?, val user: User?) {
     val isLoggedIn: Boolean get() = token != null && user != null
+
+    /** Signed in to the offline demo (sample data served from the app, see DemoInterceptor). */
+    val isDemo: Boolean get() = isLoggedIn && token == DEMO_TOKEN
+
+    /** Signed in to a real server; background sync, notifications and caller ID only run then. */
+    val isRealAccount: Boolean get() = isLoggedIn && !isDemo
 }
+
+/** Stored in place of a server token while the offline demo is on. */
+const val DEMO_TOKEN = "demo-mode"
+
 
 /** Persists the API server URL and the signed-in user's token. */
 class SessionStore(private val context: Context, private val json: Json) {

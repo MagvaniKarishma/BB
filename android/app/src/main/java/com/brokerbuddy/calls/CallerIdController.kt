@@ -31,7 +31,7 @@ object CallerIdController {
         val settings = CallerSettings(app)
         if (!settings.enabled) return
         scope.launch {
-            if (!app.container.sessionStore.current().isLoggedIn) return@launch
+            if (!app.container.sessionStore.current().isRealAccount) return@launch
             val number = rawNumber?.let(PhoneNumbers::normalize)
             if (rawNumber == null) return@launch // withheld number: nothing to identify
 

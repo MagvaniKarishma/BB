@@ -1,5 +1,11 @@
 package com.brokerbuddy.ui
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -166,6 +172,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
     val scope = rememberCoroutineScope()
     var showMenu by remember { mutableStateOf(false) }
     var pickingVoiceClient by remember { mutableStateOf(false) }
+    val isDemo = container.sessionStore.session.collectAsState(initial = null).value?.isDemo == true
 
     LaunchedEffect(openRoute) {
         if (openRoute != null) {
@@ -179,13 +186,17 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
         // Each screen draws its own top bar and handles the status-bar inset itself.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            if (tabs.any { it.route == currentRoute }) {
-                BrandBottomBar(
-                    items = tabs,
-                    selectedRoute = currentRoute,
-                    onSelect = { nav.navigateTab(it) },
-                    onMic = { pickingVoiceClient = true },
-                )
+            val onTab = tabs.any { it.route == currentRoute }
+            Column {
+                if (isDemo) DemoBanner(onExit = { scope.launch { container.sessionStore.signOut() } }, aboveTabs = onTab)
+                if (onTab) {
+                    BrandBottomBar(
+                        items = tabs,
+                        selectedRoute = currentRoute,
+                        onSelect = { nav.navigateTab(it) },
+                        onMic = { pickingVoiceClient = true },
+                    )
+                }
             }
         },
     ) { padding ->
@@ -461,4 +472,22 @@ private fun RequestNotificationPermissionOnce() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     LaunchedEffect(Unit) { launcher.launch(Manifest.permission.POST_NOTIFICATIONS) }
+}
+
+/** Shown on every screen while the offline demo is on. */
+@Composable
+private fun DemoBanner(onExit: () -> Unit, aboveTabs: Boolean) {
+    val tint = MaterialTheme.brand.amber
+    androidx.compose.foundation.layout.Row(
+        Modifier.fillMaxWidth().background(tint.container)
+            .then(if (aboveTabs) Modifier else Modifier.navigationBarsPadding())
+            .padding(start = 16.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Demo · sample data, changes aren't saved",
+            style = MaterialTheme.typography.bodySmall, color = tint.content, modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onExit) { Text("Exit demo", color = tint.content) }
+    }
 }

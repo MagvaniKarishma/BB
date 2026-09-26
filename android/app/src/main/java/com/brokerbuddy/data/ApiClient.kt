@@ -9,6 +9,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.HttpException
@@ -33,11 +34,12 @@ class ApiException(
  * the server URL changes. The bearer token is read per request so sign-in and
  * sign-out take effect immediately.
  */
-class ApiClient(private val sessionStore: SessionStore, val json: Json) {
+class ApiClient(private val sessionStore: SessionStore, val json: Json, demo: Interceptor? = null) {
     @Volatile private var cached: Pair<String, ApiService>? = null
     @Volatile var onUnauthorized: (() -> Unit)? = null
 
     private val http: OkHttpClient = OkHttpClient.Builder()
+        .apply { if (demo != null) addInterceptor(demo) } // first, so demo requests never reach the network
         .connectTimeout(15, TimeUnit.SECONDS)
         // Voice notes are transcribed and analysed synchronously; allow for that.
         .readTimeout(120, TimeUnit.SECONDS)

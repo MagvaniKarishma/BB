@@ -176,7 +176,7 @@ Property cards show a placeholder illustration until listing photos are supporte
 
 ## Running locally
 
-To try the app on a real phone, follow [`docs/TESTING_ON_A_PHONE.md`](docs/TESTING_ON_A_PHONE.md) (APK download, server setup, test checklist, what's still partial).
+To try the app on a real phone, follow [`docs/TESTING_ON_A_PHONE.md`](docs/TESTING_ON_A_PHONE.md) (APK download, server setup, test checklist, what's still partial). To look around without a server, tap **Try the demo** on the sign-in screen (sample data, read-only).
 
 ### Backend
 ```bash

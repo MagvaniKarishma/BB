@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.brokerbuddy.core.model.LoginRequest
 import com.brokerbuddy.data.ApiException
+import com.brokerbuddy.data.DEMO_TOKEN
 import com.brokerbuddy.core.model.RegisterRequest
 import com.brokerbuddy.ui.common.appContainer
 import com.brokerbuddy.ui.common.rememberText
@@ -226,6 +228,23 @@ fun LoginScreen() {
             }
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }
+        if (!registering) {
+            OutlinedButton(
+                onClick = {
+                    error = null
+                    busy = true
+                    scope.launch {
+                        runCatching { container.demo.user() }
+                            .onSuccess { container.sessionStore.signIn(DEMO_TOKEN, it) }
+                            .onFailure { error = "Couldn't open the demo: ${it.message}" }
+                        busy = false
+                    }
+                },
+                enabled = !busy,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) { Text("Try the demo (no server needed)") }
+        }
         if (showServer || server.isBlank()) {
             OutlinedTextField(
                 server, { server = it }, label = { Text("Server address") },

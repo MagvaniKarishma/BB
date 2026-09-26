@@ -12,6 +12,17 @@ production.
   - The backend was built, started and signed into with the demo account.
 - **Not checked:** the app has **not been run on a phone or emulator yet**. Your test is the first time the screens run on a device, so expect some rough edges and please note anything odd.
 
+## Quickest look: the demo (no server)
+
+On the sign-in screen, tap **Try the demo (no server needed)**. The app opens with a sample brokerage: 11 clients, 12 listings, follow-ups, WhatsApp leads and voice notes. These are real answers from the BrokerBuddy server, saved into the app and served on the phone.
+- **What works:** every screen, lists, tabs, search, client and property details, matches and requirement history. Dates move forward so today's follow-ups stay "today".
+- **What doesn't:** nothing you add or change is saved; the app says so. Photos, recordings, SMS, WhatsApp sending, AI calls and caller ID are off. Follow-up notifications don't fire.
+- **Leaving:** tap **Exit demo** on the yellow bar to return to sign-in.
+
+To test saving data, use your own server (below).
+
+To refresh the sample data after server changes, run `backend/scripts/demo-snapshot.ts` against an empty scratch database. The script's header has the command.
+
 ## 1. Start the server on your computer
 
 You need:

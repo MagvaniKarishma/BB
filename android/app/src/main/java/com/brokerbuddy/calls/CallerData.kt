@@ -71,7 +71,7 @@ object CallerDirectoryStore {
 class CallerDirectorySyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val container = (applicationContext as BrokerBuddyApp).container
-        if (!container.sessionStore.current().isLoggedIn) {
+        if (!container.sessionStore.current().isRealAccount) {
             CallerDirectoryStore.clear(applicationContext)
             return Result.success()
         }
