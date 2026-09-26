@@ -1,4 +1,5 @@
 import express, { Router, type Request, type Response } from "express";
+import { describeForLog } from "../lib/errors.js";
 import { prisma } from "../db.js";
 import { handleCallEvent } from "../callAssistant/sessions.js";
 import { FINAL_STATUSES, TWILIO, renderTwiml, twilioConfigured, validTwilioSignature } from "../callAssistant/providers/twilio.js";
@@ -54,7 +55,7 @@ async function reply(res: Response, run: () => ReturnType<typeof handleCallEvent
     res.type("text/xml").send(renderTwiml(ins, publicBaseUrl()!));
   } catch (err) {
     // Never leave the caller in silence: apologise and end; the sweeper saves what we have.
-    console.error("AI call handling failed", err);
+    console.error("AI call handling failed", describeForLog(err));
     res.type("text/xml").send(
       renderTwiml({ steps: [{ kind: "say", text: "Sorry, something went wrong. We will call you back.", language: "ENGLISH" }], next: { kind: "hangup" } }, publicBaseUrl()!),
     );

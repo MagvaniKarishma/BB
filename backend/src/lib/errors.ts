@@ -44,6 +44,17 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(400).json({ error: { code: "BAD_JSON", message: "Malformed JSON body" } });
     return;
   }
-  console.error(err);
+  console.error(describeForLog(err));
   res.status(500).json({ error: { code: "INTERNAL", message: "Internal server error" } });
 };
+
+/**
+ * What an unexpected error looks like in the server log. Database errors carry the query's
+ * values (client names, phone numbers, messages), so only their kind and code are logged.
+ */
+export function describeForLog(err: unknown): string {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) return `Database error ${err.code} (${err.meta?.modelName ?? "query"})`;
+  if (err instanceof Prisma.PrismaClientValidationError) return "Database validation error (details withheld: may contain client data)";
+  if (err instanceof Error) return err.stack ?? `${err.name}: ${err.message}`;
+  return String(err);
+}

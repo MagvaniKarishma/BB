@@ -69,12 +69,25 @@ Handling of particular rows:
 - Creating a new link turns off the old one.
 - The key is shown once. Only its hash is stored.
 
+## After upgrading an existing server
+
+Portal enquiries shared over WhatsApp **before** this version aren't on the portal screens until you run, once, in `backend/`:
+
+```bash
+npm run backfill:portal-leads            # dry run: shows how many would be added
+npm run backfill:portal-leads -- --apply # adds them
+```
+
+It uses what was already read from each message and links a lead only to a client already linked or with the same phone number. It never creates clients, and running it again adds nothing.
+
 ## Clients and duplicates
 
 - A lead is linked to a client by **phone number**, or by **email** when exactly one client has it. **Never by name**: two "Rahul Sharma"s with different numbers stay two clients.
 - A new client is created only when the lead has a phone number no client has. Its source is set to the portal.
 - A lead with only an email stays unlinked until you link the client. Notes and follow-ups need a linked client.
 - Each enquiry keeps its own record with its original time and message, even from the same person about the same listing. The same enquiry delivered twice is stored once.
+- The same enquiry can arrive by two routes, e.g. the WhatsApp notification and later the CSV export. It is recognised when it's the same portal and the same phone or email, the listing matches (or one source didn't name it), and the times are within 10 minutes. The second copy only fills in missing details.
+- Two different portal lead IDs are never merged. A shared WhatsApp message's time is when it was sent or shared, which can differ from the portal's time by more than 10 minutes; those copies are then kept as two leads.
 
 ## Listings and your own properties
 

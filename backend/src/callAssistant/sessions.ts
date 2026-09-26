@@ -1,4 +1,5 @@
 import { Prisma, type CallSession, type GreetingLanguage } from "@prisma/client";
+import { describeForLog } from "../lib/errors.js";
 import { prisma } from "../db.js";
 import { normalizePhone } from "../lib/phone.js";
 import { findByPhones } from "../services/clients.js";
@@ -260,5 +261,5 @@ export async function sweepCalls(now = new Date()) {
     await prisma.callSession.update({ where: { id: s.id }, data: { status: "INTERRUPTED", endedAt: now } });
   }
   const unsaved = await prisma.callSession.findMany({ where: { endedAt: { not: null }, savedAt: null, isTest: false }, take: 50 });
-  for (const s of unsaved) await saveCallToCrm(s.id).catch((err) => console.error("AI call save failed", s.id, err));
+  for (const s of unsaved) await saveCallToCrm(s.id).catch((err) => console.error("AI call save failed", s.id, describeForLog(err)));
 }

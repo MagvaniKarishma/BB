@@ -311,3 +311,144 @@ describe("voice commands", () => {
     expect((await cmd("what is the weather")).intent).toBe("UNKNOWN");
   });
 });
+
+describe("quality review: duplicates across sources", () => {
+  const acres = (text: string) => ({ text });
+  it("the same enquiry via WhatsApp and then the CSV export is one lead; separate enquiries stay separate", async () => {
+    const { api } = await registerBroker();
+    // 1) The portal's WhatsApp/email notification.
+    const email = "Dear Advertiser, You have received a response on your property ID A12345678 (2 BHK Apartment for Rent in Andheri West, Mumbai, ₹70,000). Name: Rahul Sharma, Mobile: +91-9820011001. - 99acres";
+    await api.post("/portal-leads/import-text", { ...acres(email), enquiredAt: exportDate(0, 10, 15) });
+    // 2) The same enquiry in the CSV export (2 minutes' difference in the portal's timestamp).
+    const csv = `Lead ID,Name,Mobile,Enquiry Date,Message,Property ID\nL-1,Rahul Sharma,9820011001,${exportDate(0, 10, 17)},Is it available?,A12345678`;
+    const res = await api.post("/portal-leads/import", { portal: "ACRES_99", csv });
+    expect(res.body).toMatchObject({ created: 0, duplicates: 1, clientsCreated: 0 });
+    const [lead] = await prisma.portalLead.findMany();
+    expect(lead).toMatchObject({ externalLeadId: "L-1", message: "Is it available?" }); // gaps filled from the second source
+    expect(await prisma.portalLead.count()).toBe(1);
+    expect(await prisma.client.count()).toBe(1);
+
+    // Same person, same listing, two hours later: a new enquiry.
+    await api.post("/portal-leads/import", { portal: "ACRES_99", csv: `Name,Mobile,Enquiry Date,Property ID\nRahul Sharma,9820011001,${exportDate(0, 12, 30)},A12345678` });
+    // Same person, a different listing, same minute: a separate enquiry.
+    await api.post("/portal-leads/import", { portal: "ACRES_99", csv: `Name,Mobile,Enquiry Date,Property ID\nRahul Sharma,9820011001,${exportDate(0, 10, 15)},B55555555` });
+    // Two different portal lead IDs are never merged, however close in time.
+    await api.post("/portal-leads/import", { portal: "ACRES_99", csv: `Lead ID,Name,Mobile,Enquiry Date,Property ID\nL-2,Rahul Sharma,9820011001,${exportDate(0, 10, 16)},A12345678` });
+    expect(await prisma.portalLead.count()).toBe(4);
+    expect(await prisma.client.count()).toBe(1); // still one client
+  });
+
+  it("a WhatsApp webhook retry of the same message stores one lead", async () => {
+    const { api } = await registerBroker();
+    const text = "You have a new lead on Housing.com. Name: Neha Rao, Mobile: 9820066666, Property: 1 BHK Apartment in Mulund West, Price: ₹ 27,000";
+    const first = await api.post("/whatsapp/import", { text });
+    const again = await api.post("/whatsapp/import", { text });
+    expect(again.body.message.id).toBe(first.body.message.id);
+    expect(await prisma.portalLead.count()).toBe(1);
+  });
+
+  it("without a phone or email nothing is merged or created", async () => {
+    const { api } = await registerBroker();
+    const text = "Hi, I came across your 1 BHK Apartment listed at Housing.com for ₹ 27,000 in Mulund West, Mumbai. Please let me know if it is available.";
+    await api.post("/whatsapp/import", { text });
+    await api.post("/whatsapp/import", { text: `${text} Thanks` });
+    const leads = await prisma.portalLead.findMany();
+    expect(leads).toHaveLength(2);
+    expect(leads.every((l) => l.clientId === null)).toBe(true);
+    expect(await prisma.client.count()).toBe(0);
+    // An invalid number is not a reliable identifier either.
+    const res = await api.post("/portal-leads/import", { portal: "HOUSING_COM", csv: `Name,Mobile,Enquiry Date\nX,12,${exportDate(0, 9)}` });
+    expect(res.body.clientsCreated).toBe(0);
+  });
+});
+
+describe("quality review: access control", () => {
+  it("one broker can't see or change another broker's leads, listings or clients", async () => {
+    const a = await registerBroker("A Realty");
+    const b = await registerBroker("B Realty");
+    await a.api.post("/portal-leads/import", { portal: "ACRES_99", csv: CSV_99 });
+    const listing = await prisma.portalListing.findFirstOrThrow();
+    const lead = await prisma.portalLead.findFirstOrThrow();
+
+    expect((await b.api.get("/portal-leads/listings?portal=ACRES_99")).body.listings).toEqual([]);
+    expect((await b.api.get(`/portal-leads/listings/${listing.id}`)).status).toBe(404);
+    expect((await b.api.get("/portal-leads/listings/unidentified?portal=ACRES_99")).body.leads).toEqual([]);
+    expect((await b.api.get("/portal-leads")).body.leads).toEqual([]);
+    expect((await b.api.get(`/portal-leads?clientId=${lead.clientId}`)).body.leads).toEqual([]);
+    expect((await b.api.patch(`/portal-leads/${lead.id}`, { status: "CLOSED" })).status).toBe(404);
+    expect((await b.api.get(`/clients/${lead.clientId}`)).status).toBe(404);
+    expect((await b.api.get("/dashboard")).body.todayWork).toMatchObject({ acres99Leads: 0, newLeads: 0 });
+    // Voice commands only see the caller's own clients.
+    expect((await b.api.post("/assistant/command", { text: "Mark Rahul as contacted" })).body.done).toBe(false);
+    expect((await prisma.portalLead.findUniqueOrThrow({ where: { id: lead.id } })).status).toBe("NEW");
+    // B importing the same phone makes B's own client, never touching A's.
+    await b.api.post("/portal-leads/import", { portal: "ACRES_99", csv: CSV_99 });
+    const rahuls = await prisma.client.findMany({ where: { primaryPhone: "+919820011001" } });
+    expect(new Set(rahuls.map((c) => c.brokerageId)).size).toBe(2);
+  });
+
+  it("every new endpoint needs sign-in except the inbound link, which needs its key", async () => {
+    const routes: [string, string][] = [
+      ["get", "/api/v1/portal-leads/listings?portal=ACRES_99"],
+      ["get", "/api/v1/portal-leads/listings/x"],
+      ["get", "/api/v1/portal-leads"],
+      ["patch", "/api/v1/portal-leads/x"],
+      ["post", "/api/v1/portal-leads/import"],
+      ["post", "/api/v1/portal-leads/import-text"],
+      ["get", "/api/v1/portal-leads/integrations"],
+      ["post", "/api/v1/portal-leads/integrations/ACRES_99/key"],
+      ["post", "/api/v1/assistant/command"],
+    ];
+    for (const [m, url] of routes) {
+      const res = await (request(app) as unknown as Record<string, (u: string) => request.Test>)[m](url);
+      expect(res.status, `${m} ${url}`).toBe(401);
+    }
+    expect((await request(app).post("/api/v1/portal-inbound/nokey").send({ enquiredAt: "2026-09-26", phone: "9820000000" })).status).toBe(404);
+  });
+
+  it("an inbound key only ever writes to its own brokerage and portal", async () => {
+    const a = await registerBroker("A Realty");
+    const b = await registerBroker("B Realty");
+    const key = (await a.api.post("/portal-leads/integrations/ACRES_99/key", {})).body.key;
+    await request(app).post(`/api/v1/portal-inbound/${key}`).send({ enquiredAt: "2026-09-26T10:00:00Z", phone: "9820012345", name: "Z" });
+    const lead = await prisma.portalLead.findFirstOrThrow();
+    expect(lead.portal).toBe("ACRES_99");
+    expect(lead.brokerageId).toBe((await prisma.user.findFirstOrThrow({ where: { id: a.user.id } })).brokerageId);
+    expect((await b.api.get("/portal-leads")).body.leads).toEqual([]);
+    // Only a hash of the key is stored.
+    const stored = await prisma.portalIntegration.findFirstOrThrow();
+    expect(JSON.stringify(stored)).not.toContain(key);
+  });
+});
+
+describe("quality review: logging", () => {
+  it("unexpected database errors are logged without client data", async () => {
+    const { describeForLog } = await import("../src/lib/errors.js");
+    const { Prisma } = await import("@prisma/client");
+    const err = new Prisma.PrismaClientValidationError("Invalid value for name: 'Rahul Sharma' phone +919820011001", { clientVersion: "x" });
+    const line = describeForLog(err);
+    expect(line).not.toContain("Rahul");
+    expect(line).not.toContain("9820011001");
+  });
+});
+
+describe("quality review: upgrade backfill", () => {
+  it("adds leads for portal messages received before the upgrade, once, without creating clients", async () => {
+    const { api } = await registerBroker();
+    await api.post("/whatsapp/import", { text: "You have a new lead on Housing.com. Name: Neha Rao, Mobile: 9820066666, Property: 1 BHK Apartment in Mulund West, Price: ₹ 27,000" });
+    // As if the message had been processed before portal leads existed.
+    await prisma.portalLead.deleteMany();
+    await prisma.portalListing.deleteMany();
+    await prisma.whatsAppMessage.updateMany({ data: { clientId: null } });
+    await prisma.client.deleteMany();
+    const { backfillPortalLeads } = await import("../scripts/backfill-portal-leads.js");
+    expect(await backfillPortalLeads(false)).toMatchObject({ added: 1 });
+    expect(await prisma.portalLead.count()).toBe(0); // dry run writes nothing
+    expect(await backfillPortalLeads(true)).toMatchObject({ added: 1, existing: 0 });
+    expect(await backfillPortalLeads(true)).toMatchObject({ added: 0, existing: 1 });
+    const lead = await prisma.portalLead.findFirstOrThrow({ include: { listing: true } });
+    expect(lead).toMatchObject({ portal: "HOUSING_COM", phone: "+919820066666", clientId: null });
+    expect(lead.listing).toMatchObject({ locality: "Mulund West" });
+    expect(await prisma.client.count()).toBe(0);
+  });
+});

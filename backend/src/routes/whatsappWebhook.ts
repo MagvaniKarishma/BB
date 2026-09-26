@@ -1,4 +1,5 @@
 import express, { Router } from "express";
+import { describeForLog } from "../lib/errors.js";
 import { prisma } from "../db.js";
 import { decrypt, validMetaSignature } from "../lib/crypto.js";
 import { parseWebhook } from "../whatsapp/webhook.js";
@@ -58,5 +59,5 @@ whatsappWebhookRouter.post("/:key", express.raw({ type: "*/*", limit: "1mb" }), 
   res.sendStatus(200);
   inFlight = inFlight.then(async () => {
     for (const id of ids) await processMessage(id);
-  }).catch((err) => console.error("WhatsApp processing failed", err));
+  }).catch((err) => console.error("WhatsApp processing failed", describeForLog(err)));
 });

@@ -56,6 +56,8 @@ export interface LeadInput {
   clientId?: string | null;
   /** Stable key when the source can re-deliver the same enquiry (e.g. "wa:<message id>"). */
   dedupeKey?: string | null;
+  /** false: link to an existing client only, never create one (used by the one-time backfill). */
+  createClient?: boolean;
 }
 
 export interface RecordResult {
@@ -223,18 +225,24 @@ export async function recordLead(me: AuthUser, input: LeadInput): Promise<Record
   let clientCreated = false;
   if (!clientId) clientId = (await matchClient(brokerageId, phone, email))?.id ?? null;
 
-  const existing = await prisma.portalLead.findUnique({
+  const existing = (await prisma.portalLead.findUnique({
     where: { brokerageId_portal_dedupeKey: { brokerageId, portal: input.portal, dedupeKey } },
-  });
+  })) ?? (await sameEnquiryFromAnotherSource(brokerageId, input.portal, listing?.id ?? null, phone, email, externalLeadId, input.enquiredAt));
   if (existing) {
     const patch: Prisma.PortalLeadUncheckedUpdateInput = {};
     if (!existing.clientId && clientId) patch.clientId = clientId;
     if (!existing.listingId && listing) patch.listingId = listing.id;
+    // A second source may know more about the same enquiry; fill gaps only.
+    if (!existing.externalLeadId && externalLeadId) patch.externalLeadId = externalLeadId;
+    if (!existing.name && name) patch.name = name;
+    if (!existing.email && email) patch.email = email;
+    if (!existing.phone && phone) patch.phone = phone;
+    if (!existing.message && message) patch.message = message;
     const lead = Object.keys(patch).length ? await prisma.portalLead.update({ where: { id: existing.id }, data: patch }) : existing;
     return { lead, created: false, clientCreated: false };
   }
 
-  if (!clientId && phone) {
+  if (!clientId && phone && input.createClient !== false) {
     try {
       const client = await createClientChecked(me, {
         name: name ?? phone,
@@ -287,6 +295,35 @@ export async function recordLead(me: AuthUser, input: LeadInput): Promise<Record
     }
     throw err;
   }
+}
+
+/** How close in time two copies of one enquiry from different sources (WhatsApp, CSV, email) can be. */
+export const SAME_ENQUIRY_WINDOW_MS = 10 * 60_000;
+
+/**
+ * The same enquiry reaching BrokerBuddy by a second route (e.g. the WhatsApp notification and
+ * then the portal's CSV export): same portal, same person (phone or email), same listing (or
+ * one source didn't say which), within a few minutes. Two different lead IDs from the portal
+ * are always two enquiries; with no phone or email nothing is treated as the same.
+ */
+async function sameEnquiryFromAnotherSource(
+  brokerageId: string, portal: PortalSource, listingId: string | null,
+  phone: string | null, email: string | null, externalLeadId: string | null, at: Date,
+) {
+  if (!phone && !email) return null;
+  return prisma.portalLead.findFirst({
+    where: {
+      brokerageId,
+      portal,
+      AND: [
+        { OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])] },
+        listingId ? { OR: [{ listingId }, { listingId: null }] } : {},
+        externalLeadId ? { OR: [{ externalLeadId: null }, { externalLeadId }] } : {},
+      ],
+      enquiredAt: { gte: new Date(at.getTime() - SAME_ENQUIRY_WINDOW_MS), lte: new Date(at.getTime() + SAME_ENQUIRY_WINDOW_MS) },
+    },
+    orderBy: { enquiredAt: "asc" },
+  });
 }
 
 /** A WhatsApp message was linked to a client: its portal leads follow. */
