@@ -157,8 +157,22 @@ const BY_BEFORE = alt(["by", "before", "till", "until"]);
 
 // ---------- extractor ----------
 
-export function extractWithRules(transcript: string): Extraction {
-  const text = transcript.normalize("NFC");
+export interface ExtractOptions {
+  /** Character ranges (in the NFC text) to ignore, e.g. a portal listing's price. */
+  mask?: Span[];
+}
+
+/** Blanks out ranges with spaces so offsets (and verbatim evidence) stay valid. */
+function applyMask(text: string, mask: Span[] = []): string {
+  if (mask.length === 0) return text;
+  const chars = text.split("");
+  for (const { start, end } of mask) for (let i = Math.max(0, start); i < Math.min(end, chars.length); i++) chars[i] = " ";
+  return chars.join("");
+}
+
+export function extractWithRules(transcript: string, options: ExtractOptions = {}): Extraction {
+  const text = applyMask(transcript.normalize("NFC"), options.mask);
+  const advertisedPrices: Evidence<number>[] = [];
   const draft: RequirementDraft = {};
   const warnings: string[] = [];
   const ev = <T>(value: T, m: { index?: number; 0: string }): Evidence<T> => ({ value, evidence: m[0].trim() });
@@ -263,9 +277,24 @@ export function extractWithRules(transcript: string): Extraction {
   const MIN_BEFORE = alt(["minimum", "min", "at least", "kam se kam", "कम से कम", "above", "more than"]);
   const MIN_AFTER = alt(["se upar", "से ऊपर", "se zyada", "से ज़्यादा", "plus", "above", "पेक्षा जास्त", "च्या वर"]);
 
+  // "asking price 65k", "listed at 1.2 cr", "कीमत 90 लाख": a property's price, not the budget.
+  const PRICE_BEFORE = alt(["price", "priced at", "priced", "asking", "asking price", "listed at", "listed for",
+    "listing price", "advertised", "expected price", "quoted", "quote", "कीमत", "क़ीमत", "किंमत", "प्राइस",
+    "rent is", "rent hai", "ka rent", "ka price", "ki price", "ki kimat", "kimat", "keemat"]);
+  const BUDGET_CUE = alt(["budget", "बजट", "बजेट", "tak", "तक", "पर्यंत", "max", "maximum", "within", "upto", "up to", "under"]);
+
   const mins: Amount[] = [];
   const maxes: Amount[] = [];
   for (const a of amounts) {
+    if (
+      rx(`(?:${PRICE_BEFORE})\\s*(?:is|of|hai|है|:|-|=)?\\s*$`).test(before(a.start, 30)) &&
+      !rx(`(?:${BUDGET_CUE})`).test(before(a.start, 30)) &&
+      !rx(`^\\s*(?:${MAX_AFTER}|${MIN_AFTER})`).test(after(a.end))
+    ) {
+      advertisedPrices.push({ value: a.max ?? a.single!, evidence: a.text });
+      warnings.push(`${a.text} is a property's price, not the client's budget — kept separate`);
+      continue;
+    }
     if (rx(`(?:${NOT_BUDGET})[\\s\\S]{0,12}$`).test(before(a.start, 25)) || rx(`^\\s*(?:ka|की|का|ki)?\\s*(?:${NOT_BUDGET})`).test(after(a.end))) {
       warnings.push(`Ignored ${a.text} — it refers to deposit/maintenance/other costs, not the budget`);
       continue;
@@ -447,5 +476,10 @@ export function extractWithRules(transcript: string): Extraction {
   }
 
   const verified = verifyDraft(draft, transcript);
-  return { draft: verified.draft, warnings: [...warnings, ...verified.warnings], extractor: "rules" };
+  return {
+    draft: verified.draft,
+    advertisedPrices,
+    warnings: [...warnings, ...verified.warnings],
+    extractor: "rules",
+  };
 }

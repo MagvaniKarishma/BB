@@ -15,7 +15,7 @@ A real estate CRM for Mumbai brokers. It manages clients, remembers each client'
 | 1 | CRM, dashboards, requirements, inventory, matching, reminders, team | **Done** (backend fully tested; Android code written, not yet compiled — first CI run pending) |
 | 2 | Voice notes (Hindi/Hinglish/Marathi/English) → AI requirement extraction | **Done** (backend tested; Android code written, not yet compiled — first CI run pending) |
 | 3 | Caller screen for known clients (incoming-call detection) | **Done** (backend tested; Android code written, not yet compiled — first CI run pending; device testing pending — see `docs/CALLER_SCREEN.md`) |
-| 4 | WhatsApp Business Cloud API; 99acres / Housing.com / Magicbricks lead parsing | Not started (the app has a `wa.me` click-to-chat fallback) |
+| 4 | WhatsApp Business Cloud API; 99acres / Housing.com / Magicbricks lead recognition | **Done** (backend tested; Android code written, not yet compiled — first CI run pending; not tested against Meta's live API — see `docs/WHATSAPP.md`) |
 | 5 | Security hardening, deployment, signed APK and download site | Signing config and CI are in place |
 
 ## Phase 1: what works
@@ -128,6 +128,32 @@ API: `POST /voice-notes` (multipart `audio`, `clientId`, `inquiryId?`, `language
 
 API: `GET /caller/lookup?phone=` · `GET /caller/directory` · `GET|POST /clients/:id/notes`
 
+## Phase 4: WhatsApp and portal leads
+
+**How messages arrive:** the official WhatsApp Cloud API delivers them by webhook.
+- Each brokerage connects its own number and gets its own webhook URL.
+- Every event is signature-checked, and Meta's retries are ignored.
+- The access token and app secret are stored encrypted.
+
+**Who a message is about:**
+- Clients are identified by phone number.
+- Unknown senders go to a **WhatsApp leads** inbox. *Create client* is duplicate-safe: an existing number links to that client instead.
+- Portal leads forwarded by an agent are recognised as forwards, so the agent never becomes a client.
+
+**Portal leads (99acres, Housing.com, Magicbricks):** the lead's name, phone, email and listing are recognised. **The advertised price is kept separate and masked before extraction**, so it never becomes the client's budget.
+
+**Requirements:**
+- Drafts are extracted with the Phase 2 extractor and reviewed before saving.
+- Saving records a `WHATSAPP` revision linked to the message.
+- The client's conversation history is kept, including WhatsApp voice messages (transcribed).
+
+**Without the API:**
+- share a message, or an exported chat, into the app from WhatsApp;
+- paste text on the import screen;
+- use *Open in WhatsApp* to send.
+
+Credentials, Meta setup steps and limitations are in [`docs/WHATSAPP.md`](docs/WHATSAPP.md).
+
 ## Running locally
 
 ### Backend
@@ -161,10 +187,6 @@ Release signing reads `android/keystore.properties` (`storeFile`, `storePassword
 `properties` (CRUD, `:id/matches`) · `dashboard` · `reminders` (list, create, patch, delete) · `team` (list, add, patch)
 
 ## Plans for the next phases
-- **Phase 4 – WhatsApp and portal leads.**
-  - The official WhatsApp Business Cloud API: webhook, approved message templates, and the 24-hour session window respected.
-  - Parse portal lead emails and exports (99acres, Housing.com, Magicbricks) into leads. Leads go through the same duplicate check and are never auto-merged without broker confirmation.
-  - If the API isn't set up: `wa.me` links.
 - **Phase 5 – production readiness.**
   - Rate limiting, stored tokens encrypted with the Android Keystore, audit logs, backups.
   - Docker deployment and HTTPS.

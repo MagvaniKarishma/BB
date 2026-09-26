@@ -6,7 +6,7 @@ export const app = createApp();
 
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "ClientNote","VoiceNote","Reminder","InquiryRevision","Inquiry","ClientPhone","Client","Property","User","Brokerage" CASCADE`,
+    `TRUNCATE "WhatsAppMessage","WhatsAppContact","WhatsAppAccount","ClientNote","VoiceNote","Reminder","InquiryRevision","Inquiry","ClientPhone","Client","Property","User","Brokerage" CASCADE`,
   );
 }
 
@@ -32,3 +32,28 @@ export function authed(token: string) {
     delete: (url: string) => request(app).delete(`/api/v1${url}`).set(h),
   };
 }
+
+/** Payload shaped like Meta's documented "messages" webhook. */
+export function metaPayload(phoneNumberId: string, messages: object[], contacts: object[] = [], statuses: object[] = []) {
+  return {
+    object: "whatsapp_business_account",
+    entry: [
+      {
+        id: "102290129340398",
+        changes: [
+          {
+            field: "messages",
+            value: {
+              messaging_product: "whatsapp",
+              metadata: { display_phone_number: "919820000000", phone_number_id: phoneNumberId },
+              contacts,
+              messages,
+              statuses,
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+

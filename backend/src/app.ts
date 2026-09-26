@@ -12,6 +12,8 @@ import { dashboardRouter } from "./routes/dashboard.js";
 import { remindersRouter } from "./routes/reminders.js";
 import { voiceNotesRouter } from "./routes/voiceNotes.js";
 import { callerRouter } from "./routes/caller.js";
+import { whatsappRouter } from "./routes/whatsapp.js";
+import { whatsappWebhookRouter } from "./routes/whatsappWebhook.js";
 
 export function createApp() {
   const app = express();
@@ -23,7 +25,9 @@ export function createApp() {
   );
   app.use(helmet());
   app.use(cors());
-  app.use(express.json({ limit: "1mb" }));
+  // Meta webhooks need the raw body for signature checks, so they're mounted before JSON parsing.
+  app.use("/webhooks/whatsapp", whatsappWebhookRouter);
+  app.use(express.json({ limit: "3mb" }));
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
@@ -40,6 +44,7 @@ export function createApp() {
   api.use("/reminders", remindersRouter);
   api.use("/voice-notes", voiceNotesRouter);
   api.use("/caller", callerRouter);
+  api.use("/whatsapp", whatsappRouter);
   app.use("/api/v1", api);
 
   app.use((_req, _res, next) => next(notFound("Route")));

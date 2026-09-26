@@ -45,6 +45,7 @@ import com.brokerbuddy.core.model.Dashboard
 import com.brokerbuddy.core.model.DashboardTile
 import com.brokerbuddy.core.model.PropertyCategory
 import com.brokerbuddy.core.model.TransactionType
+import com.brokerbuddy.ui.common.Load
 import com.brokerbuddy.ui.common.LoadContent
 import com.brokerbuddy.ui.common.appContainer
 import com.brokerbuddy.ui.common.rememberLoad
@@ -57,9 +58,11 @@ fun DashboardScreen(
     onTile: (TransactionType, PropertyCategory) -> Unit,
     onSettings: () -> Unit,
     onReminders: () -> Unit,
+    onWhatsApp: () -> Unit,
 ) {
     val api = appContainer().api
     val loader = rememberLoad { api.call { dashboard() } }
+    val waAttention = rememberLoad { api.call { whatsappInbox().messages.size } }
     var type by rememberSaveable { mutableStateOf(TransactionType.RENT) }
 
     // Live counts: refresh while the dashboard is visible.
@@ -69,6 +72,7 @@ fun DashboardScreen(
             while (true) {
                 delay(REFRESH_MS)
                 loader.reload()
+                waAttention.reload()
             }
         }
     }
@@ -89,7 +93,8 @@ fun DashboardScreen(
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
             LoadContent(loader) { data ->
-                DashboardContent(data, type, onTypeChange = { type = it }, onTile = onTile, onReminders = onReminders)
+                val waCount = (waAttention.state as? Load.Ready)?.value ?: 0
+                DashboardContent(data, type, onTypeChange = { type = it }, onTile = onTile, onReminders = onReminders, waCount = waCount, onWhatsApp = onWhatsApp)
             }
         }
     }
@@ -102,6 +107,8 @@ private fun DashboardContent(
     onTypeChange: (TransactionType) -> Unit,
     onTile: (TransactionType, PropertyCategory) -> Unit,
     onReminders: () -> Unit,
+    waCount: Int,
+    onWhatsApp: () -> Unit,
 ) {
     val board = if (type == TransactionType.RENT) data.rent else data.buy
     LazyVerticalGrid(
@@ -124,6 +131,17 @@ private fun DashboardContent(
         }
         items(board.tiles, key = { it.category.name }) { tile ->
             CategoryTile(tile) { onTile(type, tile.category) }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Card(Modifier.fillMaxWidth().clickable(onClick = onWhatsApp)) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("WhatsApp & portal leads", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (waCount == 0) "Nothing waiting" else "$waCount need attention",
+                        color = if (waCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Card(Modifier.fillMaxWidth().clickable(onClick = onReminders)) {

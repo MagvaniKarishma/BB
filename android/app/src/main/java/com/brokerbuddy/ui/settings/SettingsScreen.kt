@@ -78,6 +78,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     if (manager) {
                         OutlinedButton(onClick = { adding = true }, modifier = Modifier.padding(top = 8.dp)) { Text("Add team member") }
                     }
+                    if (manager) WhatsAppSetupSection()
                     if (adding) {
                         AddMemberDialog(
                             canAddAdmin = info.user.role == Role.OWNER,
@@ -116,6 +117,7 @@ private fun AddMemberDialog(canAddAdmin: Boolean, onDismiss: () -> Unit, onAdded
     var name by rememberText()
     var email by rememberText()
     var password by rememberText()
+    var phone by rememberText()
     var role by remember { mutableStateOf(Role.AGENT) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -135,6 +137,11 @@ private fun AddMemberDialog(canAddAdmin: Boolean, onDismiss: () -> Unit, onAdded
                     visualTransformation = PasswordVisualTransformation(),
                     supportingText = { Text("At least 8 characters; share it privately") },
                 )
+                OutlinedTextField(
+                    phone, { phone = it }, label = { Text("Mobile (optional)") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    supportingText = { Text("Recognises portal leads they forward on WhatsApp") },
+                )
                 if (canAddAdmin) {
                     DropdownField("Role", listOf(Role.AGENT, Role.ADMIN), role, { it.name.lowercase() }, { if (it != null) role = it })
                 }
@@ -147,7 +154,7 @@ private fun AddMemberDialog(canAddAdmin: Boolean, onDismiss: () -> Unit, onAdded
                 onClick = {
                     busy = true
                     scope.launch {
-                        api.call { addMember(CreateMemberRequest(name.trim(), email.trim(), password, role)) }
+                        api.call { addMember(CreateMemberRequest(name.trim(), email.trim(), password, role, phone.trim().ifEmpty { null })) }
                             .onSuccess { onAdded() }
                             .onFailure { error = it.message }
                         busy = false

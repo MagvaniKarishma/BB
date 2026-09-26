@@ -121,6 +121,33 @@ enum NoteSource {
   NOTIFICATION
 }
 
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+// API = received/sent through the WhatsApp Business Platform; MANUAL = shared or imported by an agent.
+enum MessageChannel {
+  API
+  MANUAL
+}
+
+enum MessageStatus {
+  RECEIVED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+// Whether the requirement draft extracted from a message has been reviewed.
+enum DraftReview {
+  NONE
+  PENDING
+  APPLIED
+  DISMISSED
+}
+
 enum Availability {
   AVAILABLE
   ON_HOLD
@@ -148,6 +175,9 @@ model Brokerage {
   reminders  Reminder[]
   voiceNotes VoiceNote[]
   notes      ClientNote[]
+  whatsappAccounts WhatsAppAccount[]
+  whatsappContacts WhatsAppContact[]
+  whatsappMessages WhatsAppMessage[]
 }
 
 model User {
@@ -194,6 +224,8 @@ model Client {
   reminders  Reminder[]
   voiceNotes VoiceNote[]
   conversationNotes ClientNote[]
+  whatsappContacts  WhatsAppContact[]
+  whatsappMessages  WhatsAppMessage[]
 
   @@index([brokerageId, status])
   @@index([brokerageId, name])
@@ -245,6 +277,7 @@ model Inquiry {
   revisions  InquiryRevision[]
   reminders  Reminder[]
   voiceNotes VoiceNote[]
+  whatsappMessages WhatsAppMessage[]
 
   @@index([brokerageId, transactionType, category, status])
   @@index([clientId])
@@ -265,6 +298,9 @@ model InquiryRevision {
   // Set when the change came from a reviewed voice note.
   voiceNoteId String?
   voiceNote   VoiceNote?        @relation(fields: [voiceNoteId], references: [id], onDelete: SetNull)
+  // Set when the change came from a reviewed WhatsApp message.
+  whatsappMessageId String?
+  whatsappMessage   WhatsAppMessage? @relation(fields: [whatsappMessageId], references: [id], onDelete: SetNull)
   createdAt   DateTime          @default(now())
 
   @@unique([inquiryId, version])
@@ -374,4 +410,90 @@ model ClientNote {
   createdAt   DateTime   @default(now())
 
   @@index([clientId, createdAt])
+}
+
+// A brokerage's WhatsApp Business phone number connected through Meta's Cloud API.
+// Secrets are stored encrypted (AES-256-GCM, key from DATA_ENCRYPTION_KEY).
+model WhatsAppAccount {
+  id             String    @id @default(cuid())
+  brokerageId    String
+  brokerage      Brokerage @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  phoneNumberId  String    @unique
+  wabaId         String?
+  displayPhone   String?
+  accessTokenEnc String
+  appSecretEnc   String
+  // Unguessable path segment of this account's webhook URL, and the token Meta echoes during verification.
+  webhookKey     String    @unique
+  verifyToken    String
+  verifiedAt     DateTime?
+  lastEventAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  contacts WhatsAppContact[]
+  messages WhatsAppMessage[]
+}
+
+// One WhatsApp user who messaged (or was messaged by) a connected number.
+model WhatsAppContact {
+  id            String           @id @default(cuid())
+  brokerageId   String
+  brokerage     Brokerage        @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  accountId     String?
+  account       WhatsAppAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  waId          String           // E.164
+  profileName   String?
+  clientId      String?
+  client        Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  lastInboundAt DateTime?
+  createdAt     DateTime         @default(now())
+
+  messages WhatsAppMessage[]
+
+  @@unique([brokerageId, waId])
+}
+
+model WhatsAppMessage {
+  id            String           @id @default(cuid())
+  brokerageId   String
+  brokerage     Brokerage        @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  accountId     String?
+  account       WhatsAppAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  contactId     String?
+  contact       WhatsAppContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  // Client and inquiry this message is about (may differ from the sender for forwarded portal leads).
+  clientId      String?
+  client        Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  inquiryId     String?
+  inquiry       Inquiry?         @relation(fields: [inquiryId], references: [id], onDelete: SetNull)
+  channel       MessageChannel
+  direction     MessageDirection
+  // WhatsApp message id (wamid) for API messages; content hash for manual imports. Dedupes retries/re-imports.
+  externalId    String
+  type          String
+  text          String?
+  mediaId       String?
+  mediaMimeType String?
+  senderName    String?
+  sentAt        DateTime
+  status        MessageStatus
+  errorReason   String?
+  // Who the message is about: the portal lead's phone/name, or the sender.
+  leadPhone     String?
+  leadName      String?
+  portal        String?
+  portalLead    Json?
+  extraction    Json?
+  review        DraftReview      @default(NONE)
+  processedAt   DateTime?
+  processError  String?
+  raw           Json?
+  createdAt     DateTime         @default(now())
+
+  revisions InquiryRevision[]
+
+  @@unique([brokerageId, externalId])
+  @@index([brokerageId, clientId, sentAt])
+  @@index([brokerageId, review])
+  @@index([processedAt])
 }

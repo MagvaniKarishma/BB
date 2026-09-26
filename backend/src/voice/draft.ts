@@ -29,6 +29,11 @@ export type DraftField = keyof RequirementDraft;
 
 export interface Extraction {
   draft: RequirementDraft;
+  /**
+   * Prices of specific properties mentioned (a listing's asking price or rent). Kept
+   * apart from the draft so an advertised price is never mistaken for the client's budget.
+   */
+  advertisedPrices?: Evidence<number>[];
   /** Things the agent should check: ambiguities, interpretations, ignored mentions. */
   warnings: string[];
   extractor: string;

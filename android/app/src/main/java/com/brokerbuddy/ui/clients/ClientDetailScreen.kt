@@ -81,6 +81,7 @@ fun ClientDetailScreen(
     onInquiry: (String) -> Unit,
     /** null = record a new note; otherwise resume that note. */
     onVoiceNote: (noteId: String?) -> Unit,
+    onWhatsAppHistory: () -> Unit,
 ) {
     val container = appContainer()
     val context = LocalContext.current
@@ -127,6 +128,8 @@ fun ClientDetailScreen(
                 }
                 if (client.inquiries.isEmpty()) EmptyMessage("No requirements recorded yet")
                 client.inquiries.forEach { InquiryCard(it) { onInquiry(it.id) } }
+
+                TextButton(onClick = onWhatsAppHistory) { Text("WhatsApp conversation history") }
 
                 VoiceNotesSection(clientId, onVoiceNote)
 

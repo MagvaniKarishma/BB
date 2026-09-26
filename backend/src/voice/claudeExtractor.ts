@@ -37,6 +37,7 @@ Rules — the broker relies on these, so follow them exactly:
 - Money: convert to whole rupees. hazaar/हज़ार/हजार/k = 1,000; lakh/लाख/L = 1,00,000; crore/करोड़/कोटी/cr = 1,00,00,000. dedh/डेढ़/दीड = 1.5, dhai/ढाई/अडीच = 2.5, saadhe X = X + 0.5. For rent, the budget is monthly rent.
 - "X se Y", "X to Y" is a range (min X, max Y). "X tak", "up to X", "X se zyada nahi" is a maximum. "kam se kam X", "X se upar" is a minimum. A lone budget amount is the maximum — add a warning saying you read it as the maximum.
 - Ignore amounts for deposit, maintenance, brokerage, salary; mention them in warnings.
+- The asking price or advertised rent of a specific property ("price 65k", "listed at 1.2 cr", "₹65,000/month" in a listing) is NOT the client's budget. Leave it out of the budget and mention it in warnings.
 - Category: 1 RK or studio = STUDIO; N BHK/bedroom = BHK_N (5 or more = BHK_5_PLUS); shop/office/dukaan/godown = COMMERCIAL. If more than one size is mentioned as acceptable ("2 ya 3 BHK"), return null and warn.
 - transactionType: rent/kiraya/किराया/भाड्याने = RENT; buy/kharidna/खरीदना/विकत = BUY. If both, return null and warn.
 - locations: one entry per wanted locality, canonical English spelling (e.g. "Andheri West", "Powai", "Lower Parel"). Keep East/West if said. Skip places mentioned as not wanted (e.g. "Khar nahi chahiye") and warn.

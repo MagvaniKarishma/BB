@@ -25,6 +25,8 @@ data class RequirementDraft(
 @Serializable
 data class Extraction(
     val draft: RequirementDraft = RequirementDraft(),
+    /** Prices of specific properties mentioned (e.g. a portal listing) — never the client's budget. */
+    val advertisedPrices: List<Evidence<Long>> = emptyList(),
     val warnings: List<String> = emptyList(),
     val extractor: String = "",
 )

@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +54,10 @@ import com.brokerbuddy.ui.reminders.RemindersScreen
 import com.brokerbuddy.ui.settings.SettingsScreen
 import com.brokerbuddy.ui.voice.VoiceNoteScreen
 import com.brokerbuddy.ui.caller.CallerScreen
+import com.brokerbuddy.ui.whatsapp.WhatsAppConversationScreen
+import com.brokerbuddy.ui.whatsapp.WhatsAppImportScreen
+import com.brokerbuddy.ui.whatsapp.WhatsAppInboxScreen
+import com.brokerbuddy.ui.whatsapp.WhatsAppMessageScreen
 import com.brokerbuddy.calls.CallerDirectoryStore
 import com.brokerbuddy.calls.CallerDirectorySyncWorker
 import com.brokerbuddy.calls.CallerRoutes
@@ -154,6 +159,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                     onTile = { type, category -> nav.navigate(Routes.inquiryList(type, category)) },
                     onSettings = { nav.navigate(Routes.SETTINGS) },
                     onReminders = { nav.navigateTab(Routes.REMINDERS) },
+                    onWhatsApp = { nav.navigate("whatsapp/inbox") },
                 )
             }
             composable(Routes.CLIENTS) {
@@ -204,6 +210,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                     onAddInquiry = { nav.navigate(Routes.inquiryNew(id)) },
                     onInquiry = { nav.navigate(Routes.inquiry(it)) },
                     onVoiceNote = { noteId -> nav.navigate(Routes.voice(id, noteId = noteId)) },
+                    onWhatsAppHistory = { nav.navigate("whatsapp/client/$id") },
                 )
             }
             composable("client/{id}/edit") { entry ->
@@ -291,6 +298,49 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                     onInquiryMatches = { nav.navigate("inquiry/$it?tab=1") },
                     onCreateClient = { nav.navigate(CallerRoutes.newClient(it)) },
                     onVoiceNote = { clientId -> nav.navigate(Routes.voice(clientId)) },
+                )
+            }
+            composable("whatsapp/inbox") {
+                WhatsAppInboxScreen(
+                    onBack = back,
+                    onMessage = { nav.navigate("whatsapp/message/$it") },
+                    onImport = { nav.navigate("whatsapp/import") },
+                )
+            }
+            composable("whatsapp/message/{id}") { entry ->
+                WhatsAppMessageScreen(
+                    messageId = entry.arguments?.getString("id")!!,
+                    onBack = back,
+                    onClient = { nav.navigate(Routes.client(it)) },
+                    onInquiry = { nav.navigate(Routes.inquiry(it)) },
+                )
+            }
+            composable("whatsapp/client/{clientId}") { entry ->
+                val clientId = entry.arguments?.getString("clientId")!!
+                WhatsAppConversationScreen(
+                    clientId = clientId,
+                    onBack = back,
+                    onMessage = { nav.navigate("whatsapp/message/$it") },
+                    onImportChat = { nav.navigate("whatsapp/import?clientId=$clientId") },
+                )
+            }
+            composable(
+                "whatsapp/import?clientId={clientId}",
+                listOf(navArgument("clientId") { type = NavType.StringType; defaultValue = "" }),
+            ) { entry ->
+                val shared = remember { SharedInbox.take().orEmpty() }
+                WhatsAppImportScreen(
+                    initialText = shared,
+                    presetClientId = entry.arguments?.getString("clientId")?.ifEmpty { null },
+                    onBack = back,
+                    onMessage = { id ->
+                        nav.popBackStack()
+                        nav.navigate("whatsapp/message/$id")
+                    },
+                    onClientHistory = { id ->
+                        nav.popBackStack()
+                        nav.navigate("whatsapp/client/$id")
+                    },
                 )
             }
             composable(Routes.PROPERTY_NEW) {

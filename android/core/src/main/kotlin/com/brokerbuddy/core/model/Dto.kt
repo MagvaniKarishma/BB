@@ -328,6 +328,8 @@ data class CreateMemberRequest(
     val email: String,
     val password: String,
     val role: Role = Role.AGENT,
+    /** Lets BrokerBuddy recognise portal leads this agent forwards on WhatsApp. */
+    val phone: String? = null,
 )
 
 @Serializable

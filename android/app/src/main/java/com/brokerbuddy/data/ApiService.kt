@@ -36,6 +36,21 @@ import com.brokerbuddy.core.model.UpdateClientRequest
 import com.brokerbuddy.core.model.UpdateMemberRequest
 import com.brokerbuddy.core.model.UpdateReminderRequest
 import com.brokerbuddy.core.model.AddNoteRequest
+import com.brokerbuddy.core.model.ConnectWhatsAppRequest
+import com.brokerbuddy.core.model.CreateClientFromMessage
+import com.brokerbuddy.core.model.ImportChatRequest
+import com.brokerbuddy.core.model.ImportChatResponse
+import com.brokerbuddy.core.model.ImportMessageRequest
+import com.brokerbuddy.core.model.LinkClientRequest
+import com.brokerbuddy.core.model.LinkInquiryRequest
+import com.brokerbuddy.core.model.SendMessageRequest
+import com.brokerbuddy.core.model.WaAccountEnvelope
+import com.brokerbuddy.core.model.WaAccountStatus
+import com.brokerbuddy.core.model.WaApplyResponse
+import com.brokerbuddy.core.model.WaConversation
+import com.brokerbuddy.core.model.WaInbox
+import com.brokerbuddy.core.model.WaMessageDetail
+import com.brokerbuddy.core.model.WaSendResponse
 import com.brokerbuddy.core.model.CallerDirectory
 import com.brokerbuddy.core.model.CallerLookup
 import com.brokerbuddy.core.model.ClientNoteEnvelope
@@ -219,4 +234,47 @@ interface ApiService {
 
     @POST("clients/{id}/notes")
     suspend fun addClientNote(@Path("id") clientId: String, @Body body: AddNoteRequest): ClientNoteEnvelope
+
+    // WhatsApp (Phase 4)
+    @GET("whatsapp/inbox")
+    suspend fun whatsappInbox(@Query("filter") filter: String = "attention"): WaInbox
+
+    @GET("whatsapp/clients/{id}/messages")
+    suspend fun whatsappConversation(@Path("id") clientId: String): WaConversation
+
+    @GET("whatsapp/messages/{id}")
+    suspend fun whatsappMessage(@Path("id") id: String): WaMessageDetail
+
+    @POST("whatsapp/messages/{id}/create-client")
+    suspend fun whatsappCreateClient(@Path("id") id: String, @Body body: CreateClientFromMessage): WaMessageDetail
+
+    @POST("whatsapp/messages/{id}/link-client")
+    suspend fun whatsappLinkClient(@Path("id") id: String, @Body body: LinkClientRequest): WaMessageDetail
+
+    @PATCH("whatsapp/messages/{id}")
+    suspend fun whatsappLinkInquiry(@Path("id") id: String, @Body body: LinkInquiryRequest): WaMessageDetail
+
+    @POST("whatsapp/messages/{id}/extract")
+    suspend fun whatsappExtract(@Path("id") id: String): WaMessageDetail
+
+    @POST("whatsapp/messages/{id}/apply")
+    suspend fun whatsappApply(@Path("id") id: String, @Body body: ApplyVoiceNoteRequest): WaApplyResponse
+
+    @POST("whatsapp/messages/{id}/dismiss")
+    suspend fun whatsappDismiss(@Path("id") id: String): WaMessageDetail
+
+    @POST("whatsapp/import")
+    suspend fun whatsappImport(@Body body: ImportMessageRequest): WaMessageDetail
+
+    @POST("whatsapp/import-chat")
+    suspend fun whatsappImportChat(@Body body: ImportChatRequest): ImportChatResponse
+
+    @POST("whatsapp/send")
+    suspend fun whatsappSend(@Body body: SendMessageRequest): WaSendResponse
+
+    @GET("whatsapp/account")
+    suspend fun whatsappAccount(): WaAccountStatus
+
+    @PUT("whatsapp/account")
+    suspend fun connectWhatsapp(@Body body: ConnectWhatsAppRequest): WaAccountEnvelope
 }
