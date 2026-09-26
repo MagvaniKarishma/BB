@@ -65,10 +65,10 @@ private val CLIENT_TABS = listOf("all" to "All", "new" to "New", "active" to "Ac
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClientListScreen(onClient: (String) -> Unit, onAdd: () -> Unit) {
+fun ClientListScreen(onClient: (String) -> Unit, onAdd: () -> Unit, initialTab: String = "all") {
     val api = appContainer().api
     var query by rememberText()
-    var tab by rememberSaveable { mutableStateOf("all") }
+    var tab by rememberSaveable { mutableStateOf(initialTab) }
     val loader = rememberLoad(query, tab) {
         if (query.isNotBlank()) delay(300) // debounce typing
         api.call { clients(q = query.ifBlank { null }, group = tab, tz = tzOffsetMinutes()) }

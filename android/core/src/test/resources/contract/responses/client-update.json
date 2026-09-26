@@ -1,15 +1,15 @@
 {
   "client": {
-    "id": "cmuidxjet000d7db9gz3qmshj",
-    "brokerageId": "cmuidxj5100037db94quq891o",
+    "id": "cmuinoax2000d7d0gglv3cm39",
+    "brokerageId": "cmuinoal800037d0ggixipq3t",
     "name": "Amit Patil",
     "primaryPhone": "+919876543210",
     "email": null,
     "leadSource": "ACRES_99",
     "status": "CONTACTED",
     "notes": null,
-    "assignedToId": "cmuidxj5200057db90g6sbmb4",
-    "createdAt": "2026-09-26T12:47:51.174Z",
-    "updatedAt": "2026-09-26T12:47:51.182Z"
+    "assignedToId": "cmuinoala00057d0g6bju5xel",
+    "createdAt": "2026-09-26T17:20:36.422Z",
+    "updatedAt": "2026-09-26T17:20:36.433Z"
   }
 }

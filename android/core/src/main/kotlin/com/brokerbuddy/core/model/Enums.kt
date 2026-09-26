@@ -91,6 +91,10 @@ enum class Availability(val label: String) {
 @Serializable
 enum class ReminderStatus { PENDING, DONE, CANCELLED }
 
+/** A follow-up the broker set, or a callback someone is waiting for. */
+@Serializable
+enum class ReminderKind { FOLLOW_UP, CALLBACK }
+
 @Serializable
 enum class Role { OWNER, ADMIN, AGENT }
 

@@ -7,6 +7,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import android.Manifest
+import com.brokerbuddy.core.model.Portal
+import com.brokerbuddy.core.model.ReminderKind
+import com.brokerbuddy.core.portal.DateFilter
+import com.brokerbuddy.ui.portal.AssistantDialog
+import com.brokerbuddy.ui.portal.PortalFilter
+import com.brokerbuddy.ui.portal.PortalLeadsScreen
+import com.brokerbuddy.ui.portal.PortalListingScreen
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -111,6 +118,10 @@ object Routes {
     const val PROPERTY_NEW = "property/new"
     fun property(id: String) = "property/$id"
     fun propertyEdit(id: String) = "property/$id/edit"
+    fun portalLeads(portal: Portal, filter: PortalFilter = PortalFilter(DateFilter.TODAY)) = "portal/${portal.name}?${filter.query()}"
+    fun portalListing(portal: Portal, id: String, filter: PortalFilter) = "portal/${portal.name}/listing/$id?${filter.query()}"
+    fun followUps(kind: ReminderKind) = "followups/${kind.name}"
+    const val NEW_LEADS = "clients/new-leads"
     fun voice(clientId: String, inquiryId: String? = null, noteId: String? = null) =
         "voice/$clientId?inquiryId=${inquiryId.orEmpty()}&noteId=${noteId.orEmpty()}"
 }
@@ -172,6 +183,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
     val scope = rememberCoroutineScope()
     var showMenu by remember { mutableStateOf(false) }
     var pickingVoiceClient by remember { mutableStateOf(false) }
+    var showAssistant by remember { mutableStateOf(false) }
     val isDemo = container.sessionStore.session.collectAsState(initial = null).value?.isDemo == true
 
     LaunchedEffect(openRoute) {
@@ -216,6 +228,11 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                         onClient = { nav.navigate(Routes.client(it)) },
                         onProperty = { nav.navigate(Routes.property(it)) },
                         onLeadMessage = { nav.navigate("whatsapp/message/$it") },
+                        onNewLeads = { nav.navigate(Routes.NEW_LEADS) },
+                        onCallbacks = { nav.navigate(Routes.followUps(ReminderKind.CALLBACK)) },
+                        onTodayFollowUps = { nav.navigate(Routes.followUps(ReminderKind.FOLLOW_UP)) },
+                        onPortal = { nav.navigate(Routes.portalLeads(it)) },
+                        onAssistant = { showAssistant = true },
                     ),
                 )
             }
@@ -233,6 +250,47 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
             }
             composable(Routes.REMINDERS) {
                 RemindersScreen(onClient = { nav.navigate(Routes.client(it)) })
+            }
+            composable("followups/{kind}") { entry ->
+                val kind = ReminderKind.entries.firstOrNull { it.name == entry.arguments?.getString("kind") } ?: ReminderKind.FOLLOW_UP
+                RemindersScreen(onClient = { nav.navigate(Routes.client(it)) }, kind = kind, onBack = back)
+            }
+            composable(Routes.NEW_LEADS) {
+                ClientListScreen(onClient = { nav.navigate(Routes.client(it)) }, onAdd = { nav.navigate(Routes.CLIENT_NEW) }, initialTab = "new")
+            }
+            composable(
+                "portal/{portal}?filter={filter}&start={start}&end={end}",
+                listOf(
+                    navArgument("filter") { type = NavType.StringType; defaultValue = "TODAY" },
+                    navArgument("start") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("end") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                val a = entry.arguments
+                val portal = Portal.entries.firstOrNull { it.name == a?.getString("portal") } ?: Portal.ACRES_99
+                PortalLeadsScreen(
+                    portal = portal,
+                    initial = PortalFilter.from(a?.getString("filter"), a?.getString("start"), a?.getString("end")),
+                    onBack = back,
+                    onListing = { id, filter -> nav.navigate(Routes.portalListing(portal, id, filter)) },
+                )
+            }
+            composable(
+                "portal/{portal}/listing/{id}?filter={filter}&start={start}&end={end}",
+                listOf(
+                    navArgument("filter") { type = NavType.StringType; defaultValue = "TODAY" },
+                    navArgument("start") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("end") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                val a = entry.arguments
+                PortalListingScreen(
+                    portal = Portal.entries.firstOrNull { it.name == a?.getString("portal") } ?: Portal.ACRES_99,
+                    listingId = a?.getString("id")!!,
+                    initial = PortalFilter.from(a.getString("filter"), a.getString("start"), a.getString("end")),
+                    onBack = back,
+                    onClient = { nav.navigate(Routes.client(it)) },
+                )
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(onBack = back, onCallAssistant = { nav.navigate(Routes.CALL_ASSISTANT) })
@@ -279,6 +337,9 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                     onVoiceNote = { noteId -> nav.navigate(Routes.voice(id, noteId = noteId)) },
                     onWhatsAppHistory = { nav.navigate("whatsapp/client/$id") },
                     onMatches = { inquiryId -> nav.navigate("inquiry/$inquiryId?tab=1") },
+                    onPortalListing = { portal, listingId, day ->
+                        nav.navigate(Routes.portalListing(portal, listingId, PortalFilter(DateFilter.CUSTOM, day, day)))
+                    },
                 )
             }
             composable("client/{id}/edit") { entry ->
@@ -448,6 +509,21 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
             onDismiss = { showMenu = false },
             onNavigate = { route -> showMenu = false; nav.navigate(route) },
             onSignOut = { showMenu = false; scope.launch { container.sessionStore.signOut() } },
+        )
+    }
+    if (showAssistant) {
+        AssistantDialog(
+            onDismiss = { showAssistant = false },
+            onNavigate = { n ->
+                showAssistant = false
+                when (n.screen) {
+                    "PORTAL_LEADS" -> n.portal?.let { nav.navigate(Routes.portalLeads(it, PortalFilter(DateFilter.of(n.range)))) }
+                    "PORTAL_LISTING" -> if (n.portal != null && n.listingId != null) {
+                        nav.navigate(Routes.portalListing(n.portal!!, n.listingId!!, PortalFilter(DateFilter.of(n.range))))
+                    }
+                    "CLIENT" -> n.clientId?.let { nav.navigate(Routes.client(it)) }
+                }
+            },
         )
     }
     if (pickingVoiceClient) {

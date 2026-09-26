@@ -91,6 +91,8 @@ data class Client(
     val phones: List<ClientPhone> = emptyList(),
     val inquiries: List<Inquiry> = emptyList(),
     val reminders: List<Reminder> = emptyList(),
+    /** 99acres / Housing.com enquiries (client profile only). */
+    val portalLeads: List<ClientPortalLead> = emptyList(),
 )
 
 @Serializable
@@ -347,6 +349,7 @@ data class Dashboard(
     val reminders: ReminderCounts,
     val availableProperties: Int,
     val totals: DashboardTotals? = null,
+    val todayWork: TodayWork? = null,
     val todayFollowUps: List<HomeFollowUp> = emptyList(),
     val newLeads: List<HomeLead> = emptyList(),
     val topMatches: List<TopMatch> = emptyList(),
@@ -409,6 +412,7 @@ data class Reminder(
     val note: String? = null,
     val dueAt: String,
     val status: ReminderStatus,
+    val kind: ReminderKind = ReminderKind.FOLLOW_UP,
     val clientId: String? = null,
     val inquiryId: String? = null,
     val completedAt: String? = null,
@@ -429,6 +433,7 @@ data class CreateReminderRequest(
     val note: String? = null,
     val clientId: String? = null,
     val inquiryId: String? = null,
+    val kind: ReminderKind? = null,
 )
 
 @Serializable

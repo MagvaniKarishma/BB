@@ -1,8 +1,8 @@
 {
   "inquiry": {
-    "id": "cmuidxjf9000h7db9yfurhcws",
-    "brokerageId": "cmuidxj5100037db94quq891o",
-    "clientId": "cmuidxjet000d7db9gz3qmshj",
+    "id": "cmuinoaxm000h7d0gqeqcmfgo",
+    "brokerageId": "cmuinoal800037d0ggixipq3t",
+    "clientId": "cmuinoax2000d7d0gglv3cm39",
     "transactionType": "RENT",
     "category": "BHK_2",
     "status": "ACTIVE",
@@ -25,14 +25,14 @@
     "notes": "Gated society",
     "source": "VOICE_NOTE",
     "version": 3,
-    "createdAt": "2026-09-26T12:47:51.189Z",
-    "updatedAt": "2026-09-26T12:47:51.689Z"
+    "createdAt": "2026-09-26T17:20:36.442Z",
+    "updatedAt": "2026-09-26T17:20:37.051Z"
   },
   "changed": true,
   "voiceNote": {
-    "id": "cmuidxjm3000v7db94i7ct1cp",
-    "clientId": "cmuidxjet000d7db9gz3qmshj",
-    "inquiryId": "cmuidxjf9000h7db9yfurhcws",
+    "id": "cmuinob65000v7d0garfbpnyx",
+    "clientId": "cmuinoax2000d7d0gglv3cm39",
+    "inquiryId": "cmuinoaxm000h7d0gqeqcmfgo",
     "language": "HINGLISH",
     "status": "APPLIED",
     "audioMimeType": null,
@@ -67,11 +67,11 @@
     "extractor": "rules",
     "error": null,
     "appliedVersion": 3,
-    "appliedAt": "2026-09-26T12:47:51.693Z",
-    "createdAt": "2026-09-26T12:47:51.435Z",
-    "updatedAt": "2026-09-26T12:47:51.693Z",
+    "appliedAt": "2026-09-26T17:20:37.055Z",
+    "createdAt": "2026-09-26T17:20:36.749Z",
+    "updatedAt": "2026-09-26T17:20:37.056Z",
     "createdBy": {
-      "id": "cmuidxj5200057db90g6sbmb4",
+      "id": "cmuinoala00057d0g6bju5xel",
       "name": "Rahul Sharma"
     },
     "hasAudio": false

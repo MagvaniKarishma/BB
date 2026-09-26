@@ -1,0 +1,27 @@
+{
+  "portals": [
+    {
+      "portal": "ACRES_99",
+      "status": "IMPORT_REQUIRED",
+      "inboundKeyPrefix": null,
+      "keyCreatedAt": null,
+      "lastReceivedAt": null,
+      "leadsByChannel": {
+        "CSV": 1
+      },
+      "lastLeadAt": "2026-09-26T17:20:37.458Z"
+    },
+    {
+      "portal": "HOUSING_COM",
+      "status": "NOT_CONNECTED",
+      "inboundKeyPrefix": "bbpl_TTfUV",
+      "keyCreatedAt": "2026-09-26T17:20:37.520Z",
+      "lastReceivedAt": null,
+      "leadsByChannel": {
+        "WHATSAPP": 1,
+        "EMAIL": 1
+      },
+      "lastLeadAt": "2026-09-26T17:20:37.480Z"
+    }
+  ]
+}

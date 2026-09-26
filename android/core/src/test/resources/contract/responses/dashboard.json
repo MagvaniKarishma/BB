@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T12:47:51.407Z",
+  "generatedAt": "2026-09-26T17:20:36.708Z",
   "rent": {
     "total": 1,
     "tiles": [
@@ -108,13 +108,20 @@
     "pendingFollowUps": 0,
     "followUpsDueToday": 0
   },
+  "todayWork": {
+    "newLeads": 0,
+    "callbacks": 0,
+    "followUps": 0,
+    "acres99Leads": 0,
+    "housingLeads": 0
+  },
   "todayFollowUps": [],
   "newLeads": [],
   "topMatches": [
     {
       "property": {
-        "id": "cmuidxjfr000n7db9ua5d4hnn",
-        "brokerageId": "cmuidxj5100037db94quq891o",
+        "id": "cmuinoaya000n7d0gypc6yts2",
+        "brokerageId": "cmuinoal800037d0ggixipq3t",
         "title": "2 BHK Apartment",
         "transactionType": "RENT",
         "category": "BHK_2",
@@ -135,11 +142,11 @@
         "ownerName": "Mr Mehta",
         "ownerPhone": "+919811122233",
         "notes": null,
-        "listedById": "cmuidxj5200057db90g6sbmb4",
-        "createdAt": "2026-09-26T12:47:51.208Z",
-        "updatedAt": "2026-09-26T12:47:51.235Z",
+        "listedById": "cmuinoala00057d0g6bju5xel",
+        "createdAt": "2026-09-26T17:20:36.466Z",
+        "updatedAt": "2026-09-26T17:20:36.496Z",
         "photoIds": [
-          "cmuidxjgi000p7db9d4km2lhx"
+          "cmuinoaz3000p7d0gl1kegp3m"
         ]
       },
       "matchingRequirements": 1

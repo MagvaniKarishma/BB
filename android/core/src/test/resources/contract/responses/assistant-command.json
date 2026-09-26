@@ -1,0 +1,10 @@
+{
+  "intent": "SHOW_PORTAL_LEADS",
+  "done": false,
+  "navigate": {
+    "screen": "PORTAL_LEADS",
+    "portal": "ACRES_99",
+    "range": "TODAY"
+  },
+  "message": "99acres leads — today."
+}

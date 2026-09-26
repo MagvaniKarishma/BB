@@ -1,0 +1,20 @@
+{
+  "portal": "ACRES_99",
+  "rows": 1,
+  "created": 1,
+  "duplicates": 0,
+  "clientsCreated": 0,
+  "skipped": [],
+  "recognisedColumns": [
+    "externalLeadId",
+    "listingId",
+    "name",
+    "phone",
+    "email",
+    "enquiredAt",
+    "message",
+    "title",
+    "locality",
+    "price"
+  ]
+}

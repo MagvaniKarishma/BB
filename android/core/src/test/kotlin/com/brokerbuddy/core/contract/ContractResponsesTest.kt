@@ -1,6 +1,14 @@
 package com.brokerbuddy.core.contract
 
 import com.brokerbuddy.core.model.AiCallList
+import com.brokerbuddy.core.model.AssistantCommandResult
+import com.brokerbuddy.core.model.InboundKeyResponse
+import com.brokerbuddy.core.model.PortalCsvImportResult
+import com.brokerbuddy.core.model.PortalIntegrations
+import com.brokerbuddy.core.model.PortalLeadEnvelope
+import com.brokerbuddy.core.model.PortalListingDetail
+import com.brokerbuddy.core.model.PortalListingList
+import com.brokerbuddy.core.model.PortalRecordResult
 import com.brokerbuddy.core.model.ApiJson
 import com.brokerbuddy.core.model.ApplyVoiceNoteResponse
 import com.brokerbuddy.core.model.AuthResponse
@@ -130,6 +138,18 @@ class ContractResponsesTest {
         "test-call-start" to TestCallResponse.serializer(),
         "test-call-turn" to TestCallResponse.serializer(),
         "ai-calls" to AiCallList.serializer(),
+        "reminder-callback" to ReminderEnvelope.serializer(),
+        "reminders-callbacks" to ReminderList.serializer(),
+        "portal-import-csv" to PortalCsvImportResult.serializer(),
+        "portal-import-text" to PortalRecordResult.serializer(),
+        "portal-listings" to PortalListingList.serializer(),
+        "portal-listing" to PortalListingDetail.serializer(),
+        "portal-listing-unidentified" to PortalListingDetail.serializer(),
+        "portal-lead-status" to PortalLeadEnvelope.serializer(),
+        "portal-integrations" to PortalIntegrations.serializer(),
+        "portal-inbound-key" to InboundKeyResponse.serializer(),
+        "client-with-portal-leads" to ClientEnvelope.serializer(),
+        "assistant-command" to AssistantCommandResult.serializer(),
     )
 
     @Test

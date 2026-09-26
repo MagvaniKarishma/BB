@@ -178,6 +178,24 @@ describe("API contract with the Android app", () => {
     await save("test-call-turn", await send("post", `/call-assistant/test-calls/${call.callId}/turns`, await body("test-call-turn")));
     await save("ai-calls", await get("/call-assistant/calls"));
 
+    // --- Today's Work: callbacks, portal leads, voice commands ---
+    await save("reminder-callback", await send("post", "/reminders", await body("reminder-callback")));
+    await save("reminders-callbacks", await get("/reminders?status=PENDING&kind=CALLBACK"));
+    const ist = new Date(Date.now() + 330 * 60_000);
+    const p2 = (n: number) => String(n).padStart(2, "0");
+    vars.csvDate = `${p2(ist.getUTCDate())}/${p2(ist.getUTCMonth() + 1)}/${ist.getUTCFullYear()} ${p2(ist.getUTCHours())}:${p2(ist.getUTCMinutes())}`;
+    await save("portal-import-csv", await send("post", "/portal-leads/import", await body("portal-import-csv")));
+    await save("portal-import-text", await send("post", "/portal-leads/import-text", await body("portal-import-text")));
+    const since = encodeURIComponent(new Date(Date.now() - 86_400_000).toISOString());
+    const listings = await save("portal-listings", await get(`/portal-leads/listings?portal=ACRES_99&from=${since}`));
+    const listing = await save("portal-listing", await get(`/portal-leads/listings/${listings.listings[0].id}?portal=ACRES_99&from=${since}`));
+    await save("portal-listing-unidentified", await get("/portal-leads/listings/unidentified?portal=HOUSING_COM"));
+    await save("portal-lead-status", await send("patch", `/portal-leads/${listing.leads[0].id}`, await body("portal-lead-status")));
+    await save("portal-inbound-key", await send("post", "/portal-leads/integrations/HOUSING_COM/key", {}));
+    await save("portal-integrations", await get("/portal-leads/integrations"));
+    await save("client-with-portal-leads", await get(`/clients/${vars.clientId}`));
+    await save("assistant-command", await send("post", "/assistant/command", await body("assistant-command")));
+
     // Every request file the app produced was used.
     const { readdir } = await import("node:fs/promises");
     const requests = (await readdir(path.join(CONTRACT, "requests"))).map((f) => f.replace(/\.json$/, ""));

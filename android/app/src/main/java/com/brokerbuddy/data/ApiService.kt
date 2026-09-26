@@ -216,6 +216,7 @@ interface ApiService {
     suspend fun reminders(
         @Query("status") status: ReminderStatus? = null,
         @Query("clientId") clientId: String? = null,
+        @Query("kind") kind: com.brokerbuddy.core.model.ReminderKind? = null,
         @Query("from") from: String? = null,
         @Query("to") to: String? = null,
     ): ReminderList
@@ -363,4 +364,39 @@ interface ApiService {
 
     @POST("call-assistant/test-calls/{callId}/turns")
     suspend fun testCallTurn(@Path("callId") callId: String, @Body body: TestTurnRequest): TestCallResponse
+
+    // Portal leads (99acres / Housing.com)
+    @GET("portal-leads/listings")
+    suspend fun portalListings(
+        @Query("portal") portal: com.brokerbuddy.core.model.Portal,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+    ): com.brokerbuddy.core.model.PortalListingList
+
+    @GET("portal-leads/listings/{id}")
+    suspend fun portalListing(
+        @Path("id") id: String,
+        @Query("portal") portal: com.brokerbuddy.core.model.Portal,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+    ): com.brokerbuddy.core.model.PortalListingDetail
+
+    @PATCH("portal-leads/{id}")
+    suspend fun updatePortalLead(@Path("id") id: String, @Body body: com.brokerbuddy.core.model.UpdatePortalLeadRequest): com.brokerbuddy.core.model.PortalLeadEnvelope
+
+    @POST("portal-leads/import")
+    suspend fun importPortalCsv(@Body body: com.brokerbuddy.core.model.PortalCsvImportRequest): com.brokerbuddy.core.model.PortalCsvImportResult
+
+    @POST("portal-leads/import-text")
+    suspend fun importPortalText(@Body body: com.brokerbuddy.core.model.PortalTextImportRequest): com.brokerbuddy.core.model.PortalRecordResult
+
+    @GET("portal-leads/integrations")
+    suspend fun portalIntegrations(): com.brokerbuddy.core.model.PortalIntegrations
+
+    @POST("portal-leads/integrations/{portal}/key")
+    suspend fun createInboundKey(@Path("portal") portal: com.brokerbuddy.core.model.Portal): com.brokerbuddy.core.model.InboundKeyResponse
+
+    // Voice / typed commands
+    @POST("assistant/command")
+    suspend fun assistantCommand(@Body body: com.brokerbuddy.core.model.AssistantCommandRequest): com.brokerbuddy.core.model.AssistantCommandResult
 }

@@ -2,6 +2,11 @@
 
 package com.brokerbuddy.ui.clients
 
+import com.brokerbuddy.core.model.ClientPortalLead
+import com.brokerbuddy.core.model.Portal
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -113,6 +118,8 @@ fun ClientDetailScreen(
     onWhatsAppHistory: () -> Unit,
     /** Matching properties for a requirement (to share with the client). */
     onMatches: (inquiryId: String) -> Unit,
+    /** A portal listing this client enquired about, filtered to the day of the enquiry. */
+    onPortalListing: (portal: Portal, listingId: String, day: LocalDate) -> Unit = { _, _, _ -> },
 ) {
     val container = appContainer()
     val context = LocalContext.current
@@ -200,6 +207,7 @@ fun ClientDetailScreen(
                         }
                     }
                     else -> {
+                        PortalEnquiriesSection(client.portalLeads, onPortalListing)
                         VoiceNotesSection(clientId, onVoiceNote)
                         ClientNotesSection(clientId, refreshKey = notesVersion, onAdd = { addingNote = true })
                         TextButton(onClick = onWhatsAppHistory) { Text("WhatsApp conversation history") }
@@ -342,6 +350,32 @@ fun InquiryCard(inquiry: Inquiry, onClick: () -> Unit) {
                     inquiry.possession?.label,
                 ).joinToString(" • ")
                 if (details.isNotEmpty()) Text(details, style = MaterialTheme.typography.bodySmall, color = b.muted)
+            }
+        }
+    }
+}
+
+/** 99acres / Housing.com enquiries: which listing, when, and where each stands. */
+@Composable
+private fun PortalEnquiriesSection(leads: List<ClientPortalLead>, onListing: (Portal, String, LocalDate) -> Unit) {
+    if (leads.isEmpty()) return
+    SectionTitle("Portal enquiries")
+    val zone = ZoneId.systemDefault()
+    leads.forEach { l ->
+        val listing = l.listing
+        val day = runCatching { Instant.parse(l.enquiredAt).atZone(zone).toLocalDate() }.getOrNull()
+        Card(
+            onClick = { if (listing != null && day != null) onListing(l.portal, listing.id, day) },
+            enabled = listing != null && day != null,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Text("${l.portal.label} · ${l.status.label} · ${formatDateTime(l.enquiredAt)}", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    listing?.let { listOfNotNull(it.title, it.locality).joinToString(", ").ifEmpty { "Listing" } } ?: "Listing not identified",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                l.message?.let { Text("“${it.take(140)}”", style = MaterialTheme.typography.bodySmall) }
             }
         }
     }

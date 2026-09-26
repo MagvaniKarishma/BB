@@ -90,7 +90,7 @@ const properties = [
 
 async function build() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "WhatsAppMessage","WhatsAppContact","WhatsAppAccount","ClientNote","VoiceNote","Reminder","InquiryRevision","Inquiry","ClientPhone","Client","OtpChallenge","PropertyPhoto","Property","CallTurn","CallSession","CallGreeting","CallAssistantSettings","User","Brokerage" CASCADE`,
+    `TRUNCATE "WhatsAppMessage","WhatsAppContact","WhatsAppAccount","ClientNote","VoiceNote","Reminder","InquiryRevision","Inquiry","ClientPhone","Client","OtpChallenge","PropertyPhoto","Property","CallTurn","CallSession","CallGreeting","CallAssistantSettings","PortalLead","PortalListing","PortalIntegration","User","Brokerage" CASCADE`,
   );
   const reg = await request(app).post("/api/v1/auth/register").send({
     brokerageName: "Sunrise Realty, Andheri", name: "Riya Desai", email: "demo@brokerbuddy.app", password: "demo-password-1",
@@ -125,6 +125,7 @@ async function build() {
     [6, "Check loan status", ist(7, 12), 0, 0],
   ];
   for (const [i, title, dueAt] of reminders) await post("/reminders", { title, dueAt, clientId: ids[i] });
+  await post("/reminders", { title: "Call back Priya about Hiranandani", dueAt: ist(0, 13), clientId: ids[1], kind: "CALLBACK" });
   const done = await post("/reminders", { title: "Collect documents for agreement", dueAt: ist(-3, 12), clientId: ids[7] });
   await call("patch", `/reminders/${done.reminder.id}`, { status: "DONE" });
 
@@ -148,6 +149,26 @@ async function build() {
     clientId: ids[2], clientSenderName: "Amit Patil",
     exportText: "20/09/2026, 10:15 am - Amit Patil: 1 BHK chahiye Mulund West mein\n20/09/2026, 10:16 am - Riya: Budget kitna hai?\n20/09/2026, 10:17 am - Amit Patil: 30k tak, semi furnished chalega",
   });
+
+  // Portal lead exports (fictional people): 99acres and Housing.com kept separate, even for similar flats.
+  const d = (days: number, hh: number, mm = 0) => {
+    const t = new Date(new Date(ist(days, hh, mm)).getTime() + IST_MS);
+    const p2 = (n: number) => String(n).padStart(2, "0");
+    return `${p2(t.getUTCDate())}/${p2(t.getUTCMonth() + 1)}/${t.getUTCFullYear()} ${p2(t.getUTCHours())}:${p2(t.getUTCMinutes())}`;
+  };
+  const head = "Lead ID,Name,Mobile,Email,Enquiry Date,Message,Property ID,Property Title,Locality,Price";
+  await post("/portal-leads/import", { portal: "ACRES_99", fileName: "99acres-leads.csv", csv: [head,
+    `A-1001,Rahul Sharma,+919820011001,,${d(0, 9, 40)},"Is it still available? Can I visit Sunday?",A70001234,2 BHK Apartment for Rent,Andheri West,"70,000"`,
+    `A-1002,Meera Joshi,+919820022001,meera.j@example.com,${d(0, 11, 5)},Need parking for 1 car,A70001234,2 BHK Apartment for Rent,Andheri West,"70,000"`,
+    `A-1003,Imran Khan,+919820022002,,${d(0, 12, 30)},,A70009876,3 BHK Apartment for Sale,Powai,"2.55 Cr"`,
+    `A-1004,Deepak Gupta,+919820011011,,${d(-1, 18, 15)},Looking for ready possession,A70009876,3 BHK Apartment for Sale,Powai,"2.55 Cr"`,
+    `A-1005,Kavya Nair,+919820022003,,${d(-3, 10, 0)},Budget 26k,A70005555,1 BHK Flat for Rent,Mulund West,"27,000"`,
+  ].join("\n") });
+  await post("/portal-leads/import", { portal: "HOUSING_COM", fileName: "housing-leads.csv", csv: [head,
+    `H-501,Sameer Desai,+919820033001,,${d(0, 10, 20)},Interested. Is broker fee negotiable?,H88001,1 BHK Apartment for Rent,Mulund West,"27,000"`,
+    `H-502,Vikram Singh,+919820011005,,${d(0, 8, 50)},Sea view needed,H88002,3 BHK Apartment for Rent,Bandra West,"1.85 Lac"`,
+    `H-503,Pooja Iyer,+919820033002,,${d(-1, 16, 0)},,H88001,1 BHK Apartment for Rent,Mulund West,"27,000"`,
+  ].join("\n") });
 
   await call("put", "/call-assistant/settings", {
     enabled: true, mode: "SMART_ASSISTANT", voice: "RECORDED_STANDARD", customGreetingEnabled: false, defaultLanguage: "HINGLISH",
@@ -214,6 +235,16 @@ async function capture() {
   }
 
   for (const status of [undefined, "PENDING", "DONE", "CANCELLED"]) await grab("reminders", { status });
+  for (const kind of ["CALLBACK", "FOLLOW_UP"]) {
+    for (const status of ["PENDING", "DONE"]) await grab("reminders", { status, kind });
+  }
+
+  // Portal leads (the demo shows all dates: the app's date range isn't part of the key).
+  await grab("portal-leads/integrations");
+  for (const portal of ["ACRES_99", "HOUSING_COM"]) {
+    const res = await grab("portal-leads/listings", { portal });
+    for (const l of res.listings) await grab(`portal-leads/listings/${l.id}`, { portal });
+  }
 
   const notes = await grab("voice-notes");
   for (const n of notes.voiceNotes) await grab(`voice-notes/${n.id}`);

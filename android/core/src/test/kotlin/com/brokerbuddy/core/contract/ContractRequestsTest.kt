@@ -1,6 +1,13 @@
 package com.brokerbuddy.core.contract
 
 import com.brokerbuddy.core.model.AddNoteRequest
+import com.brokerbuddy.core.model.AssistantCommandRequest
+import com.brokerbuddy.core.model.Portal
+import com.brokerbuddy.core.model.PortalCsvImportRequest
+import com.brokerbuddy.core.model.PortalLeadStatus
+import com.brokerbuddy.core.model.PortalTextImportRequest
+import com.brokerbuddy.core.model.ReminderKind
+import com.brokerbuddy.core.model.UpdatePortalLeadRequest
 import com.brokerbuddy.core.model.ApiJson
 import com.brokerbuddy.core.model.ApplyVoiceNoteRequest
 import com.brokerbuddy.core.model.Availability
@@ -109,6 +116,19 @@ class ContractRequestsTest {
         entry("greeting-script", GreetingScriptRequest.serializer(), GreetingScriptRequest("Hello! Main Sharma Realty ki AI assistant hoon. Boliye, aapko kaisa flat chahiye?")),
         entry("test-call-start", TestCallRequest.serializer(), TestCallRequest("+919800000000")),
         entry("test-call-turn", TestTurnRequest.serializer(), TestTurnRequest("Mujhe Powai mein 2 BHK rent pe chahiye")),
+        entry("reminder-callback", CreateReminderRequest.serializer(), CreateReminderRequest("Call back Amit", "{{dueAt}}", clientId = "{{clientId}}", kind = ReminderKind.CALLBACK)),
+        entry("portal-import-csv", PortalCsvImportRequest.serializer(), PortalCsvImportRequest(
+            Portal.ACRES_99,
+            "Lead ID,Name,Mobile,Email,Enquiry Date,Message,Property ID,Property Title,Locality,Price\n" +
+                "L-1,Amit Patil,98765 43210,,{{csvDate}},Is it available?,A12345678,2 BHK Apartment for Rent,Andheri West,\"70,000\"\n",
+            "leads.csv",
+        )),
+        entry("portal-import-text", PortalTextImportRequest.serializer(), PortalTextImportRequest(
+            "You have a new lead on Housing.com. Name: Neha Rao, Mobile: 9820066666, Property: 1 BHK Apartment in Mulund West, Price: ₹ 27,000",
+            Portal.HOUSING_COM,
+        )),
+        entry("portal-lead-status", UpdatePortalLeadRequest.serializer(), UpdatePortalLeadRequest(PortalLeadStatus.CONTACTED)),
+        entry("assistant-command", AssistantCommandRequest.serializer(), AssistantCommandRequest("Show today's 99acres leads", 330)),
     )
 
     @Test

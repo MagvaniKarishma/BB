@@ -58,6 +58,8 @@ import com.brokerbuddy.notifications.ReminderScheduler
 import com.brokerbuddy.notifications.ReminderSyncWorker
 import com.brokerbuddy.ui.common.EmptyMessage
 import com.brokerbuddy.ui.common.BrandTopBar
+import com.brokerbuddy.ui.design.BrandBackBar
+import com.brokerbuddy.core.model.ReminderKind
 import com.brokerbuddy.ui.design.Avatar
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.ListItemDefaults
@@ -100,13 +102,13 @@ private fun dueDate(r: Reminder, zone: ZoneId): LocalDate? =
 
 /** Follow Ups (screen 14): Today / Upcoming / Overdue from pending follow-ups, plus Done. */
 @Composable
-fun RemindersScreen(onClient: (String) -> Unit) {
+fun RemindersScreen(onClient: (String) -> Unit, kind: ReminderKind? = null, onBack: (() -> Unit)? = null) {
     val api = appContainer().api
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var tab by rememberSaveable { mutableStateOf(FollowUpTab.TODAY) }
     val status = if (tab == FollowUpTab.DONE) ReminderStatus.DONE else ReminderStatus.PENDING
-    val loader = rememberLoad(status) { api.call { reminders(status = status).reminders } }
+    val loader = rememberLoad(status, kind) { api.call { reminders(status = status, kind = kind).reminders } }
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now(zone)
 
@@ -139,7 +141,16 @@ fun RemindersScreen(onClient: (String) -> Unit) {
 
     Scaffold(
         containerColor = MaterialTheme.brand.background,
-        topBar = { BrandTopBar(pending?.let { "Follow Ups (${it.size})" } ?: "Follow Ups") },
+        topBar = {
+            // Opened from Today's Work: callbacks or follow-ups only, with a back arrow.
+            val name = when (kind) {
+                ReminderKind.CALLBACK -> "Callbacks"
+                ReminderKind.FOLLOW_UP -> "Follow-ups"
+                null -> "Follow Ups"
+            }
+            val title = pending?.let { "$name (${it.size})" } ?: name
+            if (onBack != null) BrandBackBar(title, onBack) else BrandTopBar(title)
+        },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (!ReminderNotifier.canNotify(context)) {

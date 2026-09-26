@@ -13,6 +13,9 @@ import com.brokerbuddy.core.model.InquiryList
 import com.brokerbuddy.core.model.InquiryMatches
 import com.brokerbuddy.core.model.MeResponse
 import com.brokerbuddy.core.model.OtpStatus
+import com.brokerbuddy.core.model.PortalIntegrations
+import com.brokerbuddy.core.model.PortalListingDetail
+import com.brokerbuddy.core.model.PortalListingList
 import com.brokerbuddy.core.model.PropertyEnvelope
 import com.brokerbuddy.core.model.PropertyList
 import com.brokerbuddy.core.model.PropertyMatches
@@ -110,6 +113,9 @@ class DemoApiTest {
             "reminders(\\?.*)?" to ReminderList.serializer(),
             "whatsapp/inbox\\?.*" to WaInbox.serializer(),
             "whatsapp/messages/$id" to WaMessageDetail.serializer(),
+            "portal-leads/integrations" to PortalIntegrations.serializer(),
+            "portal-leads/listings\\?.*" to PortalListingList.serializer(),
+            "portal-leads/listings/$id\\?.*" to PortalListingDetail.serializer(),
         ).map { (pattern, serializer) -> Regex(pattern) to serializer }
         assertTrue(keys.size > 100)
         for (key in keys) {
@@ -120,6 +126,8 @@ class DemoApiTest {
             assertEquals(200, reply.status, key)
             runCatching { ApiJson.decodeFromString(serializer, reply.body) }.onFailure { throw AssertionError("$key: ${it.message}", it) }
         }
+        val home = ApiJson.decodeFromString(Dashboard.serializer(), api.handle("GET", "/api/v1/dashboard", listOf("tz" to "330")).body)
+        assertTrue((home.todayWork?.acres99Leads ?: 0) > 0 && (home.todayWork?.housingLeads ?: 0) > 0, "demo has today's portal leads")
         val clients = ApiJson.decodeFromString(ClientList.serializer(), api.handle("GET", "/api/v1/clients", listOf("group" to "all", "tz" to "330")).body)
         assertTrue(clients.clients.size >= 10)
     }

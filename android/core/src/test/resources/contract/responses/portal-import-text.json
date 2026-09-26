@@ -1,0 +1,29 @@
+{
+  "lead": {
+    "id": "cmuinobqg00287d0grol7ken1",
+    "brokerageId": "cmuinoal800037d0ggixipq3t",
+    "portal": "HOUSING_COM",
+    "listingId": "cmuinobgr00157d0ga8b53i9q",
+    "clientId": "cmuinobqc00247d0gritply2c",
+    "externalLeadId": null,
+    "enquiredAt": "2026-09-26T17:20:37.469Z",
+    "name": "Neha Rao",
+    "phone": "+919820066666",
+    "email": null,
+    "message": null,
+    "budgetMin": null,
+    "budgetMax": null,
+    "requirement": null,
+    "status": "NEW",
+    "channel": "EMAIL",
+    "sourceRef": null,
+    "raw": {
+      "text": "You have a new lead on Housing.com. Name: Neha Rao, Mobile: 9820066666, Property: 1 BHK Apartment in Mulund West, Price: ₹ 27,000"
+    },
+    "dedupeKey": "h:959e0812df5ff52e6a1e4d4d8930f81cfb4ad136",
+    "createdAt": "2026-09-26T17:20:37.480Z",
+    "updatedAt": "2026-09-26T17:20:37.480Z"
+  },
+  "created": true,
+  "clientCreated": true
+}
