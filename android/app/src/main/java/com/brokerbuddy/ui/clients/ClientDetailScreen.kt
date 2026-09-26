@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +50,9 @@ import com.brokerbuddy.core.model.Inquiry
 import com.brokerbuddy.core.model.InquiryStatus
 import com.brokerbuddy.core.model.Role
 import com.brokerbuddy.core.model.VoiceNoteStatus
+import com.brokerbuddy.core.model.NoteSource
+import com.brokerbuddy.ui.caller.AddNoteDialog
+import com.brokerbuddy.ui.caller.ClientNotesSection
 import com.brokerbuddy.core.phone.PhoneNumbers
 import com.brokerbuddy.ui.common.BackTopBar
 import com.brokerbuddy.ui.common.EmptyMessage
@@ -84,6 +88,8 @@ fun ClientDetailScreen(
     val loader = rememberLoad(clientId) { container.api.call { client(clientId).client } }
     var addingReminder by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var addingNote by remember { mutableStateOf(false) }
+    var notesVersion by remember { mutableIntStateOf(0) }
     var canDelete by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         canDelete = container.sessionStore.current().user?.role.let { it == Role.OWNER || it == Role.ADMIN }
@@ -124,6 +130,8 @@ fun ClientDetailScreen(
 
                 VoiceNotesSection(clientId, onVoiceNote)
 
+                ClientNotesSection(clientId, refreshKey = notesVersion, onAdd = { addingNote = true })
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SectionTitle("Follow-ups", Modifier.weight(1f))
                     TextButton(onClick = { addingReminder = true }) { Icon(Icons.Filled.AddAlarm, null); Text("Add") }
@@ -152,6 +160,15 @@ fun ClientDetailScreen(
             defaultTitle = (loader.state as? Load.Ready)?.value?.let { "Follow up with ${it.name}" } ?: "",
             onDismiss = { addingReminder = false },
             onCreated = { addingReminder = false; loader.reload() },
+        )
+    }
+    if (addingNote) {
+        AddNoteDialog(
+            clientId = clientId,
+            clientName = (loader.state as? Load.Ready)?.value?.name ?: "client",
+            source = NoteSource.MANUAL,
+            onDismiss = { addingNote = false },
+            onSaved = { addingNote = false; notesVersion++ },
         )
     }
     if (confirmDelete) {

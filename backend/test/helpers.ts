@@ -6,7 +6,7 @@ export const app = createApp();
 
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "Reminder","InquiryRevision","Inquiry","ClientPhone","Client","Property","User","Brokerage" CASCADE`,
+    `TRUNCATE "ClientNote","VoiceNote","Reminder","InquiryRevision","Inquiry","ClientPhone","Client","Property","User","Brokerage" CASCADE`,
   );
 }
 

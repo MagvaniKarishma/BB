@@ -12,9 +12,9 @@ A real estate CRM for Mumbai brokers. It manages clients, remembers each client'
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | CRM, dashboards, requirements, inventory, matching, reminders, team | **Done** (backend fully tested; Android app compiled in CI) |
-| 2 | Voice notes (Hindi/Hinglish/Marathi/English) → AI requirement extraction | **Done** (backend tested; Android compiled in CI) |
-| 3 | Caller screen for known clients (incoming-call detection) | Backend lookup endpoint ready (`GET /clients/lookup`) |
+| 1 | CRM, dashboards, requirements, inventory, matching, reminders, team | **Done** (backend fully tested; Android code written, not yet compiled — first CI run pending) |
+| 2 | Voice notes (Hindi/Hinglish/Marathi/English) → AI requirement extraction | **Done** (backend tested; Android code written, not yet compiled — first CI run pending) |
+| 3 | Caller screen for known clients (incoming-call detection) | **Done** (backend tested; Android code written, not yet compiled — first CI run pending; device testing pending — see `docs/CALLER_SCREEN.md`) |
 | 4 | WhatsApp Business Cloud API; 99acres / Housing.com / Magicbricks lead parsing | Not started (the app has a `wa.me` click-to-chat fallback) |
 | 5 | Security hardening, deployment, signed APK and download site | Signing config and CI are in place |
 
@@ -101,6 +101,33 @@ A real estate CRM for Mumbai brokers. It manages clients, remembers each client'
 
 API: `POST /voice-notes` (multipart `audio`, `clientId`, `inquiryId?`, `language`, `durationMs`) · `POST /voice-notes/text` · `GET /voice-notes?clientId=` · `GET /voice-notes/:id` · `GET /voice-notes/:id/audio` · `PUT /voice-notes/:id/transcript` · `POST /voice-notes/:id/retry` · `POST /voice-notes/:id/apply` · `POST /voice-notes/:id/discard`
 
+## Phase 3: caller screen
+
+**Detecting calls:** Android's official `CallScreeningService` with the call-screening role, which the user grants (Android 10+).
+- BrokerBuddy never blocks or delays calls.
+- It does not use the restricted call-log permissions.
+
+**What the agent sees:**
+- A silent heads-up notification, always. It has an inline *Add note* reply, plus *Profile*, *Matches* or *Create client*.
+- A Truecaller-style floating card, if "Display over other apps" is allowed.
+- A full caller screen in the app.
+
+**What the card shows:**
+- the client, status and agent;
+- **every open inquiry**, with budget, locations, must-haves and a live count of matching properties;
+- the last conversation (note or voice note);
+- pending follow-ups.
+
+**Unknown numbers:** get *Create client*, with the number pre-filled.
+
+**Speed and offline:** a cached phone → name directory shows the name instantly, and offline too.
+
+**Setup:** Settings → Caller screen checks each permission and has a *Simulate incoming call* test.
+
+**More detail:** Android restrictions, limitations (Android 8–9, only one screening app at a time, calls from saved contacts, VoIP calls, OEM battery managers) and the device test plan are in [`docs/CALLER_SCREEN.md`](docs/CALLER_SCREEN.md).
+
+API: `GET /caller/lookup?phone=` · `GET /caller/directory` · `GET|POST /clients/:id/notes`
+
 ## Running locally
 
 ### Backend
@@ -134,10 +161,6 @@ Release signing reads `android/keystore.properties` (`storeFile`, `storePassword
 `properties` (CRUD, `:id/matches`) · `dashboard` · `reminders` (list, create, patch, delete) · `team` (list, add, patch)
 
 ## Plans for the next phases
-- **Phase 3 – caller screen.**
-  - Use Android's `CallScreeningService`, with the user granting the call-screening role, plus an overlay or notification for known numbers, filled from `GET /clients/lookup`.
-  - No call-log scraping, and no restricted permissions beyond what the role grants.
-  - If the role is refused: a "recent unknown callers" prompt and quick search.
 - **Phase 4 – WhatsApp and portal leads.**
   - The official WhatsApp Business Cloud API: webhook, approved message templates, and the 24-hour session window respected.
   - Parse portal lead emails and exports (99acres, Housing.com, Magicbricks) into leads. Leads go through the same duplicate check and are never auto-merged without broker confirmation.

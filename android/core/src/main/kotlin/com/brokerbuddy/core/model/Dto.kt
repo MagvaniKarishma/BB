@@ -125,6 +125,8 @@ data class Inquiry(
     val createdAt: String,
     val updatedAt: String,
     val client: ClientRef? = null,
+    /** Available properties meeting the must-haves (caller lookup only). */
+    val matchCount: Int? = null,
 )
 
 /** Full requirement body used for both create and update (nulls clear a field). */

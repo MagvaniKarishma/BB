@@ -1,6 +1,8 @@
 package com.brokerbuddy
 
 import android.app.Application
+import com.brokerbuddy.calls.CallerDirectorySyncWorker
+import com.brokerbuddy.calls.CallerNotifier
 import com.brokerbuddy.data.ApiClient
 import com.brokerbuddy.data.SessionStore
 import com.brokerbuddy.notifications.ReminderNotifier
@@ -21,6 +23,8 @@ class BrokerBuddyApp : Application() {
         super.onCreate()
         container = AppContainer(this)
         ReminderNotifier.createChannel(this)
+        CallerNotifier.createChannel(this)
         ReminderSyncWorker.schedulePeriodic(this)
+        CallerDirectorySyncWorker.schedulePeriodic(this)
     }
 }

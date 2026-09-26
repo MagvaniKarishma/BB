@@ -9,18 +9,18 @@ import androidx.compose.runtime.mutableStateOf
 import com.brokerbuddy.ui.theme.BrokerBuddyTheme
 
 class MainActivity : ComponentActivity() {
-    /** Client to open when launched from a reminder notification. */
-    private val pendingClientId = mutableStateOf<String?>(null)
+    /** In-app route to open when launched from a notification or the caller card. */
+    private val pendingRoute = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        pendingClientId.value = intent.getStringExtra(EXTRA_CLIENT_ID)
+        if (savedInstanceState == null) pendingRoute.value = routeFrom(intent)
         setContent {
             BrokerBuddyTheme {
                 BrokerBuddyNavHost(
-                    openClientId = pendingClientId.value,
-                    onClientOpened = { pendingClientId.value = null },
+                    openRoute = pendingRoute.value,
+                    onRouteOpened = { pendingRoute.value = null },
                 )
             }
         }
@@ -28,10 +28,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent.getStringExtra(EXTRA_CLIENT_ID)?.let { pendingClientId.value = it }
+        routeFrom(intent)?.let { pendingRoute.value = it }
     }
+
+    private fun routeFrom(intent: Intent?): String? =
+        intent?.getStringExtra(EXTRA_ROUTE) ?: intent?.getStringExtra(EXTRA_CLIENT_ID)?.let { "client/$it" }
 
     companion object {
         const val EXTRA_CLIENT_ID = "com.brokerbuddy.CLIENT_ID"
+        const val EXTRA_ROUTE = "com.brokerbuddy.ROUTE"
     }
 }

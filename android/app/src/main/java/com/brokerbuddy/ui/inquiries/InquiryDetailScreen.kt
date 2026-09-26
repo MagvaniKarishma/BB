@@ -66,10 +66,11 @@ fun InquiryDetailScreen(
     onClient: (String) -> Unit,
     onProperty: (String) -> Unit,
     onVoiceNote: (clientId: String) -> Unit,
+    initialTab: Int = 0,
 ) {
     val api = appContainer().api
     val loader = rememberLoad(inquiryId) { api.call { inquiry(inquiryId).inquiry } }
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(initialTab.coerceIn(0, 2)) }
 
     Scaffold(
         topBar = {

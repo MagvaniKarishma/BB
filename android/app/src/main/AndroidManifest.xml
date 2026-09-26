@@ -7,6 +7,11 @@
     <!-- Voice notes (runtime permission; typing the note is the fallback if denied). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <!-- Caller screen: optional floating card ("Display over other apps", granted in system settings). -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Optional: lets the system pass calls from saved phone contacts on versions that require it. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <application
         android:name=".BrokerBuddyApp"
@@ -31,6 +36,21 @@
 
         <receiver
             android:name=".notifications.ReminderAlarmReceiver"
+            android:exported="false" />
+
+        <!-- Incoming-call detection via the call-screening role (Android 10+). Only the
+             system (holding BIND_SCREENING_SERVICE) can bind to it. -->
+        <service
+            android:name=".calls.BrokerCallScreeningService"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".calls.NoteReplyReceiver"
             android:exported="false" />
     </application>
 

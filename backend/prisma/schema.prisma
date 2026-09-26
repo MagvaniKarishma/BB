@@ -114,6 +114,13 @@ enum VoiceNoteStatus {
   DISCARDED
 }
 
+// Where a client note was written from.
+enum NoteSource {
+  MANUAL
+  CALLER_SCREEN
+  NOTIFICATION
+}
+
 enum Availability {
   AVAILABLE
   ON_HOLD
@@ -140,6 +147,7 @@ model Brokerage {
   properties Property[]
   reminders  Reminder[]
   voiceNotes VoiceNote[]
+  notes      ClientNote[]
 }
 
 model User {
@@ -160,6 +168,7 @@ model User {
   inquiryRevisions  InquiryRevision[]
   listedProperties  Property[]
   voiceNotes        VoiceNote[]
+  clientNotes       ClientNote[]
 
   @@index([brokerageId])
 }
@@ -184,6 +193,7 @@ model Client {
   inquiries  Inquiry[]
   reminders  Reminder[]
   voiceNotes VoiceNote[]
+  conversationNotes ClientNote[]
 
   @@index([brokerageId, status])
   @@index([brokerageId, name])
@@ -348,4 +358,20 @@ model Reminder {
   createdAt    DateTime       @default(now())
 
   @@index([brokerageId, assignedToId, status, dueAt])
+}
+
+// A conversation note on a client (e.g. typed on the caller screen after a call).
+model ClientNote {
+  id          String     @id @default(cuid())
+  brokerageId String
+  brokerage   Brokerage  @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  authorId    String?
+  author      User?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  body        String
+  source      NoteSource @default(MANUAL)
+  createdAt   DateTime   @default(now())
+
+  @@index([clientId, createdAt])
 }

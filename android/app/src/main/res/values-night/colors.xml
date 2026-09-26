@@ -1,0 +1,7 @@
+<resources>
+    <color name="caller_surface">#FF1C2429</color>
+    <color name="caller_text">#FFE6ECEF</color>
+    <color name="caller_text_secondary">#FFA9B4BB</color>
+    <color name="caller_accent">#FF7FD3E3</color>
+    <color name="caller_badge_text">#FF003640</color>
+</resources>

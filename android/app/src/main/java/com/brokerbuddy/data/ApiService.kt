@@ -35,6 +35,11 @@ import com.brokerbuddy.core.model.TransactionType
 import com.brokerbuddy.core.model.UpdateClientRequest
 import com.brokerbuddy.core.model.UpdateMemberRequest
 import com.brokerbuddy.core.model.UpdateReminderRequest
+import com.brokerbuddy.core.model.AddNoteRequest
+import com.brokerbuddy.core.model.CallerDirectory
+import com.brokerbuddy.core.model.CallerLookup
+import com.brokerbuddy.core.model.ClientNoteEnvelope
+import com.brokerbuddy.core.model.ClientNoteList
 import com.brokerbuddy.core.model.ApplyVoiceNoteRequest
 import com.brokerbuddy.core.model.ApplyVoiceNoteResponse
 import com.brokerbuddy.core.model.TextVoiceNoteRequest
@@ -201,4 +206,17 @@ interface ApiService {
 
     @POST("voice-notes/{id}/discard")
     suspend fun discardVoiceNote(@Path("id") id: String): VoiceNoteEnvelope
+
+    // Caller screen (Phase 3)
+    @GET("caller/lookup")
+    suspend fun callerLookup(@Query("phone") phone: String): CallerLookup
+
+    @GET("caller/directory")
+    suspend fun callerDirectory(): CallerDirectory
+
+    @GET("clients/{id}/notes")
+    suspend fun clientNotes(@Path("id") clientId: String): ClientNoteList
+
+    @POST("clients/{id}/notes")
+    suspend fun addClientNote(@Path("id") clientId: String, @Body body: AddNoteRequest): ClientNoteEnvelope
 }

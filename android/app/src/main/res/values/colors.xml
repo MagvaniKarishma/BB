@@ -1,3 +1,8 @@
 <resources>
     <color name="ic_launcher_background">#0B5563</color>
+    <color name="caller_surface">#FFFFFFFF</color>
+    <color name="caller_text">#FF15202B</color>
+    <color name="caller_text_secondary">#FF5A6570</color>
+    <color name="caller_accent">#FF0B5563</color>
+    <color name="caller_badge_text">#FFFFFFFF</color>
 </resources>

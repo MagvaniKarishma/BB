@@ -5,6 +5,7 @@ import {
   Furnishing,
   InquiryStatus,
   LeadSource,
+  NoteSource,
   Possession,
   PropertyCategory,
   ReminderStatus,
@@ -69,6 +70,11 @@ export const updateClientSchema = z.object({
 export const addPhoneSchema = z.object({
   phone: trimmed(30),
   label: optionalText(40),
+});
+
+export const addNoteSchema = z.object({
+  body: trimmed(5000),
+  source: z.nativeEnum(NoteSource).default(NoteSource.MANUAL),
 });
 
 export const listClientsSchema = z.object({

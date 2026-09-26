@@ -104,3 +104,6 @@ enum class VoiceLanguage(val label: String) {
 
 @Serializable
 enum class VoiceNoteStatus { NEEDS_TRANSCRIPT, READY, APPLIED, DISCARDED }
+
+@Serializable
+enum class NoteSource { MANUAL, CALLER_SCREEN, NOTIFICATION }

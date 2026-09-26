@@ -87,6 +87,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
             }
+            CallerSetupSection()
             SectionTitle("Account")
             Button(onClick = { scope.launch { container.sessionStore.signOut() } }, modifier = Modifier.fillMaxWidth()) {
                 Text("Sign out")

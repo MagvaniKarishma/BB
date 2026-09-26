@@ -28,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.brokerbuddy.calls.CallerDirectorySyncWorker
 import com.brokerbuddy.core.model.ClientRef
 import com.brokerbuddy.core.model.ClientStatus
 import com.brokerbuddy.core.model.CreateClientRequest
@@ -52,15 +54,19 @@ fun ClientFormScreen(
     onBack: () -> Unit,
     onSaved: (String) -> Unit,
     onOpenExisting: (String) -> Unit,
+    /** Pre-fill for new clients, e.g. from the caller screen. */
+    initialPhone: String? = null,
+    initialLeadSource: LeadSource? = null,
 ) {
     val api = appContainer().api
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var name by rememberText()
-    var phone by rememberText()
+    var phone by rememberText(initialPhone)
     var altPhone by rememberText()
     var email by rememberText()
     var notes by rememberText()
-    var leadSource by rememberSaveable { mutableStateOf<LeadSource?>(null) }
+    var leadSource by rememberSaveable { mutableStateOf(initialLeadSource) }
     var status by rememberSaveable { mutableStateOf(ClientStatus.NEW) }
     var loaded by rememberSaveable { mutableStateOf(clientId == null) }
     var duplicate by remember { mutableStateOf<ClientRef?>(null) }
@@ -104,7 +110,10 @@ fun ClientFormScreen(
                             notes = notes.trim().ifEmpty { null },
                         ),
                     )
-                }.onSuccess { onSaved(it.client.id) }.onFailure { e ->
+                }.onSuccess {
+                    CallerDirectorySyncWorker.syncNow(context) // so the next call from them is recognised
+                    onSaved(it.client.id)
+                }.onFailure { e ->
                     val existing = (e as? ApiException)?.takeIf { it.code == "DUPLICATE_CLIENT" }?.existingClient()
                     if (existing != null) duplicate = existing else error = e.message
                 }

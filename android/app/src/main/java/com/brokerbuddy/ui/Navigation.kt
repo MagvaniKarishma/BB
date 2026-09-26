@@ -52,6 +52,12 @@ import com.brokerbuddy.ui.properties.PropertyListScreen
 import com.brokerbuddy.ui.reminders.RemindersScreen
 import com.brokerbuddy.ui.settings.SettingsScreen
 import com.brokerbuddy.ui.voice.VoiceNoteScreen
+import com.brokerbuddy.ui.caller.CallerScreen
+import com.brokerbuddy.calls.CallerDirectoryStore
+import com.brokerbuddy.calls.CallerDirectorySyncWorker
+import com.brokerbuddy.calls.CallerRoutes
+import com.brokerbuddy.core.model.LeadSource
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 
 object Routes {
@@ -84,7 +90,7 @@ private val tabs = listOf(
 )
 
 @Composable
-fun BrokerBuddyNavHost(openClientId: String?, onClientOpened: () -> Unit) {
+fun BrokerBuddyNavHost(openRoute: String?, onRouteOpened: () -> Unit) {
     val container = appContainer()
     val session by container.sessionStore.session.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
@@ -96,22 +102,33 @@ fun BrokerBuddyNavHost(openClientId: String?, onClientOpened: () -> Unit) {
 
     when (val s: Session? = session) {
         null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        else -> if (!s.isLoggedIn) LoginScreen() else MainScaffold(openClientId, onClientOpened)
+        else -> if (!s.isLoggedIn) LoginScreen() else MainScaffold(openRoute, onRouteOpened)
+    }
+
+    // Keep the on-device caller directory in step with the signed-in account.
+    val context = LocalContext.current
+    val loggedIn = session?.isLoggedIn
+    LaunchedEffect(loggedIn) {
+        when (loggedIn) {
+            true -> CallerDirectorySyncWorker.syncNow(context)
+            false -> CallerDirectoryStore.clear(context)
+            null -> Unit
+        }
     }
 }
 
 @Composable
-private fun MainScaffold(openClientId: String?, onClientOpened: () -> Unit) {
+private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val back: () -> Unit = { nav.popBackStack() }
     RequestNotificationPermissionOnce()
 
-    LaunchedEffect(openClientId) {
-        if (openClientId != null) {
-            nav.navigate(Routes.client(openClientId))
-            onClientOpened()
+    LaunchedEffect(openRoute) {
+        if (openRoute != null) {
+            runCatching { nav.navigate(openRoute) }
+            onRouteOpened()
         }
     }
 
@@ -156,9 +173,17 @@ private fun MainScaffold(openClientId: String?, onClientOpened: () -> Unit) {
             }
             composable(Routes.SETTINGS) { SettingsScreen(onBack = back) }
 
-            composable(Routes.CLIENT_NEW) {
+            composable(
+                "client/new?phone={phone}&source={source}",
+                listOf(
+                    navArgument("phone") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("source") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
                 ClientFormScreen(
                     clientId = null,
+                    initialPhone = entry.arguments?.getString("phone")?.ifEmpty { null },
+                    initialLeadSource = entry.arguments?.getString("source")?.let { s -> LeadSource.entries.firstOrNull { it.name == s } },
                     onBack = back,
                     onSaved = { id ->
                         nav.popBackStack()
@@ -202,10 +227,14 @@ private fun MainScaffold(openClientId: String?, onClientOpened: () -> Unit) {
                     },
                 )
             }
-            composable("inquiry/{id}") { entry ->
+            composable(
+                "inquiry/{id}?tab={tab}",
+                listOf(navArgument("tab") { type = NavType.IntType; defaultValue = 0 }),
+            ) { entry ->
                 val id = entry.arguments?.getString("id")!!
                 InquiryDetailScreen(
                     inquiryId = id,
+                    initialTab = entry.arguments?.getInt("tab") ?: 0,
                     onBack = back,
                     onEdit = { nav.navigate(Routes.inquiryEdit(id)) },
                     onClient = { nav.navigate(Routes.client(it)) },
@@ -245,6 +274,23 @@ private fun MainScaffold(openClientId: String?, onClientOpened: () -> Unit) {
                         nav.popBackStack()
                         nav.navigate(Routes.inquiry(inquiryId))
                     },
+                )
+            }
+            composable(
+                "caller?phone={phone}&note={note}",
+                listOf(
+                    navArgument("phone") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("note") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                CallerScreen(
+                    number = entry.arguments?.getString("phone").orEmpty(),
+                    startWithNote = entry.arguments?.getString("note") == "1",
+                    onBack = back,
+                    onClient = { nav.navigate(Routes.client(it)) },
+                    onInquiryMatches = { nav.navigate("inquiry/$it?tab=1") },
+                    onCreateClient = { nav.navigate(CallerRoutes.newClient(it)) },
+                    onVoiceNote = { clientId -> nav.navigate(Routes.voice(clientId)) },
                 )
             }
             composable(Routes.PROPERTY_NEW) {

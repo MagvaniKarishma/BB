@@ -5,6 +5,7 @@ import { currentUser, requireRole } from "../lib/auth.js";
 import { HttpError, badRequest, notFound } from "../lib/errors.js";
 import { normalizePhone } from "../lib/phone.js";
 import {
+  addNoteSchema,
   addPhoneSchema,
   createClientSchema,
   createInquirySchema,
@@ -238,4 +239,30 @@ clientsRouter.post("/:id/inquiries", async (req, res) => {
   const client = await loadClient(me.brokerageId, req.params.id);
   const inquiry = await createInquiry(me, client.id, body);
   res.status(201).json({ inquiry });
+});
+
+/** Conversation notes, newest first. */
+clientsRouter.get("/:id/notes", async (req, res) => {
+  const me = currentUser(req);
+  const client = await loadClient(me.brokerageId, req.params.id);
+  const notes = await prisma.clientNote.findMany({
+    where: { clientId: client.id },
+    orderBy: { createdAt: "desc" },
+    include: { author: { select: { id: true, name: true } } },
+    take: 200,
+  });
+  res.json({ notes });
+});
+
+clientsRouter.post("/:id/notes", async (req, res) => {
+  const me = currentUser(req);
+  const body = addNoteSchema.parse(req.body);
+  const client = await loadClient(me.brokerageId, req.params.id);
+  const note = await prisma.clientNote.create({
+    data: { brokerageId: me.brokerageId, clientId: client.id, authorId: me.id, body: body.body, source: body.source },
+    include: { author: { select: { id: true, name: true } } },
+  });
+  // Touch the client so it surfaces at the top of recently-active lists.
+  await prisma.client.update({ where: { id: client.id }, data: { updatedAt: new Date() } });
+  res.status(201).json({ note });
 });
