@@ -104,7 +104,19 @@ Tick each item; note the phone model and Android version with any problem.
 - [ ] Greeting with your first name and today's date.
 - [ ] Clients / Enquiries / Properties / Follow-ups tiles show numbers matching the lists. Each tile opens its list.
 - [ ] Rent/Buy switch changes the category counts; tapping a category opens its requirements.
-- [ ] Today's follow-ups, new leads and top matches show seeded data. Mark done / Snooze work.
+- [ ] **Today's Work** shows five rows with counts: New Leads, Callbacks, Follow-ups, 99acres Leads, Housing.com Leads.
+- [ ] New Leads opens Clients on the New tab; Callbacks / Follow-ups open the Follow Ups screen with only callbacks / only follow-ups.
+
+### 99acres and Housing.com leads (see `docs/PORTAL_LEADS.md`)
+- [ ] Tap 99acres Leads → status chip says *Import Required*; with no leads the screen explains how to add them (not blank).
+- [ ] ⚙ → Import CSV: pick a portal lead export saved as CSV → the result says how many were imported / skipped and why.
+- [ ] ⚙ → Paste lead email → the lead appears under Today.
+- [ ] Share a 99acres lead message from WhatsApp → it appears on the 99acres screen (not on Housing.com).
+- [ ] Listing cards: photo or stock art, title, area, BHK, price, interested count, new count, last enquiry, "Open on 99acres".
+- [ ] Today / Yesterday / Last 7 Days / Custom change the list; open a listing → its clients follow the same dates.
+- [ ] On a client card: Call, WhatsApp, profile, note, follow-up, status (New → Contacted…) all work; the client's profile → Activity lists the enquiry.
+- [ ] Same checks on Housing.com Leads; the same flat on both portals shows as two separate listings.
+- [ ] Today's Work → Ask: say "Show today's 99acres leads" (English), "Mark <client> as contacted", and "Set a follow-up with <client> tomorrow".
 
 ### Clients
 - [ ] Clients list: tabs All / New / Active / Follow Up / Lost with counts; search by name and by phone.
