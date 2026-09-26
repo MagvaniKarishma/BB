@@ -8,6 +8,7 @@ import { diffSnapshots, snapshotOf } from "../domain/requirementHistory.js";
 import { evaluateMatch, rankMatches } from "../domain/matching.js";
 import { createInquirySchema, listInquiriesSchema, updateInquirySchema } from "../schemas.js";
 import { withPhotoIds } from "../services/photos.js";
+import { matchCounts } from "../services/matching.js";
 
 export const inquiriesRouter = Router();
 
@@ -120,7 +121,7 @@ async function loadInquiry(brokerageId: string, id: string) {
 inquiriesRouter.get("/", async (req, res) => {
   const me = currentUser(req);
   const q = listInquiriesSchema.parse(req.query);
-  const inquiries = await prisma.inquiry.findMany({
+  let inquiries = await prisma.inquiry.findMany({
     where: {
       brokerageId: me.brokerageId,
       transactionType: q.transactionType,
@@ -131,7 +132,14 @@ inquiriesRouter.get("/", async (req, res) => {
     include: { client: { select: { id: true, name: true, primaryPhone: true, status: true } } },
     take: 500,
   });
-  res.json({ inquiries });
+  if (q.q) {
+    const needle = q.q.toLowerCase();
+    inquiries = inquiries.filter(
+      (i) => i.client.name.toLowerCase().includes(needle) || i.locations.some((l) => l.toLowerCase().includes(needle)),
+    );
+  }
+  const counts = await matchCounts(me.brokerageId, inquiries.filter((i) => i.status === "ACTIVE"));
+  res.json({ total: inquiries.length, inquiries: inquiries.map((i) => ({ ...i, matchCount: counts.get(i.id) ?? null })) });
 });
 
 inquiriesRouter.get("/:id", async (req, res) => {

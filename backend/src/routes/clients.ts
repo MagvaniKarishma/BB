@@ -18,23 +18,43 @@ import { createInquiry } from "./inquiries.js";
 
 export const clientsRouter = Router();
 
+/** Client list tabs: statuses grouped the way agents talk about them. */
+const GROUPS = {
+  new: { status: { in: ["NEW"] } },
+  active: { status: { in: ["CONTACTED", "SITE_VISIT", "NEGOTIATION"] } },
+  lost: { status: { in: ["CLOSED_LOST"] } },
+} satisfies Record<string, Prisma.ClientWhereInput>;
+
+/** End of "today" in the agent's time zone (offset in minutes, e.g. 330 for India). */
+const endOfToday = (tzMinutes: number) => {
+  const local = new Date(Date.now() + tzMinutes * 60_000);
+  local.setUTCHours(23, 59, 59, 999);
+  return new Date(local.getTime() - tzMinutes * 60_000);
+};
+
 clientsRouter.get("/", async (req, res) => {
   const me = currentUser(req);
   const q = listClientsSchema.parse(req.query);
-  const where: Prisma.ClientWhereInput = {
-    brokerageId: me.brokerageId,
+  const b = me.brokerageId;
+  const followUpWhere: Prisma.ClientWhereInput = { reminders: { some: { status: "PENDING", dueAt: { lte: endOfToday(q.tz) } } } };
+  const base: Prisma.ClientWhereInput = {
+    brokerageId: b,
     status: q.status,
     leadSource: q.leadSource,
     assignedToId: q.assignedToId,
   };
   if (q.q) {
     const digits = q.q.replace(/\D/g, "");
-    where.OR = [
+    base.OR = [
       { name: { contains: q.q, mode: "insensitive" } },
       ...(digits.length >= 3 ? [{ phones: { some: { e164: { contains: digits } } } }] : []),
     ];
   }
-  const [total, clients] = await Promise.all([
+  const groupWhere = (g: typeof q.group): Prisma.ClientWhereInput =>
+    g === "followup" ? followUpWhere : g && g !== "all" ? GROUPS[g] : {};
+  const where: Prisma.ClientWhereInput = { AND: [base, groupWhere(q.group)] };
+
+  const [total, clients, groupCounts] = await Promise.all([
     prisma.client.count({ where }),
     prisma.client.findMany({
       where,
@@ -44,14 +64,34 @@ clientsRouter.get("/", async (req, res) => {
       include: {
         assignedTo: { select: { id: true, name: true } },
         _count: { select: { inquiries: { where: { status: "ACTIVE" } } } },
+        // The latest active requirement, for the one-line summary ("2 BHK • Rent • Andheri West").
+        inquiries: {
+          where: { status: "ACTIVE" },
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+          select: { id: true, transactionType: true, category: true, locations: true, budgetMin: true, budgetMax: true },
+        },
+        reminders: { where: { status: "PENDING" }, orderBy: { dueAt: "asc" }, take: 1, select: { dueAt: true } },
       },
     }),
+    // Counts for the tabs, with the search/filters applied but not the tab itself.
+    Promise.all(
+      (["all", "new", "active", "followup", "lost"] as const).map(async (g) => [g, await prisma.client.count({ where: { AND: [base, groupWhere(g)] } })] as const),
+    ).then(Object.fromEntries),
   ]);
+  const dueBy = endOfToday(q.tz);
   res.json({
     total,
     page: q.page,
     pageSize: q.pageSize,
-    clients: clients.map(({ _count, ...c }) => ({ ...c, activeInquiries: _count.inquiries })),
+    groupCounts,
+    clients: clients.map(({ _count, inquiries, reminders, ...c }) => ({
+      ...c,
+      activeInquiries: _count.inquiries,
+      requirement: inquiries[0] ?? null,
+      nextFollowUpAt: reminders[0]?.dueAt ?? null,
+      followUpDue: reminders[0] != null && reminders[0].dueAt <= dueBy,
+    })),
   });
 });
 

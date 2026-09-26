@@ -1,9 +1,8 @@
 import { Router } from "express";
-import type { Inquiry } from "@prisma/client";
 import { prisma } from "../db.js";
 import { currentUser } from "../lib/auth.js";
 import { normalizePhone } from "../lib/phone.js";
-import { evaluateMatch } from "../domain/matching.js";
+import { matchCounts } from "../services/matching.js";
 
 export const callerRouter = Router();
 
@@ -35,24 +34,6 @@ async function lastInteraction(clientId: string): Promise<LastInteraction | null
   }
   candidates.sort((a, b) => b.at.getTime() - a.at.getTime());
   return candidates[0] ?? null;
-}
-
-/** Number of available properties satisfying each inquiry's must-haves. */
-async function matchCounts(brokerageId: string, inquiries: Inquiry[]): Promise<Map<string, number>> {
-  const counts = new Map<string, number>();
-  if (inquiries.length === 0) return counts;
-  const properties = await prisma.property.findMany({
-    where: {
-      brokerageId,
-      availability: "AVAILABLE",
-      OR: inquiries.map((i) => ({ transactionType: i.transactionType, category: i.category })),
-    },
-    take: 5000,
-  });
-  for (const i of inquiries) {
-    counts.set(i.id, properties.filter((p) => evaluateMatch(i, p).eligible).length);
-  }
-  return counts;
 }
 
 /**

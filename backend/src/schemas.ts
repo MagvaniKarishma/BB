@@ -79,6 +79,10 @@ export const addNoteSchema = z.object({
 
 export const listClientsSchema = z.object({
   q: z.string().trim().max(100).optional(),
+  /** List tab: all | new | active (contacted, site visit, negotiation) | followup (due today or overdue) | lost. */
+  group: z.enum(["all", "new", "active", "followup", "lost"]).optional(),
+  /** Agent's UTC offset in minutes, for "due today". */
+  tz: z.coerce.number().int().min(-720).max(840).default(330),
   status: z.nativeEnum(ClientStatus).optional(),
   leadSource: z.nativeEnum(LeadSource).optional(),
   assignedToId: z.string().optional(),
@@ -150,6 +154,8 @@ export const updateInquirySchema = z
   .superRefine(checkRanges);
 
 export const listInquiriesSchema = z.object({
+  /** Client name or area. */
+  q: z.string().trim().max(100).optional(),
   transactionType: z.nativeEnum(TransactionType).optional(),
   category: z.nativeEnum(PropertyCategory).optional(),
   status: z.nativeEnum(InquiryStatus).optional(),
