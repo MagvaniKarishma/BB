@@ -259,7 +259,8 @@ fun PropertyDetailScreen(propertyId: String, onBack: () -> Unit, onEdit: () -> U
                     }
                     Button(
                         onClick = { confirmStatus = next },
-                        colors = ButtonDefaults.buttonColors(containerColor = if (next == Availability.AVAILABLE) b.success.content else Brand.Red),
+                        colors = if (next == Availability.AVAILABLE) ButtonDefaults.buttonColors(containerColor = b.success.content)
+                        else ButtonDefaults.buttonColors(containerColor = Brand.Red, contentColor = Color.White),
                         modifier = Modifier.weight(1f),
                     ) { Text("Mark as ${next.label}") }
                 }

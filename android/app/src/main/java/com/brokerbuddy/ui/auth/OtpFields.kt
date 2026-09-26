@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -27,8 +26,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.brokerbuddy.core.phone.PhoneNumbers
-import com.brokerbuddy.ui.theme.Brand
 import com.brokerbuddy.ui.theme.brand
+import com.brokerbuddy.ui.theme.primaryButtonColors
 import kotlinx.coroutines.delay
 
 /** Mobile number with a fixed +91 prefix (Indian numbers); returns what was typed. */
@@ -88,7 +87,7 @@ fun OtpCodeStep(
         Button(
             onClick = onVerify,
             enabled = code.length == digits && !busy,
-            colors = ButtonDefaults.buttonColors(containerColor = Brand.Navy),
+            colors = primaryButtonColors(),
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth().height(52.dp),
         ) { Text(if (busy) "Please wait…" else "Verify") }

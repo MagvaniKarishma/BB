@@ -177,7 +177,7 @@ private fun KnownCaller(
         Spacer(Modifier.height(14.dp))
         Button(
             onClick = { onClient(c.id) },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB), contentColor = Color.White),
             modifier = Modifier.fillMaxWidth(),
         ) { Text("View Full Profile") }
     }

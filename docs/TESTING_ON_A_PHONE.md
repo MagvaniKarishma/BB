@@ -68,9 +68,15 @@ The app needs Android 8.0 or newer. The caller screen needs Android 10 or newer.
 1. Open BrokerBuddy. After the navy splash screen you'll see the sign-in screen.
 2. Tap the small **Server: 10.0.2.2:4000** link under the buttons. That address only works in the Android emulator.
 3. Change it to `http://<your computer's IP>:4000`, e.g. `http://192.168.1.23:4000`.
-4. Choose the **Email** tab if tabs are shown and sign in with `demo@brokerbuddy.local` / `demo12345`. You can also create your own brokerage with **New brokerage? Create an account**.
+4. Choose the **Email** tab if tabs are shown and sign in with `demo@brokerbuddy.local` / `demo12345`. You can also create your own account with **New broker? Create a broker account**.
 
 The Mobile number tab only appears once MSG91 is configured (see `docs/OTP_LOGIN.md`).
+
+**"Can't reach the server"** means the phone got no answer at that address. Check:
+- the server is running on the computer (`npm run dev` shows *BrokerBuddy API listening on :4000*);
+- the address is the computer's Wi-Fi address, not `10.0.2.2`, and starts with `http://`, e.g. `http://192.168.1.23:4000`;
+- the phone is on the same Wi-Fi as the computer, not mobile data;
+- in the phone's browser, `http://192.168.1.23:4000/health` shows `{"ok":true}`. If it doesn't, the computer's firewall is blocking port 4000, or the Wi-Fi network (e.g. guest or office Wi-Fi) blocks devices from talking to each other.
 
 ## 5. Test checklist
 

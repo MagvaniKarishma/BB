@@ -22,6 +22,8 @@ class ApiException(
     message: String,
     val httpStatus: Int? = null,
     val error: ApiErrorDetail? = null,
+    /** The server couldn't be reached at all (wrong address, server not running, no network). */
+    val unreachable: Boolean = false,
 ) : Exception(message) {
     val code: String? get() = error?.code
 }
@@ -80,7 +82,7 @@ class ApiClient(private val sessionStore: SessionStore, val json: Json) {
         }
         Result.failure(ApiException(detail?.message ?: "Server error (${e.code()})", e.code(), detail))
     } catch (e: IOException) {
-        Result.failure(ApiException("Can't reach the BrokerBuddy server. Check your connection and server address."))
+        Result.failure(ApiException(unreachableMessage(sessionStore.current().serverUrl), unreachable = true))
     } catch (e: SerializationException) {
         Result.failure(ApiException("Unexpected response from server: ${e.message}"))
     } catch (e: IllegalArgumentException) {
@@ -89,5 +91,16 @@ class ApiClient(private val sessionStore: SessionStore, val json: Json) {
 
     companion object {
         fun defaultJson(): Json = ApiJson
+
+        /** Names the address that failed; 10.0.2.2 is the emulator's alias for the computer and never works on a phone. */
+        fun unreachableMessage(serverUrl: String): String {
+            val address = serverUrl.removePrefix("https://").removePrefix("http://").removeSuffix("/")
+            return if (address.startsWith("10.0.2.2")) {
+                "Can't reach the server at $address. That address only works in the Android emulator. " +
+                    "On a phone, enter the address of the computer running BrokerBuddy, e.g. http://192.168.1.23:4000."
+            } else {
+                "Can't reach the BrokerBuddy server at $address. Check that it's running, that the phone is on the same network, and the server address."
+            }
+        }
     }
 }

@@ -2,6 +2,8 @@ package com.brokerbuddy.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
@@ -202,3 +204,13 @@ fun BrokerBuddyTheme(content: @Composable () -> Unit) {
         )
     }
 }
+
+/**
+ * Main action button (Sign in, Create account, Send OTP, Verify): navy in light mode, brand blue in
+ * dark mode, where navy would disappear into the dark card; white text in both.
+ */
+@Composable
+fun primaryButtonColors(): ButtonColors = ButtonDefaults.buttonColors(
+    containerColor = if (isSystemInDarkTheme()) Brand.Blue else Brand.Navy,
+    contentColor = Color.White,
+)

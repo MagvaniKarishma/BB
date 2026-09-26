@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.brokerbuddy.core.model.LoginRequest
+import com.brokerbuddy.data.ApiException
 import com.brokerbuddy.core.model.RegisterRequest
 import com.brokerbuddy.ui.common.appContainer
 import com.brokerbuddy.ui.common.rememberText
@@ -37,15 +38,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.brokerbuddy.R
 import com.brokerbuddy.ui.design.BrandWordmark
-import com.brokerbuddy.ui.theme.Brand
 import com.brokerbuddy.ui.theme.brand
+import com.brokerbuddy.ui.theme.primaryButtonColors
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.text.style.TextAlign
 import com.brokerbuddy.core.model.OtpRequest
@@ -70,6 +70,12 @@ fun LoginScreen() {
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var info by remember { mutableStateOf<String?>(null) }
+    var showServer by rememberSaveable { mutableStateOf(false) }
+    /** Shows an error; when the server can't be reached, also opens the server address field. */
+    fun fail(e: Throwable) {
+        error = e.message
+        if ((e as? ApiException)?.unreachable == true) showServer = true
+    }
 
     // Mobile-number sign-in, offered when the server has SMS set up.
     var otp by remember { mutableStateOf<OtpStatus?>(null) }
@@ -104,7 +110,7 @@ fun LoginScreen() {
             }
             result.fold(
                 onSuccess = { container.sessionStore.signIn(it.token, it.user) },
-                onFailure = { error = it.message },
+                onFailure = ::fail,
             )
             busy = false
         }
@@ -123,7 +129,7 @@ fun LoginScreen() {
                     code = ""
                     info = sent.message
                 }
-                .onFailure { error = it.message }
+                .onFailure(::fail)
             busy = false
         }
     }
@@ -135,12 +141,11 @@ fun LoginScreen() {
         scope.launch {
             container.api.call { verifyOtp(OtpVerifyRequest(phone, code)) }
                 .onSuccess { container.sessionStore.signIn(it.token, it.user) }
-                .onFailure { error = it.message; code = "" }
+                .onFailure { fail(it); code = "" }
             busy = false
         }
     }
 
-    var showServer by rememberSaveable { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().background(MaterialTheme.brand.card).systemBarsPadding().imePadding()
             .verticalScroll(rememberScrollState()).padding(24.dp),
@@ -169,7 +174,7 @@ fun LoginScreen() {
                 MobileNumberField(mobile, { mobile = it }, enabled = !busy)
                 Button(
                     onClick = ::sendCode, enabled = indianMobile(mobile) != null && !busy,
-                    colors = ButtonDefaults.buttonColors(containerColor = Brand.Navy),
+                    colors = primaryButtonColors(),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                 ) { Text(if (busy) "Please wait…" else "Send OTP") }
@@ -186,7 +191,7 @@ fun LoginScreen() {
             }
             else -> {
                 Text(
-                    if (registering) "Create your brokerage account" else "Sign in to your brokerage",
+                    if (registering) "Create your broker account" else "Sign in to your broker account",
                     style = MaterialTheme.typography.titleMedium, color = MaterialTheme.brand.navy,
                 )
                 if (registering) {
@@ -212,7 +217,7 @@ fun LoginScreen() {
                     (!registering || regMobile.isBlank() || indianMobile(regMobile) != null)
                 Button(
                     onClick = ::submit, enabled = valid && !busy,
-                    colors = ButtonDefaults.buttonColors(containerColor = Brand.Navy),
+                    colors = primaryButtonColors(),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                 ) {
@@ -230,7 +235,7 @@ fun LoginScreen() {
             )
         }
         TextButton(onClick = { registering = !registering; error = null }, modifier = Modifier.fillMaxWidth()) {
-            Text(if (registering) "Already have an account? Sign in" else "New brokerage? Create an account")
+            Text(if (registering) "Already have an account? Sign in" else "New broker? Create a broker account")
         }
         if (!showServer && server.isNotBlank()) {
             TextButton(onClick = { showServer = true }) {
