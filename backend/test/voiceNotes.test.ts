@@ -308,3 +308,38 @@ describe("voice fill for the requirement form", () => {
     expect((await api.post("/voice-notes/extract", { text: "" })).status).toBe(400);
   });
 });
+
+describe("voice fill in Hindi / Marathi with the phone's English translation", () => {
+  it("fills fields in English: numbers and type from the original, areas in English", async () => {
+    const { api } = await registerBroker();
+    const marathi = "मला अंधेरी वेस्ट मध्ये 2 बीएचके भाड्याने पाहिजे, बजेट 60 ते 70 हजार, सेमी फर्निश्ड";
+    const english = "I want a 2 BHK on rent in Andheri West, budget 60 to 70 thousand, semi furnished";
+    const d = (await api.post("/voice-notes/extract", { text: marathi, language: "MARATHI", english })).body.draft;
+    expect(d).toMatchObject({
+      transactionType: { value: "RENT" }, category: { value: "BHK_2" },
+      budgetMin: { value: 60000 }, budgetMax: { value: 70000 }, furnishing: { value: ["SEMI_FURNISHED"] },
+    });
+    expect(d.locations.map((l: { value: string }) => l.value)).toEqual(["Andheri West"]);
+
+    // The translation adds what the original rules missed (here: parking), never overriding the original.
+    const hindi = "पवई में 3 बीएचके खरीदना है, बजट डेढ़ करोड़ से दो करोड़ तक";
+    const withParking = "Want to buy 3 BHK in Powai, budget one and a half crore to two crore, 2 car parking";
+    const h = (await api.post("/voice-notes/extract", { text: hindi, language: "HINDI", english: withParking })).body.draft;
+    expect(h).toMatchObject({ transactionType: { value: "BUY" }, budgetMin: { value: 15000000 }, budgetMax: { value: 20000000 } });
+    expect(h.minParking.value).toBe(2);
+    expect(h.locations.map((l: { value: string }) => l.value)).toEqual(["Powai"]);
+  });
+
+  it("never puts Devanagari area names in the form", async () => {
+    const { api } = await registerBroker();
+    const { setVoiceServices } = await import("../src/voice/service.js");
+    // An extractor that returns an area as spoken (as an AI extractor might).
+    setVoiceServices({
+      transcriber: null,
+      extractor: { name: "fake", async extract() { return { draft: { locations: [{ value: "वीणा नगर", evidence: "वीणा नगर" }] }, warnings: [] }; } },
+    });
+    const res = (await api.post("/voice-notes/extract", { text: "वीणा नगर में", language: "HINDI" })).body;
+    expect(res.draft.locations).toBeUndefined();
+    expect(res.warnings.join(" ")).toMatch(/type it in the Locations field/);
+  });
+});

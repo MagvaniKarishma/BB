@@ -188,9 +188,58 @@ voiceNotesRouter.post("/extract", async (req, res) => {
   const body = z.object({
     text: z.string().trim().min(1).max(MAX_TRANSCRIPT),
     language: z.nativeEnum(VoiceLanguage).default("AUTO"),
+    /** The phone's English translation of [text] (Hindi/Marathi speech), when it has one. */
+    english: absentIfNull(z.string().trim().min(1).max(MAX_TRANSCRIPT)),
   }).parse(req.body);
-  res.json(await extractRequirement(body.text.normalize("NFC"), body.language));
+  const original = await extractRequirement(body.text.normalize("NFC"), body.language);
+  if (!body.english) {
+    res.json(englishOnly(original));
+    return;
+  }
+  const translated = await extractRequirement(body.english.normalize("NFC"), "ENGLISH");
+  res.json(mergeWithTranslation(original, translated));
 });
+
+const DEVANAGARI = /[\u0900-\u097F]/;
+
+/** Area names must go into the form in English: drop any still in Devanagari (not in the area list). */
+function englishOnly(x: Extraction): Extraction {
+  const locations = x.draft.locations?.filter((l) => !DEVANAGARI.test(l.value));
+  const draft = { ...x.draft, locations: locations?.length ? locations : undefined };
+  if (!draft.locations) delete draft.locations;
+  const dropped = (x.draft.locations?.length ?? 0) - (locations?.length ?? 0);
+  return {
+    ...x,
+    draft,
+    warnings: dropped > 0 ? [...x.warnings, "An area name wasn't recognised in English — type it in the Locations field"] : x.warnings,
+  };
+}
+
+/**
+ * Hindi/Marathi speech: the original words decide numbers, rent/buy and type (the rules read
+ * them reliably); the English translation adds anything the original missed, and area names
+ * come out in English (recognised areas from the original, the rest from the translation).
+ */
+function mergeWithTranslation(original: Extraction, translated: Extraction): Extraction {
+  const draft = { ...translated.draft, ...original.draft };
+  const fromOriginal = (original.draft.locations ?? []).filter((l) => !DEVANAGARI.test(l.value));
+  const fromEnglish = (translated.draft.locations ?? []).filter((l) => !DEVANAGARI.test(l.value));
+  const seen = new Set<string>();
+  const locations = [...fromOriginal, ...fromEnglish].filter((l) => {
+    const k = l.value.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  if (locations.length) draft.locations = locations;
+  else delete draft.locations;
+  return {
+    draft,
+    advertisedPrices: original.advertisedPrices?.length ? original.advertisedPrices : translated.advertisedPrices,
+    warnings: [...new Set([...original.warnings, ...translated.warnings])],
+    extractor: original.extractor,
+  };
+}
 
 voiceNotesRouter.post("/text", async (req, res) => {
   const me = currentUser(req);

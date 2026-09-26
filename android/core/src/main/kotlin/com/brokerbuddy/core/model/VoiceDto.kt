@@ -85,4 +85,9 @@ data class VoiceNoteEnvelope(val voiceNote: VoiceNote)
 
 /** Words to read a requirement from (voice fill on the requirement form). Nothing is stored. */
 @Serializable
-data class ExtractRequest(val text: String, val language: VoiceLanguage = VoiceLanguage.AUTO)
+data class ExtractRequest(
+    val text: String,
+    val language: VoiceLanguage = VoiceLanguage.AUTO,
+    /** English translation made on the phone (Hindi/Marathi speech). */
+    val english: String? = null,
+)

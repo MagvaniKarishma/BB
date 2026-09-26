@@ -92,6 +92,8 @@ dependencies {
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+    // On-device Hindi/Marathi → English translation for voice fill (models download once, then work offline).
+    implementation(libs.mlkit.translate)
 
     testImplementation(libs.junit)
     testImplementation(kotlin("test"))

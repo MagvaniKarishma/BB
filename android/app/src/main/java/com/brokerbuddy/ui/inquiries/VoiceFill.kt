@@ -48,6 +48,7 @@ import com.brokerbuddy.ui.design.BrandCard
 import com.brokerbuddy.ui.portal.SpeechLang
 import com.brokerbuddy.ui.theme.Brand
 import com.brokerbuddy.ui.theme.brand
+import com.brokerbuddy.voice.EnglishTranslator
 import kotlinx.coroutines.launch
 
 /** Language the requirement is read in, for the chosen speech language (Hinglish comes through English). */
@@ -75,6 +76,9 @@ fun VoiceFillCard(
     var lang by rememberSaveable { mutableStateOf(SpeechLang.ENGLISH) }
     var busy by remember { mutableStateOf(false) }
     var heard by rememberSaveable { mutableStateOf<String?>(null) }
+    var english by rememberSaveable { mutableStateOf<String?>(null) }
+    var stage by remember { mutableStateOf("Reading what you said…") }
+    var note by remember { mutableStateOf<String?>(null) }
     var result by rememberSaveable { mutableStateOf<String?>(null) }
     var warnings by remember { mutableStateOf<List<String>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -83,9 +87,22 @@ fun VoiceFillCard(
     fun read(text: String) {
         busy = true
         error = null
+        note = null
         heard = text
+        english = null
         scope.launch {
-            api.call { extractRequirement(ExtractRequest(text, lang.voiceLanguage())) }
+            // Hindi / Marathi (Devanagari) → English on the phone, so the form is filled in English.
+            var eng: String? = null
+            if (EnglishTranslator.needsTranslation(text)) {
+                stage = "Translating to English… (the first time, the ${lang.label} language pack downloads — about 30 MB)"
+                val source = if (lang == SpeechLang.MARATHI) EnglishTranslator.Source.MARATHI else EnglishTranslator.Source.HINDI
+                eng = runCatching { EnglishTranslator.toEnglish(text, source) }
+                    .onFailure { note = "Couldn't translate to English (${it.message ?: "no connection for the first-time download"}). Fields are still filled from what you said." }
+                    .getOrNull()
+                english = eng
+            }
+            stage = "Filling the form…"
+            api.call { extractRequirement(ExtractRequest(text, lang.voiceLanguage(), eng)) }
                 .onSuccess { x ->
                     val merge = form.applyDraft(x.draft)
                     if (merge.evidence.isEmpty()) {
@@ -126,16 +143,26 @@ fun VoiceFillCard(
                 if (busy) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(36.dp))
                 else Icon(Icons.Filled.Mic, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
             }
-            Text(if (busy) "Reading what you said…" else "Tap and speak the requirement", style = MaterialTheme.typography.titleSmall, color = b.navy)
+            Text(if (busy) stage else "Tap and speak the requirement", style = MaterialTheme.typography.titleSmall, color = b.navy, textAlign = TextAlign.Center)
             Text(
-                "e.g. “2 BHK rent pe chahiye Andheri West mein, budget 60 se 70 hazaar, semi furnished, ek parking”. " +
+                "Speak in English, Hinglish, हिंदी or मराठी — the form is filled in English. " +
+                    "e.g. “2 BHK rent pe chahiye Andheri West mein, budget 60 se 70 hazaar, ek parking”. " +
                     "Only what you say is filled; you can change anything below.",
                 style = MaterialTheme.typography.bodySmall, color = b.muted, textAlign = TextAlign.Center,
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 SpeechLang.entries.forEach { l -> FilterChip(selected = lang == l, onClick = { lang = l }, label = { Text(l.label) }) }
             }
-            heard?.let { Text("🎙 “$it”", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) }
+            heard?.let { Text("You said: “$it”", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) }
+            english?.let { Text("In English: “$it”", style = MaterialTheme.typography.bodyMedium, color = b.navy, textAlign = TextAlign.Center) }
+            note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = b.amber.content, textAlign = TextAlign.Center) }
+            // Keep the English (or English/Hinglish as spoken) sentence with the requirement, if the agent wants.
+            val sentence = english ?: heard?.takeUnless { EnglishTranslator.needsTranslation(it) }
+            if (!busy && sentence != null && !form.notes.contains(sentence)) {
+                TextButton(onClick = {
+                    onFilled(form.copy(notes = listOf(form.notes.trim(), sentence).filter { it.isNotEmpty() }.joinToString("\n")), emptyMap())
+                }) { Text("Add this to Additional preferences") }
+            }
             result?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = b.success.content, textAlign = TextAlign.Center) }
             warnings.take(3).forEach { Text("⚠ $it", style = MaterialTheme.typography.bodySmall, color = b.amber.content) }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }

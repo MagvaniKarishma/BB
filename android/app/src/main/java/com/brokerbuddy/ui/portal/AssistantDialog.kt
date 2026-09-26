@@ -44,7 +44,7 @@ import java.time.ZoneId
 
 /** Speech languages offered; Hinglish works with English (India). */
 internal enum class SpeechLang(val label: String, val tag: String) {
-    ENGLISH("English", "en-IN"),
+    ENGLISH("English / Hinglish", "en-IN"),
     HINDI("हिंदी", "hi-IN"),
     MARATHI("मराठी", "mr-IN"),
 }
