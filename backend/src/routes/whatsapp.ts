@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { Prisma, type WhatsAppMessage } from "@prisma/client";
 import { prisma } from "../db.js";
+import { absentIfNull } from "../schemas.js";
 import { type AuthUser, currentUser, requireRole } from "../lib/auth.js";
 import { encrypt, encryptionConfigured, decrypt, randomToken } from "../lib/crypto.js";
 import { HttpError, badRequest, notFound } from "../lib/errors.js";
@@ -102,8 +103,8 @@ async function enquiredProperties(me: AuthUser, msg: { portalLead: Prisma.JsonVa
 
 const connectSchema = z.object({
   phoneNumberId: z.string().trim().regex(/^\d{5,30}$/, "Phone number ID is the numeric ID from Meta"),
-  wabaId: z.string().trim().regex(/^\d{5,30}$/).optional(),
-  displayPhone: z.string().trim().max(30).optional(),
+  wabaId: absentIfNull(z.string().trim().regex(/^\d{5,30}$/)),
+  displayPhone: absentIfNull(z.string().trim().max(30)),
   accessToken: z.string().trim().min(20).max(1000),
   appSecret: z.string().trim().min(16).max(200),
 });
@@ -211,8 +212,8 @@ async function attachClient(msg: WhatsAppMessage, clientId: string) {
 }
 
 const createFromMessageSchema = z.object({
-  name: z.string().trim().min(1).max(120).optional(),
-  phone: z.string().trim().max(30).optional(),
+  name: absentIfNull(z.string().trim().min(1).max(120)),
+  phone: absentIfNull(z.string().trim().max(30)),
 });
 
 /**
@@ -299,7 +300,8 @@ whatsappRouter.post("/messages/:id/extract", async (req, res) => {
 /** Saves the agent-reviewed requirement, recording a WHATSAPP revision linked to the message. */
 whatsappRouter.post("/messages/:id/apply", async (req, res) => {
   const me = currentUser(req);
-  const body = z.object({ inquiryId: z.string().min(1).optional(), requirement: z.unknown() }).parse(req.body);
+  // inquiryId null/absent = save as a new requirement.
+  const body = z.object({ inquiryId: absentIfNull(z.string().min(1)), requirement: z.unknown() }).parse(req.body);
   const msg = await loadMessage(me, req.params.id);
   if (!msg.clientId) throw badRequest("Link this message to a client first");
   if (msg.review === "APPLIED") throw new HttpError(409, "ALREADY_APPLIED", "Already saved to an inquiry");
@@ -365,9 +367,9 @@ whatsappRouter.post("/import", async (req, res) => {
   const body = z
     .object({
       text: z.string().trim().min(1).max(10_000),
-      clientId: z.string().optional(),
-      senderName: z.string().trim().max(120).optional(),
-      sentAt: z.coerce.date().optional(),
+      clientId: absentIfNull(z.string()),
+      senderName: absentIfNull(z.string().trim().max(120)),
+      sentAt: absentIfNull(z.coerce.date()),
     })
     .parse(req.body);
   const client = await assertClient(me, body.clientId);

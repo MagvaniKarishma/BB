@@ -5,7 +5,7 @@ import { Prisma, VoiceLanguage, type VoiceNote } from "@prisma/client";
 import { prisma } from "../db.js";
 import { type AuthUser, currentUser } from "../lib/auth.js";
 import { HttpError, badRequest, notFound } from "../lib/errors.js";
-import { createInquirySchema, updateInquirySchema } from "../schemas.js";
+import { absentIfNull, createInquirySchema, updateInquirySchema } from "../schemas.js";
 import { createInquiryTx, updateInquiryTx } from "./inquiries.js";
 import type { Extraction } from "../voice/draft.js";
 import { extractRequirement, getVoiceServices } from "../voice/service.js";
@@ -31,7 +31,7 @@ const MAX_TRANSCRIPT = 10_000;
 
 const uploadFieldsSchema = z.object({
   clientId: z.string().min(1),
-  inquiryId: z.string().min(1).optional(),
+  inquiryId: absentIfNull(z.string().min(1)),
   language: z.nativeEnum(VoiceLanguage).default(VoiceLanguage.AUTO),
   durationMs: z.coerce.number().int().min(0).max(60 * 60 * 1000).optional(),
 });
@@ -47,7 +47,7 @@ const transcriptSchema = z.object({ transcript: z.string().trim().min(1).max(MAX
  * the note's client); omitted creates a new inquiry for the client.
  */
 const applySchema = z.object({
-  inquiryId: z.string().min(1).optional(),
+  inquiryId: absentIfNull(z.string().min(1)),
   requirement: z.unknown(),
 });
 

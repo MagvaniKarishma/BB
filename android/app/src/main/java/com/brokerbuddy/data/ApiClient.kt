@@ -2,6 +2,7 @@ package com.brokerbuddy.data
 
 import com.brokerbuddy.BuildConfig
 import com.brokerbuddy.core.model.ApiErrorBody
+import com.brokerbuddy.core.model.ApiJson
 import com.brokerbuddy.core.model.ApiErrorDetail
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
@@ -87,11 +88,6 @@ class ApiClient(private val sessionStore: SessionStore, val json: Json) {
     }
 
     companion object {
-        fun defaultJson() = Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = true
-            explicitNulls = true
-            coerceInputValues = true
-        }
+        fun defaultJson(): Json = ApiJson
     }
 }

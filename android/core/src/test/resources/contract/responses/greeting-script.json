@@ -1,0 +1,13 @@
+{
+  "greeting": {
+    "language": "HINGLISH",
+    "script": "Hello! Main Sharma Realty ki AI assistant hoon. Boliye, aapko kaisa flat chahiye?",
+    "isDefaultScript": false,
+    "hasAudio": false,
+    "mimeType": null,
+    "size": null,
+    "durationMs": null,
+    "updatedAt": "2026-09-26T12:47:51.907Z"
+  },
+  "warnings": []
+}

@@ -1,0 +1,19 @@
+{
+  "callId": "test-cmuidxj5200057db90g6sbmb4-8afc7e2c41d8",
+  "lines": [
+    {
+      "kind": "recording"
+    },
+    {
+      "kind": "speech",
+      "text": "Bata doon, main ek AI assistant hoon, aur aapki baatein agent ke liye note ki ja rahi hain.",
+      "language": "HINGLISH"
+    },
+    {
+      "kind": "speech",
+      "text": "Boliye, aapko kaisi property chahiye?",
+      "language": "HINGLISH"
+    }
+  ],
+  "next": "listen"
+}

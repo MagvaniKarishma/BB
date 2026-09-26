@@ -1,0 +1,148 @@
+{
+  "generatedAt": "2026-09-26T12:47:51.407Z",
+  "rent": {
+    "total": 1,
+    "tiles": [
+      {
+        "category": "STUDIO",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "BHK_1",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "BHK_2",
+        "inquiries": 1,
+        "clients": 1
+      },
+      {
+        "category": "BHK_3",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "BHK_4",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "BHK_5_PLUS",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "COMMERCIAL",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "OTHER",
+        "inquiries": 0,
+        "clients": 0
+      }
+    ]
+  },
+  "buy": {
+    "total": 0,
+    "tiles": [
+      {
+        "category": "STUDIO",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "BHK_1",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "BHK_2",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "BHK_3",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "BHK_4",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "BHK_5_PLUS",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "COMMERCIAL",
+        "inquiries": 0,
+        "clients": 0
+      },
+      {
+        "category": "OTHER",
+        "inquiries": 0,
+        "clients": 0
+      }
+    ]
+  },
+  "clientsByStatus": {
+    "CONTACTED": 1
+  },
+  "reminders": {
+    "overdue": 0,
+    "dueToday": 0
+  },
+  "availableProperties": 1,
+  "totals": {
+    "clients": 1,
+    "newClientsThisWeek": 1,
+    "activeRequirements": 1,
+    "newRequirementsThisWeek": 1,
+    "availableProperties": 1,
+    "newPropertiesThisWeek": 1,
+    "pendingFollowUps": 0,
+    "followUpsDueToday": 0
+  },
+  "todayFollowUps": [],
+  "newLeads": [],
+  "topMatches": [
+    {
+      "property": {
+        "id": "cmuidxjfr000n7db9ua5d4hnn",
+        "brokerageId": "cmuidxj5100037db94quq891o",
+        "title": "2 BHK Apartment",
+        "transactionType": "RENT",
+        "category": "BHK_2",
+        "price": 72000,
+        "deposit": 200000,
+        "locality": "Andheri West",
+        "building": "Oberoi Splendor",
+        "address": null,
+        "carpetAreaSqft": 850,
+        "bathrooms": 2,
+        "furnishing": "SEMI_FURNISHED",
+        "parkingSpots": 1,
+        "floor": 5,
+        "totalFloors": 15,
+        "possession": "READY_TO_MOVE",
+        "possessionDate": null,
+        "availability": "AVAILABLE",
+        "ownerName": "Mr Mehta",
+        "ownerPhone": "+919811122233",
+        "notes": null,
+        "listedById": "cmuidxj5200057db90g6sbmb4",
+        "createdAt": "2026-09-26T12:47:51.208Z",
+        "updatedAt": "2026-09-26T12:47:51.235Z",
+        "photoIds": [
+          "cmuidxjgi000p7db9d4km2lhx"
+        ]
+      },
+      "matchingRequirements": 1
+    }
+  ]
+}

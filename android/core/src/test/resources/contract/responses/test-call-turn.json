@@ -1,0 +1,30 @@
+{
+  "lines": [
+    {
+      "kind": "speech",
+      "text": "Mahine ka rent budget kitna hai?",
+      "language": "HINGLISH"
+    }
+  ],
+  "next": "listen",
+  "collected": {
+    "draft": {
+      "category": {
+        "value": "BHK_2",
+        "evidence": "2 BHK"
+      },
+      "locations": [
+        {
+          "value": "Powai",
+          "evidence": "Powai"
+        }
+      ],
+      "transactionType": {
+        "value": "RENT",
+        "evidence": "rent"
+      }
+    },
+    "name": null,
+    "callbackRequested": null
+  }
+}

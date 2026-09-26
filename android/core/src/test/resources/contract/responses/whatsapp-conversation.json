@@ -1,0 +1,162 @@
+{
+  "messages": [
+    {
+      "id": "cmuidxjyl001e7db942lr2lb6",
+      "brokerageId": "cmuidxj5100037db94quq891o",
+      "accountId": null,
+      "contactId": null,
+      "clientId": "cmuidxjet000d7db9gz3qmshj",
+      "inquiryId": null,
+      "channel": "MANUAL",
+      "direction": "INBOUND",
+      "externalId": "export:650be9a69f58d735fad5b0dafeb6fbebc3d0930b",
+      "type": "text",
+      "text": "2 BHK chahiye Andheri West mein",
+      "mediaId": null,
+      "mediaMimeType": null,
+      "senderName": "Amit Patil",
+      "sentAt": "2026-09-26T04:45:00.000Z",
+      "status": "RECEIVED",
+      "errorReason": null,
+      "leadPhone": null,
+      "leadName": null,
+      "portal": null,
+      "portalLead": null,
+      "extraction": null,
+      "review": "NONE",
+      "processedAt": "2026-09-26T12:47:51.885Z",
+      "processError": null,
+      "createdAt": "2026-09-26T12:47:51.886Z",
+      "contact": null,
+      "client": {
+        "id": "cmuidxjet000d7db9gz3qmshj",
+        "name": "Amit Patil",
+        "primaryPhone": "+919876543210"
+      }
+    },
+    {
+      "id": "cmuidxjyl001f7db9nljj41sy",
+      "brokerageId": "cmuidxj5100037db94quq891o",
+      "accountId": null,
+      "contactId": null,
+      "clientId": "cmuidxjet000d7db9gz3qmshj",
+      "inquiryId": null,
+      "channel": "MANUAL",
+      "direction": "OUTBOUND",
+      "externalId": "export:ed9253b62f8dcd3124bcde4ebfb2cde1f3a16c30",
+      "type": "text",
+      "text": "Budget?",
+      "mediaId": null,
+      "mediaMimeType": null,
+      "senderName": "Rahul",
+      "sentAt": "2026-09-26T04:46:00.000Z",
+      "status": "SENT",
+      "errorReason": null,
+      "leadPhone": null,
+      "leadName": null,
+      "portal": null,
+      "portalLead": null,
+      "extraction": null,
+      "review": "NONE",
+      "processedAt": "2026-09-26T12:47:51.885Z",
+      "processError": null,
+      "createdAt": "2026-09-26T12:47:51.886Z",
+      "contact": null,
+      "client": {
+        "id": "cmuidxjet000d7db9gz3qmshj",
+        "name": "Amit Patil",
+        "primaryPhone": "+919876543210"
+      }
+    },
+    {
+      "id": "cmuidxjyl001g7db9yiog5hfa",
+      "brokerageId": "cmuidxj5100037db94quq891o",
+      "accountId": null,
+      "contactId": null,
+      "clientId": "cmuidxjet000d7db9gz3qmshj",
+      "inquiryId": null,
+      "channel": "MANUAL",
+      "direction": "INBOUND",
+      "externalId": "export:b688b69a2498604a98439c5d9f31b42ef00c8159",
+      "type": "text",
+      "text": "70k tak",
+      "mediaId": null,
+      "mediaMimeType": null,
+      "senderName": "Amit Patil",
+      "sentAt": "2026-09-26T04:47:00.000Z",
+      "status": "RECEIVED",
+      "errorReason": null,
+      "leadPhone": null,
+      "leadName": null,
+      "portal": null,
+      "portalLead": null,
+      "extraction": null,
+      "review": "NONE",
+      "processedAt": "2026-09-26T12:47:51.885Z",
+      "processError": null,
+      "createdAt": "2026-09-26T12:47:51.886Z",
+      "contact": null,
+      "client": {
+        "id": "cmuidxjet000d7db9gz3qmshj",
+        "name": "Amit Patil",
+        "primaryPhone": "+919876543210"
+      }
+    },
+    {
+      "id": "cmuidxjxj001d7db9p6w76up8",
+      "brokerageId": "cmuidxj5100037db94quq891o",
+      "accountId": null,
+      "contactId": null,
+      "clientId": "cmuidxjet000d7db9gz3qmshj",
+      "inquiryId": null,
+      "channel": "MANUAL",
+      "direction": "INBOUND",
+      "externalId": "manual:15a59f74ee8e4f1b25015120f2b40781cddc8560",
+      "type": "text",
+      "text": "Hi, 3 BHK chahiye Powai mein 1.5 cr tak",
+      "mediaId": null,
+      "mediaMimeType": null,
+      "senderName": null,
+      "sentAt": "2026-09-26T12:47:51.845Z",
+      "status": "RECEIVED",
+      "errorReason": null,
+      "leadPhone": null,
+      "leadName": null,
+      "portal": null,
+      "portalLead": null,
+      "extraction": {
+        "draft": {
+          "category": {
+            "value": "BHK_3",
+            "evidence": "3 BHK"
+          },
+          "budgetMax": {
+            "value": 15000000,
+            "evidence": "1.5 cr"
+          },
+          "locations": [
+            {
+              "value": "Powai",
+              "evidence": "Powai"
+            }
+          ]
+        },
+        "warnings": [],
+        "extractor": "rules",
+        "advertisedPrices": []
+      },
+      "review": "DISMISSED",
+      "processedAt": "2026-09-26T12:47:51.866Z",
+      "processError": null,
+      "createdAt": "2026-09-26T12:47:51.847Z",
+      "contact": null,
+      "client": {
+        "id": "cmuidxjet000d7db9gz3qmshj",
+        "name": "Amit Patil",
+        "primaryPhone": "+919876543210"
+      }
+    }
+  ],
+  "serviceWindowOpen": false,
+  "lastInboundAt": null
+}

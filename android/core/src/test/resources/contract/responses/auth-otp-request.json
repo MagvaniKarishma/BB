@@ -1,0 +1,5 @@
+{
+  "retryAfterSec": 30,
+  "expiresInSec": 300,
+  "message": "If this number belongs to a BrokerBuddy account, a code is on its way."
+}

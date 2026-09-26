@@ -1,0 +1,1 @@
+{"inquiryId":"{{inquiryId}}","requirement":{"transactionType":"RENT","category":"BHK_2","status":"ACTIVE","budgetMin":65000,"budgetMax":75000,"locations":["Andheri West"],"furnishing":["SEMI_FURNISHED"],"minParking":1,"floorMin":2,"floorMax":null,"possession":"READY_TO_MOVE","possessionBy":null,"mandatory":["BUDGET"],"notes":"Gated society","source":"VOICE_NOTE"}}

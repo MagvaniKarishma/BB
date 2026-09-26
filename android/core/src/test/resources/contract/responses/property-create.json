@@ -1,0 +1,30 @@
+{
+  "property": {
+    "id": "cmuidxjfr000n7db9ua5d4hnn",
+    "brokerageId": "cmuidxj5100037db94quq891o",
+    "title": "2 BHK Apartment",
+    "transactionType": "RENT",
+    "category": "BHK_2",
+    "price": 70000,
+    "deposit": 200000,
+    "locality": "Andheri West",
+    "building": "Oberoi Splendor",
+    "address": null,
+    "carpetAreaSqft": 850,
+    "bathrooms": 2,
+    "furnishing": "SEMI_FURNISHED",
+    "parkingSpots": 1,
+    "floor": 5,
+    "totalFloors": 15,
+    "possession": "READY_TO_MOVE",
+    "possessionDate": null,
+    "availability": "AVAILABLE",
+    "ownerName": "Mr Mehta",
+    "ownerPhone": "+919811122233",
+    "notes": null,
+    "listedById": "cmuidxj5200057db90g6sbmb4",
+    "createdAt": "2026-09-26T12:47:51.208Z",
+    "updatedAt": "2026-09-26T12:47:51.208Z",
+    "photoIds": []
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "message": {
+    "id": "cmuidxjxj001d7db9p6w76up8",
+    "brokerageId": "cmuidxj5100037db94quq891o",
+    "accountId": null,
+    "contactId": null,
+    "clientId": "cmuidxjet000d7db9gz3qmshj",
+    "inquiryId": null,
+    "channel": "MANUAL",
+    "direction": "INBOUND",
+    "externalId": "manual:15a59f74ee8e4f1b25015120f2b40781cddc8560",
+    "type": "text",
+    "text": "Hi, 3 BHK chahiye Powai mein 1.5 cr tak",
+    "mediaId": null,
+    "mediaMimeType": null,
+    "senderName": null,
+    "sentAt": "2026-09-26T12:47:51.845Z",
+    "status": "RECEIVED",
+    "errorReason": null,
+    "leadPhone": null,
+    "leadName": null,
+    "portal": null,
+    "portalLead": null,
+    "extraction": {
+      "draft": {
+        "category": {
+          "value": "BHK_3",
+          "evidence": "3 BHK"
+        },
+        "budgetMax": {
+          "value": 15000000,
+          "evidence": "1.5 cr"
+        },
+        "locations": [
+          {
+            "value": "Powai",
+            "evidence": "Powai"
+          }
+        ]
+      },
+      "warnings": [],
+      "extractor": "rules",
+      "advertisedPrices": []
+    },
+    "review": "DISMISSED",
+    "processedAt": "2026-09-26T12:47:51.866Z",
+    "processError": null,
+    "createdAt": "2026-09-26T12:47:51.847Z",
+    "contact": null,
+    "client": {
+      "id": "cmuidxjet000d7db9gz3qmshj",
+      "name": "Amit Patil",
+      "primaryPhone": "+919876543210"
+    }
+  },
+  "inquiries": [
+    {
+      "id": "cmuidxjf9000h7db9yfurhcws",
+      "brokerageId": "cmuidxj5100037db94quq891o",
+      "clientId": "cmuidxjet000d7db9gz3qmshj",
+      "transactionType": "RENT",
+      "category": "BHK_2",
+      "status": "ACTIVE",
+      "budgetMin": 65000,
+      "budgetMax": 75000,
+      "locations": [
+        "Andheri West"
+      ],
+      "furnishing": [
+        "SEMI_FURNISHED"
+      ],
+      "minParking": 1,
+      "floorMin": 2,
+      "floorMax": null,
+      "possession": "READY_TO_MOVE",
+      "possessionBy": null,
+      "mandatory": [
+        "BUDGET"
+      ],
+      "notes": "Gated society",
+      "source": "VOICE_NOTE",
+      "version": 3,
+      "createdAt": "2026-09-26T12:47:51.189Z",
+      "updatedAt": "2026-09-26T12:47:51.689Z"
+    }
+  ],
+  "suggestedInquiryId": null,
+  "existingClient": null,
+  "enquiredProperties": []
+}

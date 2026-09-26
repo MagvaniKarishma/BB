@@ -1,0 +1,31 @@
+{
+  "members": [
+    {
+      "id": "cmuidxj5200057db90g6sbmb4",
+      "name": "Rahul Sharma",
+      "email": "owner-1790426870578@example.com",
+      "phone": "+919820000002",
+      "role": "OWNER",
+      "brokerageId": "cmuidxj5100037db94quq891o",
+      "active": true
+    },
+    {
+      "id": "cmuidxjbx00097db9gc8egvgo",
+      "name": "Priya Agent",
+      "email": "agent-1790426870578@example.com",
+      "phone": "+919820000003",
+      "role": "AGENT",
+      "brokerageId": "cmuidxj5100037db94quq891o",
+      "active": false
+    },
+    {
+      "id": "cmuidxje5000b7db92o8q9663",
+      "name": "Sam Agent",
+      "email": "agent2-1790426870578@example.com",
+      "phone": null,
+      "role": "AGENT",
+      "brokerageId": "cmuidxj5100037db94quq891o",
+      "active": true
+    }
+  ]
+}

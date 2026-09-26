@@ -1,0 +1,11 @@
+{
+  "member": {
+    "id": "cmuidxjbx00097db9gc8egvgo",
+    "name": "Priya Agent",
+    "email": "agent-1790426870578@example.com",
+    "phone": "+919820000003",
+    "role": "AGENT",
+    "brokerageId": "cmuidxj5100037db94quq891o",
+    "active": true
+  }
+}

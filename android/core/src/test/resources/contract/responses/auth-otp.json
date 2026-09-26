@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "digits": 6,
+  "resendAfterSec": 30
+}

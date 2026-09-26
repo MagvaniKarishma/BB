@@ -1,0 +1,11 @@
+{
+  "member": {
+    "id": "cmuidxje5000b7db92o8q9663",
+    "name": "Sam Agent",
+    "email": "agent2-1790426870578@example.com",
+    "phone": null,
+    "role": "AGENT",
+    "brokerageId": "cmuidxj5100037db94quq891o",
+    "active": true
+  }
+}

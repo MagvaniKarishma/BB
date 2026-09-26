@@ -1,0 +1,27 @@
+{
+  "voiceNote": {
+    "id": "cmuidxjtl000z7db96gxgmjgc",
+    "clientId": "cmuidxjet000d7db9gz3qmshj",
+    "inquiryId": null,
+    "language": "HINGLISH",
+    "status": "DISCARDED",
+    "audioMimeType": "audio/mp4",
+    "audioSize": 412,
+    "durationMs": 4000,
+    "originalTranscript": null,
+    "transcript": null,
+    "transcriptSource": null,
+    "extraction": null,
+    "extractor": null,
+    "error": "Speech-to-text is not configured on the server. Type the note instead.",
+    "appliedVersion": null,
+    "appliedAt": null,
+    "createdAt": "2026-09-26T12:47:51.706Z",
+    "updatedAt": "2026-09-26T12:47:51.717Z",
+    "createdBy": {
+      "id": "cmuidxj5200057db90g6sbmb4",
+      "name": "Rahul Sharma"
+    },
+    "hasAudio": true
+  }
+}

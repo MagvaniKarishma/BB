@@ -1,0 +1,106 @@
+{
+  "revisions": [
+    {
+      "id": "cmuidxjfm000l7db9qs4s3xnu",
+      "inquiryId": "cmuidxjf9000h7db9yfurhcws",
+      "version": 2,
+      "changedById": "cmuidxj5200057db90g6sbmb4",
+      "source": "MANUAL",
+      "changes": {
+        "budgetMax": {
+          "to": 80000,
+          "from": 75000
+        }
+      },
+      "snapshot": {
+        "notes": "Gated society",
+        "status": "ACTIVE",
+        "category": "BHK_2",
+        "floorMax": null,
+        "floorMin": 2,
+        "budgetMax": 80000,
+        "budgetMin": 65000,
+        "locations": [
+          "Andheri West"
+        ],
+        "mandatory": [
+          "BUDGET"
+        ],
+        "furnishing": [
+          "SEMI_FURNISHED"
+        ],
+        "minParking": 1,
+        "possession": "READY_TO_MOVE",
+        "possessionBy": null,
+        "transactionType": "RENT"
+      },
+      "voiceNoteId": null,
+      "whatsappMessageId": null,
+      "createdAt": "2026-09-26T12:47:51.202Z",
+      "changedBy": {
+        "id": "cmuidxj5200057db90g6sbmb4",
+        "name": "Rahul Sharma"
+      },
+      "voiceNote": null
+    },
+    {
+      "id": "cmuidxjfb000j7db9c5r3bc4b",
+      "inquiryId": "cmuidxjf9000h7db9yfurhcws",
+      "version": 1,
+      "changedById": "cmuidxj5200057db90g6sbmb4",
+      "source": "MANUAL",
+      "changes": {
+        "notes": "Gated society",
+        "status": "ACTIVE",
+        "category": "BHK_2",
+        "floorMax": null,
+        "floorMin": 2,
+        "budgetMax": 75000,
+        "budgetMin": 65000,
+        "locations": [
+          "Andheri West"
+        ],
+        "mandatory": [
+          "BUDGET"
+        ],
+        "furnishing": [
+          "SEMI_FURNISHED"
+        ],
+        "minParking": 1,
+        "possession": "READY_TO_MOVE",
+        "possessionBy": null,
+        "transactionType": "RENT"
+      },
+      "snapshot": {
+        "notes": "Gated society",
+        "status": "ACTIVE",
+        "category": "BHK_2",
+        "floorMax": null,
+        "floorMin": 2,
+        "budgetMax": 75000,
+        "budgetMin": 65000,
+        "locations": [
+          "Andheri West"
+        ],
+        "mandatory": [
+          "BUDGET"
+        ],
+        "furnishing": [
+          "SEMI_FURNISHED"
+        ],
+        "minParking": 1,
+        "possession": "READY_TO_MOVE",
+        "possessionBy": null,
+        "transactionType": "RENT"
+      },
+      "voiceNoteId": null,
+      "whatsappMessageId": null,
+      "createdAt": "2026-09-26T12:47:51.192Z",
+      "changedBy": {
+        "id": "cmuidxj5200057db90g6sbmb4",
+        "name": "Rahul Sharma"
+      },
+      "voiceNote": null
+    }
+  ]
+}

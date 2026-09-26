@@ -1,0 +1,37 @@
+{
+  "inquiry": {
+    "id": "cmuidxjf9000h7db9yfurhcws",
+    "brokerageId": "cmuidxj5100037db94quq891o",
+    "clientId": "cmuidxjet000d7db9gz3qmshj",
+    "transactionType": "RENT",
+    "category": "BHK_2",
+    "status": "ACTIVE",
+    "budgetMin": 65000,
+    "budgetMax": 80000,
+    "locations": [
+      "Andheri West"
+    ],
+    "furnishing": [
+      "SEMI_FURNISHED"
+    ],
+    "minParking": 1,
+    "floorMin": 2,
+    "floorMax": null,
+    "possession": "READY_TO_MOVE",
+    "possessionBy": null,
+    "mandatory": [
+      "BUDGET"
+    ],
+    "notes": "Gated society",
+    "source": "MANUAL",
+    "version": 2,
+    "createdAt": "2026-09-26T12:47:51.189Z",
+    "updatedAt": "2026-09-26T12:47:51.199Z",
+    "client": {
+      "id": "cmuidxjet000d7db9gz3qmshj",
+      "name": "Amit Patil",
+      "primaryPhone": "+919876543210",
+      "status": "CONTACTED"
+    }
+  }
+}

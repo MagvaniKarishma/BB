@@ -1,0 +1,4 @@
+{
+  "retryAfterSec": 30,
+  "expiresInSec": 300
+}

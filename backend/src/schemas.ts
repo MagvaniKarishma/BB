@@ -21,12 +21,18 @@ const trimmed = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) => z.string().trim().max(max).nullish();
 const isoDate = z.coerce.date();
 
+/**
+ * An optional body field the app may send as null (it sends every field of its request
+ * models). null is treated as "not given". Not for fields where null means "clear".
+ */
+export const absentIfNull = <T extends z.ZodTypeAny>(schema: T) => schema.nullish().transform((v) => v ?? undefined);
+
 export const registerSchema = z.object({
   brokerageName: trimmed(120),
   name: trimmed(120),
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8).max(200),
-  phone: z.string().trim().max(30).optional(),
+  phone: absentIfNull(z.string().trim().max(30)),
 });
 
 export const loginSchema = z.object({
@@ -41,13 +47,13 @@ export const createMemberSchema = z.object({
   name: trimmed(120),
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8).max(200),
-  phone: z.string().trim().max(30).optional(),
+  phone: absentIfNull(z.string().trim().max(30)),
   role: z.enum([Role.ADMIN, Role.AGENT]).default(Role.AGENT),
 });
 
 export const updateMemberSchema = z.object({
-  role: z.enum([Role.ADMIN, Role.AGENT]).optional(),
-  active: z.boolean().optional(),
+  role: absentIfNull(z.enum([Role.ADMIN, Role.AGENT])),
+  active: absentIfNull(z.boolean()),
 });
 
 export const createClientSchema = z.object({
@@ -213,11 +219,11 @@ export const createReminderSchema = z.object({
 });
 
 export const updateReminderSchema = z.object({
-  title: trimmed(160).optional(),
+  title: absentIfNull(trimmed(160)),
   note: optionalText(2000),
-  dueAt: isoDate.optional(),
-  status: z.nativeEnum(ReminderStatus).optional(),
-  assignedToId: z.string().optional(),
+  dueAt: absentIfNull(isoDate),
+  status: absentIfNull(z.nativeEnum(ReminderStatus)),
+  assignedToId: absentIfNull(z.string()),
 });
 
 export const listRemindersSchema = z.object({

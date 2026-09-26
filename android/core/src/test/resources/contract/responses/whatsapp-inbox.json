@@ -1,0 +1,76 @@
+{
+  "messages": [
+    {
+      "id": "cmuidxjum00137db9jyohn1e2",
+      "brokerageId": "cmuidxj5100037db94quq891o",
+      "accountId": null,
+      "contactId": null,
+      "clientId": null,
+      "inquiryId": null,
+      "channel": "MANUAL",
+      "direction": "INBOUND",
+      "externalId": "manual:838ce243a8e0d6ba24870c1e4793d1c28385fde1",
+      "type": "text",
+      "text": "Hi, I came across your 1 BHK Apartment listed at Housing.com for ₹ 27,000 in Mulund West, Mumbai. Please let me know if it is available.",
+      "mediaId": null,
+      "mediaMimeType": null,
+      "senderName": null,
+      "sentAt": "2026-09-26T12:47:51.740Z",
+      "status": "RECEIVED",
+      "errorReason": null,
+      "leadPhone": null,
+      "leadName": null,
+      "portal": "HOUSING_COM",
+      "portalLead": {
+        "portal": "HOUSING_COM",
+        "priceSpans": [
+          {
+            "end": 73,
+            "start": 65
+          }
+        ],
+        "listingPrice": {
+          "value": 27000,
+          "evidence": "₹ 27,000"
+        },
+        "listingLocality": {
+          "value": "Mulund West",
+          "evidence": "Mulund West"
+        }
+      },
+      "extraction": {
+        "draft": {
+          "category": {
+            "value": "BHK_1",
+            "evidence": "1 BHK"
+          },
+          "locations": [
+            {
+              "value": "Mulund West",
+              "evidence": "Mulund West"
+            }
+          ]
+        },
+        "warnings": [
+          "The Housing.com message doesn't say whether it's for rent or sale (₹27,000 looks like a monthly rent) — confirm with the client",
+          "Property type/area taken from the Housing.com listing they enquired about — confirm it is what the client wants",
+          "Advertised price ₹27,000 of the Housing.com listing kept separate — it is not the client's budget",
+          "The client's budget isn't stated — ask them"
+        ],
+        "extractor": "rules",
+        "advertisedPrices": [
+          {
+            "value": 27000,
+            "evidence": "₹ 27,000"
+          }
+        ]
+      },
+      "review": "PENDING",
+      "processedAt": "2026-09-26T12:47:51.752Z",
+      "processError": null,
+      "createdAt": "2026-09-26T12:47:51.742Z",
+      "contact": null,
+      "client": null
+    }
+  ]
+}

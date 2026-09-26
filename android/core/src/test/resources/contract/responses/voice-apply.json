@@ -1,0 +1,79 @@
+{
+  "inquiry": {
+    "id": "cmuidxjf9000h7db9yfurhcws",
+    "brokerageId": "cmuidxj5100037db94quq891o",
+    "clientId": "cmuidxjet000d7db9gz3qmshj",
+    "transactionType": "RENT",
+    "category": "BHK_2",
+    "status": "ACTIVE",
+    "budgetMin": 65000,
+    "budgetMax": 75000,
+    "locations": [
+      "Andheri West"
+    ],
+    "furnishing": [
+      "SEMI_FURNISHED"
+    ],
+    "minParking": 1,
+    "floorMin": 2,
+    "floorMax": null,
+    "possession": "READY_TO_MOVE",
+    "possessionBy": null,
+    "mandatory": [
+      "BUDGET"
+    ],
+    "notes": "Gated society",
+    "source": "VOICE_NOTE",
+    "version": 3,
+    "createdAt": "2026-09-26T12:47:51.189Z",
+    "updatedAt": "2026-09-26T12:47:51.689Z"
+  },
+  "changed": true,
+  "voiceNote": {
+    "id": "cmuidxjm3000v7db94i7ct1cp",
+    "clientId": "cmuidxjet000d7db9gz3qmshj",
+    "inquiryId": "cmuidxjf9000h7db9yfurhcws",
+    "language": "HINGLISH",
+    "status": "APPLIED",
+    "audioMimeType": null,
+    "audioSize": null,
+    "durationMs": null,
+    "originalTranscript": "Rahul ko 2 BHK chahiye Andheri West mein, budget 70 hazaar",
+    "transcript": "Rahul ko 2 BHK chahiye Andheri West mein, budget 75 hazaar",
+    "transcriptSource": "manual",
+    "extraction": {
+      "draft": {
+        "category": {
+          "value": "BHK_2",
+          "evidence": "2 BHK"
+        },
+        "budgetMax": {
+          "value": 75000,
+          "evidence": "75 hazaar"
+        },
+        "locations": [
+          {
+            "value": "Andheri West",
+            "evidence": "Andheri West"
+          }
+        ]
+      },
+      "warnings": [
+        "Read 75 hazaar (₹75,000) as the maximum budget — adjust if it is a minimum"
+      ],
+      "extractor": "rules",
+      "advertisedPrices": []
+    },
+    "extractor": "rules",
+    "error": null,
+    "appliedVersion": 3,
+    "appliedAt": "2026-09-26T12:47:51.693Z",
+    "createdAt": "2026-09-26T12:47:51.435Z",
+    "updatedAt": "2026-09-26T12:47:51.693Z",
+    "createdBy": {
+      "id": "cmuidxj5200057db90g6sbmb4",
+      "name": "Rahul Sharma"
+    },
+    "hasAudio": false
+  }
+}
