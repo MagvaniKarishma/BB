@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- House with a speech bubble: "buddy for brokers". 108dp adaptive-icon canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30 L78,50 L72,50 L72,76 L36,76 L36,50 L30,50 Z" />
+    <path
+        android:fillColor="#0B5563"
+        android:pathData="M48,60 h12 v16 h-12 z" />
+    <path
+        android:fillColor="#F2B233"
+        android:pathData="M66,30 h14 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 l-5,4 v-4 h-1 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z" />
+</vector>
