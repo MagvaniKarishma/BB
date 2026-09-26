@@ -68,7 +68,7 @@ export function classify(text: string, isPath = false): Evidence<TransactionType
   const re = value === "RENT" ? RENT_RE : SALE_RE;
   const segments = text.split("/").filter((seg) => re.test(`/${seg}/`));
   const evidence = segments.sort((a, b) => b.length - a.length)[0] ?? (rent ?? sale)![0];
-  return { value, evidence: evidence.replace(/^\d+-/, "") };
+  return { value, evidence: evidence.replace(/^\d{5,}-/, "") };
 }
 
 /**
@@ -104,11 +104,10 @@ export function readPage(html: string) {
   const head = html.slice(0, 300_000);
   const title = /<title[^>]*>([^<]{1,300})<\/title>/i.exec(head)?.[1];
   const canonical = /<link[^>]+rel\s*=\s*["']canonical["'][^>]*href\s*=\s*["']([^"']+)["']/i.exec(head)?.[1];
-  // Short-link pages that redirect with JavaScript / meta refresh instead of HTTP.
-  const next =
-    /<meta[^>]+http-equiv\s*=\s*["']refresh["'][^>]*url\s*=\s*([^"'>\s]+)/i.exec(head)?.[1] ??
-    /["']\$(?:desktop|fallback|canonical)_url["']\s*:\s*["']([^"']+)["']/i.exec(head)?.[1] ??
-    /window\.location(?:\.href)?\s*=\s*["']([^"']+)["']/i.exec(head)?.[1];
+  // Short-link landing pages send the browser on with JavaScript
+  // (window.top.location = validateProtocol("https://housing.com/rent/…")) or a link; take
+  // the first portal page address in it.
+  const next = /https?:\/\/(?:[\w-]+\.)*(?:99acres\.com|housing\.com|magicbricks\.com)\/[^"'\s<>\\]+/i.exec(head)?.[0];
   return {
     title: title ? decodeEntities(title) : meta(head, "og:title"),
     ogTitle: meta(head, "og:title"),

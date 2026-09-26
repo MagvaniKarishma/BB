@@ -93,3 +93,26 @@ describe("rent/sale from the listing link in real enquiries", () => {
     );
   });
 });
+
+describe("recorded live responses", () => {
+  it("follows Housing.com's short-link landing page (served to non-phone clients)", async () => {
+    const landing = `<html><head><style>#main-image{background-image:url(https://is1-2.housingcdn.com/x/1_bhk_apartment-for-rent-mulund_west-Mumbai-hall.jpg);}</style>
+      <script>function validateProtocol(url){return url;}
+      window.top.location = validateProtocol("nullopen?_branch_referrer=H4s&amp;link_click_id=1");
+      window.top.location = validateProtocol("${HOUSING_PAGE.replace(/&/g, "&amp;")}&amp;_branch_match_id=1");</script></head>
+      <body>We have redirected you to the desktop app. You can also <a class="secondary-action" href="${HOUSING_PAGE}">view it on the web</a></body></html>`;
+    const web = fakeWeb({ "https://dzfki.app.link/XTXUr0PoI6b": { status: 200, body: landing } });
+    const page = await lookupListing("https://dzfki.app.link/XTXUr0PoI6b", web.fetcher);
+    expect(page).toMatchObject({ status: "OK", transactionType: { value: "RENT", evidence: "585-sqft-1-bhk-apartment-on-rent-in-mulund-west-mumbai" } });
+    expect(web.requested).toHaveLength(1);
+  });
+
+  it("reads 99acres' redirect to the full listing address", async () => {
+    const full = "https://www.99acres.com/1-bhk-bedroom-apartment-flat-for-rent-in-veena-nagar-central-mumbai-suburbs-554-sqft-spid-I94007278";
+    const web = fakeWeb({ "https://www.99acres.com/I94007278": { status: 301, location: full } });
+    expect((await lookupListing("https://www.99acres.com/I94007278", web.fetcher)).transactionType).toEqual({
+      value: "RENT",
+      evidence: "1-bhk-bedroom-apartment-flat-for-rent-in-veena-nagar-central-mumbai-suburbs-554-sqft-spid-I94007278",
+    });
+  });
+});
