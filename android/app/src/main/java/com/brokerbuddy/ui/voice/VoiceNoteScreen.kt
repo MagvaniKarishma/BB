@@ -81,6 +81,36 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.style.TextAlign
+import com.brokerbuddy.ui.design.BrandCard
+import com.brokerbuddy.ui.theme.Brand
+import com.brokerbuddy.ui.theme.brand
+import com.brokerbuddy.voice.AudioPreview
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Record (or type) a note about [clientId]'s requirement, review what was extracted,
@@ -109,6 +139,7 @@ fun VoiceNoteScreen(
     var recording by remember { mutableStateOf(false) }
     var elapsed by remember { mutableLongStateOf(0L) }
     var level by remember { mutableFloatStateOf(0f) }
+    val levels = remember { mutableStateListOf<Float>() }
     var pendingUpload by remember { mutableStateOf<Recording?>(null) }
     var typing by rememberSaveable { mutableStateOf(false) }
     var typed by rememberText()
@@ -175,9 +206,12 @@ fun VoiceNoteScreen(
     }
 
     LaunchedEffect(recording) {
+        levels.clear()
         while (recording) {
             elapsed = recorder.elapsedMs
             level = recorder.level()
+            levels.add(level)
+            if (levels.size > 24) levels.removeAt(0)
             delay(100)
         }
     }
@@ -195,7 +229,7 @@ fun VoiceNoteScreen(
                     CircularProgressIndicator(Modifier.size(24.dp))
                     Text(busy!!)
                 }
-                recording -> RecordingPanel(elapsed, level, onStop = ::stopRecording, onCancel = { recording = false; recorder.cancel() })
+                recording -> RecordingPanel(elapsed, levels, onStop = ::stopRecording, onCancel = { recording = false; recorder.cancel() })
                 r != null -> ReviewPanel(r, onResult = ::handle, onSaved = onSaved, onBack = onBack, setBusy = { busy = it })
                 typing -> {
                     Text("Type or dictate the note (the keyboard mic works in Hindi and Marathi too).")
@@ -214,15 +248,19 @@ fun VoiceNoteScreen(
                     TextButton(onClick = { typing = false }) { Text("Record instead") }
                 }
                 else -> {
-                    Text("Speak naturally — Hindi, Hinglish, Marathi or English. Up to 3 minutes.", style = MaterialTheme.typography.bodyLarge)
-                    LanguagePicker(language) { language = it }
-                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        LargeFloatingActionButton(onClick = {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Spacer(Modifier.height(12.dp))
+                        VoiceOrb(levels = emptyList(), recording = false, onClick = {
                             val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
                             if (granted) startRecording() else permission.launch(Manifest.permission.RECORD_AUDIO)
-                        }) { Icon(Icons.Filled.Mic, contentDescription = "Start recording", Modifier.size(36.dp)) }
-                        Text("Tap to record", style = MaterialTheme.typography.labelLarge)
+                        })
+                        Text("Tap to record", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.brand.navy)
+                        Text(
+                            "Speak naturally in Hindi, Hinglish, Marathi or English. Up to 3 minutes.",
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.brand.muted, textAlign = TextAlign.Center,
+                        )
                     }
+                    LanguagePicker(language) { language = it }
                     if (micDenied) {
                         Text("Microphone permission is off, so you can type the note instead.", color = MaterialTheme.colorScheme.error)
                     }
@@ -246,16 +284,67 @@ private fun LanguagePicker(selected: VoiceLanguage, onSelect: (VoiceLanguage) ->
 }
 
 @Composable
-private fun RecordingPanel(elapsedMs: Long, level: Float, onStop: () -> Unit, onCancel: () -> Unit) {
+private fun RecordingPanel(elapsedMs: Long, levels: List<Float>, onStop: () -> Unit, onCancel: () -> Unit) {
     val seconds = elapsedMs / 1000
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Recording…  %d:%02d".format(seconds / 60, seconds % 60), style = MaterialTheme.typography.headlineSmall)
-        LinearProgressIndicator(progress = { level }, modifier = Modifier.fillMaxWidth())
-        LargeFloatingActionButton(onClick = onStop, containerColor = MaterialTheme.colorScheme.errorContainer) {
-            Icon(Icons.Filled.Stop, contentDescription = "Stop and send", Modifier.size(36.dp))
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Spacer(Modifier.height(12.dp))
+        VoiceOrb(levels = levels, recording = true, onClick = onStop)
+        Text("%02d:%02d".format(seconds / 60, seconds % 60), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.brand.navy)
+        Box(
+            Modifier.size(64.dp).clip(CircleShape).background(Brand.Red).clickable(onClick = onStop),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.size(22.dp).background(Color.White, RoundedCornerShape(4.dp)))
         }
-        Text("Tap to stop", style = MaterialTheme.typography.labelLarge)
+        Text("Recording…", style = MaterialTheme.typography.titleSmall, color = Brand.Red)
+        Text(
+            "Speak naturally in Hindi, Hinglish, Marathi or English",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.brand.muted, textAlign = TextAlign.Center,
+        )
         TextButton(onClick = onCancel) { Text("Cancel") }
+    }
+}
+
+/**
+ * The big microphone: soft rings that breathe while idle and follow the voice level
+ * while recording, with a live waveform of the last couple of seconds inside.
+ */
+@Composable
+private fun VoiceOrb(levels: List<Float>, recording: Boolean, onClick: () -> Unit) {
+    val b = MaterialTheme.brand
+    val pulse by rememberInfiniteTransition(label = "orb").animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1600), RepeatMode.Reverse), label = "pulse",
+    )
+    val live = levels.lastOrNull() ?: 0f
+    val grow = if (recording) live else pulse * 0.25f
+    Box(Modifier.size(220.dp).clip(CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val r = size.minDimension / 2
+            drawCircle(b.link.copy(alpha = 0.08f), radius = r * (0.82f + 0.18f * grow))
+            drawCircle(b.link.copy(alpha = 0.14f), radius = r * (0.68f + 0.14f * grow))
+            drawCircle(b.link.copy(alpha = 0.9f), radius = r * 0.58f, style = Stroke(width = 3.dp.toPx()))
+            drawCircle(Color.White, radius = r * 0.56f)
+            if (recording && levels.isNotEmpty()) {
+                // Waveform bars, newest on the right.
+                val bars = levels.takeLast(15)
+                val barW = 5.dp.toPx()
+                val gap = 4.dp.toPx()
+                val total = bars.size * barW + (bars.size - 1) * gap
+                var x = center.x - total / 2
+                bars.forEach { l ->
+                    val h = (0.12f + 0.88f * l.coerceIn(0f, 1f)) * r * 0.7f
+                    drawRoundRect(
+                        b.link,
+                        topLeft = Offset(x, center.y - h / 2),
+                        size = Size(barW, h),
+                        cornerRadius = CornerRadius(barW / 2, barW / 2),
+                    )
+                    x += barW + gap
+                }
+            }
+        }
+        if (!recording) Icon(Icons.Filled.Mic, contentDescription = "Start recording", tint = b.link, modifier = Modifier.size(56.dp))
     }
 }
 
@@ -302,9 +391,15 @@ private fun ReviewPanel(
             }
         }
     } else {
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp)) {
-                Text(note.transcript ?: "", style = MaterialTheme.typography.bodyLarge)
+        BrandCard(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.Top) {
+                if (note.hasAudio) {
+                    VoiceNotePlayButton(note.id)
+                    Spacer(Modifier.width(10.dp))
+                }
+                Text(note.transcript ?: "", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            }
+            Column {
                 if (note.originalTranscript != null && note.originalTranscript != note.transcript) {
                     Text("Speech-to-text heard: “${note.originalTranscript}”", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -360,8 +455,8 @@ private fun ReviewPanel(
     )
     RequirementEditor(form, { form = it }, errors, showStatus = target != null, evidence = merge.evidence, previous = merge.previous)
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(modifier = Modifier.fillMaxWidth(), onClick = {
             attempted = true
             val body = validation.forVoice() ?: return@Button
             setBusy("Saving…")
@@ -371,11 +466,46 @@ private fun ReviewPanel(
                     .onFailure { toast(context, it.message ?: "Could not save") }
                 setBusy(null)
             }
-        }) { Text(if (target == null) "Save as new requirement" else "Update requirement") }
-        OutlinedButton(onClick = {
+        }) { Text(if (target == null) "Save to Client" else "Update requirement") }
+        OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
             scope.launch {
                 api.call { discardVoiceNote(note.id) }.onSuccess { onBack() }.onFailure { toast(context, it.message ?: "Failed") }
             }
         }) { Text("Discard") }
+    }
+}
+
+/** Plays the recorded voice note (fetched through the signed-in API). */
+@Composable
+private fun VoiceNotePlayButton(noteId: String) {
+    val context = LocalContext.current
+    val api = appContainer().api
+    val scope = rememberCoroutineScope()
+    val player = remember { AudioPreview(context) }
+    var playing by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) { onDispose { player.release() } }
+    Box(
+        Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.brand.info.container).clickable {
+            if (playing) {
+                player.stop(); playing = false
+            } else {
+                scope.launch {
+                    val file = File(context.cacheDir, "voice-note-$noteId")
+                    val ok = file.exists() || api.call { voiceNoteAudio(noteId) }.fold(
+                        onSuccess = { body -> runCatching { withContext(Dispatchers.IO) { body.use { rb -> file.outputStream().use { rb.byteStream().copyTo(it) } } } }.isSuccess },
+                        onFailure = { false },
+                    )
+                    if (!ok) {
+                        toast(context, "Couldn't load the recording")
+                        return@launch
+                    }
+                    runCatching { player.play(file) { playing = false }; playing = true }
+                        .onFailure { toast(context, "Can't play this recording") }
+                }
+            }
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(if (playing) Icons.Filled.Stop else Icons.Filled.PlayArrow, contentDescription = if (playing) "Stop" else "Play", tint = MaterialTheme.brand.link)
     }
 }

@@ -233,6 +233,9 @@ interface ApiService {
     @GET("voice-notes")
     suspend fun voiceNotes(@Query("clientId") clientId: String? = null): VoiceNoteList
 
+    @GET("voice-notes/{id}/audio")
+    suspend fun voiceNoteAudio(@Path("id") id: String): ResponseBody
+
     @GET("voice-notes/{id}")
     suspend fun voiceNote(@Path("id") id: String): VoiceNoteResponse
 
