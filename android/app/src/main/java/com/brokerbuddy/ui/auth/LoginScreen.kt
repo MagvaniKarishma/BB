@@ -32,6 +32,20 @@ import com.brokerbuddy.core.model.RegisterRequest
 import com.brokerbuddy.ui.common.appContainer
 import com.brokerbuddy.ui.common.rememberText
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.brokerbuddy.R
+import com.brokerbuddy.ui.design.BrandWordmark
+import com.brokerbuddy.ui.theme.Brand
+import com.brokerbuddy.ui.theme.brand
 
 @Composable
 fun LoginScreen() {
@@ -70,20 +84,24 @@ fun LoginScreen() {
         }
     }
 
+    var showServer by rememberSaveable { mutableStateOf(false) }
     Column(
-        Modifier.fillMaxSize().systemBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
+        Modifier.fillMaxSize().background(MaterialTheme.brand.card).systemBarsPadding().imePadding()
+            .verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("BrokerBuddy", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(12.dp))
+        BrandWordmark()
+        Image(
+            painterResource(R.drawable.hero_skyline),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(24.dp)),
+        )
         Text(
             if (registering) "Create your brokerage account" else "Sign in to your brokerage",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        OutlinedTextField(
-            server, { server = it }, label = { Text("Server address") },
-            supportingText = { Text("e.g. https://api.yourbrokerage.in") },
-            singleLine = true, modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            style = MaterialTheme.typography.titleMedium, color = MaterialTheme.brand.navy,
         )
         if (registering) {
             OutlinedTextField(brokerage, { brokerage = it }, label = { Text("Brokerage name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -99,14 +117,32 @@ fun LoginScreen() {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             supportingText = if (registering) ({ Text("At least 8 characters") }) else null,
         )
+        if (showServer || server.isBlank()) {
+            OutlinedTextField(
+                server, { server = it }, label = { Text("Server address") },
+                supportingText = { Text("e.g. https://api.yourbrokerage.in") },
+                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            )
+        }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        val valid = email.isNotBlank() && password.length >= (if (registering) 8 else 1) &&
+        val valid = server.isNotBlank() && email.isNotBlank() && password.length >= (if (registering) 8 else 1) &&
             (!registering || (brokerage.isNotBlank() && name.isNotBlank()))
-        Button(onClick = ::submit, enabled = valid && !busy, modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = ::submit, enabled = valid && !busy,
+            colors = ButtonDefaults.buttonColors(containerColor = Brand.Navy),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+        ) {
             Text(if (busy) "Please wait…" else if (registering) "Create account" else "Sign in")
         }
         TextButton(onClick = { registering = !registering; error = null }, modifier = Modifier.fillMaxWidth()) {
             Text(if (registering) "Already have an account? Sign in" else "New brokerage? Create an account")
+        }
+        if (!showServer && server.isNotBlank()) {
+            TextButton(onClick = { showServer = true }) {
+                Text("Server: ${server.removePrefix("https://").removePrefix("http://")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.brand.muted)
+            }
         }
     }
 }

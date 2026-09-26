@@ -2,5 +2,7 @@
     <style name="Theme.BrokerBuddy" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Navy behind the launch screen, so it matches the splash instead of flashing white. -->
+        <item name="android:windowBackground">@color/brand_navy</item>
     </style>
 </resources>

@@ -21,6 +21,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -39,6 +41,7 @@ import com.brokerbuddy.core.model.PropertyCategory
 import com.brokerbuddy.core.model.TransactionType
 import com.brokerbuddy.data.Session
 import com.brokerbuddy.ui.auth.LoginScreen
+import com.brokerbuddy.ui.auth.SplashScreen
 import com.brokerbuddy.ui.clients.ClientDetailScreen
 import com.brokerbuddy.ui.clients.ClientFormScreen
 import com.brokerbuddy.ui.clients.ClientListScreen
@@ -124,9 +127,19 @@ fun BrokerBuddyNavHost(openRoute: String?, onRouteOpened: () -> Unit) {
         container.api.onUnauthorized = { scope.launch { container.sessionStore.signOut() } }
     }
 
+    // The splash stays up briefly on a cold start (and until the saved session has loaded).
+    var splashDone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(900)
+        splashDone = true
+    }
     when (val s: Session? = session) {
-        null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        else -> if (!s.isLoggedIn) LoginScreen() else MainScaffold(openRoute, onRouteOpened)
+        null -> SplashScreen()
+        else -> when {
+            !splashDone -> SplashScreen()
+            !s.isLoggedIn -> LoginScreen()
+            else -> MainScaffold(openRoute, onRouteOpened)
+        }
     }
 
     // Keep the on-device caller directory in step with the signed-in account.
