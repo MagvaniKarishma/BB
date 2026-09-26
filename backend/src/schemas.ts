@@ -34,6 +34,9 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
+export const otpRequestSchema = z.object({ phone: z.string().trim().min(5).max(30) });
+export const otpVerifySchema = z.object({ phone: z.string().trim().min(5).max(30), code: z.string().trim().min(4).max(10) });
+
 export const createMemberSchema = z.object({
   name: trimmed(120),
   email: z.string().trim().toLowerCase().email(),

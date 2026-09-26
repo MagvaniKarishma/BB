@@ -192,7 +192,8 @@ model User {
   brokerage    Brokerage @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
   name         String
   email        String   @unique
-  phone        String?
+  /** E.164; unique so an OTP login maps to exactly one account. */
+  phone        String?  @unique
   passwordHash String
   role         Role     @default(AGENT)
   active       Boolean  @default(true)
@@ -655,4 +656,32 @@ model CallTurn {
   createdAt DateTime     @default(now())
 
   @@unique([sessionId, seq])
+}
+
+enum OtpPurpose {
+  LOGIN        // sign in with a mobile number
+  VERIFY_PHONE // a signed-in user proving a number is theirs before it's saved
+}
+
+/**
+ * One-time codes sent by SMS. Only an HMAC of the code is stored; the newest challenge per
+ * phone and purpose is the only valid one. Rows double as the send log for rate limits.
+ */
+model OtpChallenge {
+  id         String     @id @default(cuid())
+  phone      String
+  purpose    OtpPurpose
+  /** For VERIFY_PHONE: the user adding the number. */
+  userId     String?
+  codeHash   String
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  /** Superseded by a newer code, or locked after too many attempts. */
+  voidedAt   DateTime?
+  ip         String?
+  createdAt  DateTime   @default(now())
+
+  @@index([phone, purpose, createdAt])
+  @@index([ip, createdAt])
 }

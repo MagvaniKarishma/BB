@@ -20,6 +20,10 @@ import { telephonyRouter } from "./routes/telephony.js";
 export function createApp() {
   const app = express();
   app.disable("x-powered-by");
+  // Behind a load balancer / reverse proxy, set TRUST_PROXY (e.g. "1" = one proxy hop) so
+  // req.ip is the caller's address — the SMS-code rate limits depend on it.
+  const trust = process.env.TRUST_PROXY;
+  if (trust) app.set("trust proxy", /^\d+$/.test(trust) ? Number(trust) : trust === "true" ? true : trust);
   // Rupee amounts are BigInt in the database; serialise them as JSON numbers
   // (safe: every allowed amount is far below Number.MAX_SAFE_INTEGER).
   app.set("json replacer", (_key: string, value: unknown) =>

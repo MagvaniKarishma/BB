@@ -3,9 +3,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../db.js";
 import { currentUser, requireRole } from "../lib/auth.js";
 import { HttpError, badRequest, forbidden, notFound } from "../lib/errors.js";
-import { normalizePhone } from "../lib/phone.js";
 import { createMemberSchema, updateMemberSchema } from "../schemas.js";
-import { publicUser } from "./auth.js";
+import { publicUser, userPhone } from "./auth.js";
 
 export const teamRouter = Router();
 
@@ -26,12 +25,13 @@ teamRouter.post("/", requireRole("OWNER", "ADMIN"), async (req, res) => {
   if (me.role === "ADMIN" && body.role !== "AGENT") throw forbidden("Admins can only add agents");
   const taken = await prisma.user.findUnique({ where: { email: body.email } });
   if (taken) throw new HttpError(409, "EMAIL_TAKEN", "An account with this email already exists");
+  const phone = await userPhone(body.phone);
   const member = await prisma.user.create({
     data: {
       brokerageId: me.brokerageId,
       name: body.name,
       email: body.email,
-      phone: body.phone ? normalizePhone(body.phone) : null,
+      phone,
       role: body.role,
       passwordHash: await bcrypt.hash(body.password, 10),
     },
