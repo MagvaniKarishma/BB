@@ -3,7 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { createHmac } from "node:crypto";
 import request from "supertest";
-import { REAL_HOUSING_1, REAL_HOUSING_2, app, authed, metaPayload, registerBroker, resetDb } from "./helpers.js";
+import { REAL_99ACRES_1, REAL_HOUSING_1, REAL_HOUSING_2, app, authed, metaPayload, registerBroker, resetDb } from "./helpers.js";
 import { webhookIdle } from "../src/routes/whatsappWebhook.js";
 import { prisma } from "../src/db.js";
 import { rulesExtractor, setVoiceServices } from "../src/voice/service.js";
@@ -359,5 +359,28 @@ describe("real Housing.com enquiries end to end", () => {
     expect(history).toHaveLength(2);
     expect(history[1].portalLead.listingPrice.value).toBe(33000);
     expect(await prisma.client.count()).toBe(1);
+  });
+});
+
+describe("real 99acres enquiry end to end", () => {
+  it("names the lead from their sign-off and finds the listing by its 99acres ID or area", async () => {
+    const { api, deliver, text } = await setup();
+    const byArea = (await api.post("/properties", {
+      title: "1 BHK Mulund", transactionType: "RENT", category: "BHK_1", price: 30000, locality: "Mulund West", building: "Veena Nagar Phase 2",
+    })).body.property;
+    await api.post("/properties", { title: "2 BHK Veena Nagar", transactionType: "RENT", category: "BHK_2", price: 45000, locality: "Mulund West", building: "Veena Nagar" });
+
+    await deliver(text("919812300001", REAL_99ACRES_1, "K M"));
+    const [msg] = (await api.get("/whatsapp/inbox")).body.messages;
+    expect(msg).toMatchObject({ portal: "ACRES_99", leadName: "Karishma", leadPhone: "+919812300001" });
+    let detail = (await api.get(`/whatsapp/messages/${msg.id}`)).body;
+    expect(detail.enquiredProperties.map((p: { id: string }) => p.id)).toEqual([byArea.id]); // 1 BHK in Veena Nagar only
+
+    // The agent noted the portal ID on their listing → that listing wins.
+    const byRef = (await api.post("/properties", {
+      title: "1 BHK Veena Nagar", transactionType: "BUY", category: "BHK_1", price: 9500000, locality: "Mulund West", notes: "99acres I94007278",
+    })).body.property;
+    detail = (await api.get(`/whatsapp/messages/${msg.id}`)).body;
+    expect(detail.enquiredProperties.map((p: { id: string }) => p.id)).toEqual([byRef.id]);
   });
 });

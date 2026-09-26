@@ -138,7 +138,11 @@ export async function processMessage(id: string, opts: { clientId?: string } = {
     const namesThirdParty = !!(portalLead?.leadName || portalLead?.leadPhone);
     const senderIsLead = msg.channel === "API" && !senderIsTeam && !namesThirdParty;
     const leadPhone = portalLead?.leadPhone ?? (senderIsLead ? senderWaId : null);
-    const leadName = portalLead?.leadName ?? (senderIsLead ? msg.contact?.profileName ?? null : null);
+    // A sign-off ("Regards, Karishma") is the sender's own name — preferred over the WhatsApp profile name.
+    const leadName =
+      portalLead?.leadName ??
+      (senderIsLead || (msg.channel !== "API" && !namesThirdParty) ? portalLead?.signedName : undefined) ??
+      (senderIsLead ? msg.contact?.profileName ?? null : null);
 
     let clientId = opts.clientId ?? msg.clientId ?? null;
     if (!clientId && leadPhone) clientId = (await findByPhones(msg.brokerageId, [leadPhone]))?.id ?? null;

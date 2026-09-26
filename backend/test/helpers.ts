@@ -61,6 +61,13 @@ export function metaPayload(phoneNumberId: string, messages: object[], contacts:
 // Real Housing.com enquiries received by agents (shared by the product owner).
 export const REAL_HOUSING_1 =
   "Hi, I came across your 1 BHK Apartment listed at Housing.com for ₹ 27,000 in Mulund West, Mumbai https://dzfki.app.link/XTXUr0PoI6b. I am interested in the property. Please let me know if it is available. Thank you!";
+export const REAL_99ACRES_1 = `Hi,
+I am interested in 1 BHK Flat in Veena Nagar. Wanted to discuss with you about the same.
+
+Regards,
+karishma
+
+https://www.99acres.com/I94007278`;
 export const REAL_HOUSING_2 =
   "Hi, I came across your 1 BHK Apartment listed at Housing.com for ₹ 33,000 in Mulund West, Mumbai https://dzfki.app.link/WswPAG2oI6b. I am interested in the property. Please let me know if it is available. Thank you!";
 

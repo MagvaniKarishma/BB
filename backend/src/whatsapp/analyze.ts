@@ -44,6 +44,8 @@ export async function analyzeMessage(text: string, language: VoiceLanguage = "AU
   }
   if (listing.category) fromListing.category = listing.category;
   if (listing.locations) fromListing.locations = listing.locations;
+  // Sub-localities ("Veena Nagar") aren't in the lexicon; keep the area exactly as written.
+  else if (portalLead.listingLocality) fromListing.locations = [portalLead.listingLocality];
   if (!fromListing.transactionType) {
     const p = portalLead.listingPrice?.value;
     // A hint only — never filled in: the agent confirms rent or buy with the client.

@@ -54,26 +54,47 @@ async function detail(me: AuthUser, id: string) {
 
 /**
  * Portal enquiries usually describe the agent's OWN listing ("your 1 BHK … ₹27,000 in
- * Mulund West"). Find inventory with the same property type, locality and exact price so
- * the agent sees which listing the enquiry is about. Suggestions only; nothing is linked.
+ * Mulund West", "1 BHK Flat in Veena Nagar … 99acres.com/I94007278"). Suggest inventory
+ * that fits: the portal's listing ID written in the property's title/notes, or the same
+ * property type and area (and exact price when the message states one). Suggestions
+ * only; nothing is linked.
  */
 async function enquiredProperties(me: AuthUser, msg: { portalLead: Prisma.JsonValue; extraction: Prisma.JsonValue }) {
   const lead = msg.portalLead as unknown as PortalLead | null;
+  if (!lead) return [];
+  if (lead.listingRef) {
+    const byRef = await prisma.property.findMany({
+      where: {
+        brokerageId: me.brokerageId,
+        OR: [
+          { notes: { contains: lead.listingRef, mode: "insensitive" } },
+          { title: { contains: lead.listingRef, mode: "insensitive" } },
+        ],
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 3,
+    });
+    if (byRef.length) return byRef;
+  }
   const draft = (msg.extraction as unknown as Extraction | null)?.draft;
-  const price = lead?.listingPrice?.value;
-  if (!lead || price == null) return [];
+  const price = lead.listingPrice?.value;
+  const wanted = draft?.locations?.map((l) => l.value) ?? [];
+  // Without a price, type + area are the only clues; don't guess from type alone.
+  if (price == null && (!draft?.category || wanted.length === 0)) return [];
   const candidates = await prisma.property.findMany({
     where: {
       brokerageId: me.brokerageId,
-      price: BigInt(price),
+      ...(price != null ? { price: BigInt(price) } : { availability: "AVAILABLE" as const }),
       ...(draft?.category ? { category: draft.category.value } : {}),
       ...(draft?.transactionType ? { transactionType: draft.transactionType.value } : {}),
     },
     orderBy: { updatedAt: "desc" },
-    take: 20,
+    take: 50,
   });
-  const wanted = draft?.locations?.map((l) => l.value) ?? [];
-  return candidates.filter((p) => wanted.length === 0 || wanted.some((w) => localityMatches(w, p.locality))).slice(0, 3);
+  const inArea = (w: string, p: (typeof candidates)[number]) =>
+    localityMatches(w, p.locality) ||
+    [p.locality, p.building, p.address].some((f) => f != null && f.toLowerCase().includes(w.toLowerCase()));
+  return candidates.filter((p) => wanted.length === 0 || wanted.some((w) => inArea(w, p))).slice(0, 3);
 }
 
 // ---------- connection (owners/admins) ----------

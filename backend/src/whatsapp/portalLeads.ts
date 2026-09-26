@@ -23,11 +23,16 @@ export interface Span {
 
 export interface PortalLead {
   portal: Portal;
+  /** A lead named in the text (a portal notification), i.e. someone other than the sender. */
   leadName?: string;
   leadPhone?: string;
+  /** The name the SENDER signed off with ("Regards,\nKarishma") — the sender's own name. */
+  signedName?: string;
   leadEmail?: string;
   listingRef?: string;
   listingUrl?: string;
+  /** Area of the listing as written ("1 BHK Flat in Veena Nagar" → "Veena Nagar"). */
+  listingLocality?: Evidence<string>;
   /** The advertised price/rent of the listing (not the client's budget). */
   listingPrice?: Evidence<number>;
   /** Spans of every advertised price in the text — masked before budget extraction. */
@@ -82,6 +87,11 @@ const NAME_RE = /(?:^|[\s,|.])(?:name|lead|buyer|tenant|customer)\s*(?:name)?\s*
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 const REF_RE = /(?:property|listing|prop)\s*(?:id|code|no\.?)\s*[:#\-]?\s*([A-Z]{0,3}\d{5,12})/i;
 const URL_RE = /https?:\/\/(?:www\.)?(?:99acres\.com|housing\.com|magicbricks\.com)\S*/i;
+const SIGN_OFF_RE =
+  /(?:^|\n)\s*(?:(?:best|warm|kind)\s+)?(?:regards|thanks|thank\s+you|thanking\s+you|cheers)\s*[,.!]?\s*\n\s*([A-Za-z][A-Za-z.']*(?:[ \t]+[A-Za-z][A-Za-z.']*){0,2})[ \t]*(?=\n|$)/i;
+// "in/at <Area>" ending the clause: "Flat in Veena Nagar.", "₹ 27,000 in Mulund West, Mumbai".
+const AREA_RE = /\b(?:in|at)\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*){0,3})(?=\s*[,.;!\n]|\s*$)/g;
+const NOT_AREA = /^(?:mumbai|india|maharashtra|housing|99\s?acres|magic\s?bricks|the|your|my)\b/i;
 const MESSAGE_RE = /(?:^|[\s|,.])(?:message|msg|query|comment|remarks?|requirement)\s*[:\-]\s*/i;
 
 export function parsePortalLead(input: string): PortalLead | null {
@@ -113,6 +123,16 @@ export function parsePortalLead(input: string): PortalLead | null {
   if (rawPhone) lead.leadPhone = normalizePhone(rawPhone) ?? undefined;
   const name = NAME_RE.exec(text)?.[1]?.trim() ?? withPhone?.[1]?.trim();
   if (name && !/^(customer|sir|madam|user)$/i.test(name)) lead.leadName = name;
+  const signed = SIGN_OFF_RE.exec(text)?.[1]?.trim();
+  if (signed && !/^(team|sir|madam|admin)$/i.test(signed)) {
+    // Title case only — the spelling is exactly as written.
+    lead.signedName = signed.replace(/\b([a-z])/g, (c) => c.toUpperCase());
+  }
+  for (const m of text.matchAll(AREA_RE)) {
+    if (inMessage(m.index ?? 0) || NOT_AREA.test(m[1])) continue;
+    lead.listingLocality = { value: m[1], evidence: m[1] };
+    break;
+  }
   const email = EMAIL_RE.exec(text)?.[0];
   if (email) lead.leadEmail = email.toLowerCase();
   const ref = REF_RE.exec(text)?.[1];

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
 import { parseWebhook } from "../src/whatsapp/webhook.js";
-import { REAL_HOUSING_1, REAL_HOUSING_2, metaPayload } from "./helpers.js";
+import { REAL_99ACRES_1, REAL_HOUSING_1, REAL_HOUSING_2, metaPayload } from "./helpers.js";
 import { parseChatExport } from "../src/whatsapp/chatExport.js";
 import { detectPortal, parsePortalLead } from "../src/whatsapp/portalLeads.js";
 import { analyzeMessage } from "../src/whatsapp/analyze.js";
@@ -223,5 +223,35 @@ describe("real Housing.com enquiries", () => {
     const w = extraction.warnings.join(" | ");
     expect(w).toMatch(/doesn't say whether it's for rent or sale \(₹\d{2},000 looks like a monthly rent\)/);
     expect(w).toMatch(/not the client's budget/);
+  });
+});
+
+describe("real 99acres enquiry", () => {
+  it("reads the area and sign-off as written, with the listing ID and no invented price", async () => {
+    const lead = parsePortalLead(REAL_99ACRES_1)!;
+    expect(lead).toMatchObject({
+      portal: "ACRES_99",
+      listingUrl: "https://www.99acres.com/I94007278",
+      listingRef: "I94007278",
+      listingLocality: { value: "Veena Nagar" },
+      signedName: "Karishma",
+    });
+    expect(lead.leadName).toBeUndefined(); // the sender's own name, not a third party
+    expect(lead.listingPrice).toBeUndefined();
+
+    const { extraction } = await analyzeMessage(REAL_99ACRES_1);
+    expect(extraction.draft).toEqual({
+      category: { value: "BHK_1", evidence: "1 BHK" },
+      locations: [{ value: "Veena Nagar", evidence: "Veena Nagar" }],
+    });
+    expect(extraction.advertisedPrices).toEqual([]);
+    const w = extraction.warnings.join(" | ");
+    expect(w).toMatch(/doesn't say whether it's for rent or sale — confirm/);
+    expect(w).toMatch(/budget isn't stated/);
+  });
+
+  it("doesn't take a sign-off or area from unrelated text", () => {
+    expect(parsePortalLead("Saw your listing on 99acres. Thanks")?.signedName).toBeUndefined();
+    expect(parsePortalLead("Saw your 2 BHK on 99acres in Mumbai.")?.listingLocality).toBeUndefined();
   });
 });
