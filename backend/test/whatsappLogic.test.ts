@@ -67,8 +67,11 @@ describe("security helpers", () => {
     expect(enc).not.toContain("EAAG");
     expect(decrypt(enc)).toBe("EAAG-access-token");
     expect(encrypt("x")).not.toBe(encrypt("x"));
-    const tampered = enc.slice(0, -2) + (enc.endsWith("A") ? "B" : "A") + enc.slice(-1);
-    expect(() => decrypt(tampered)).toThrow();
+    // Flip one bit of the ciphertext ("v1.<iv>.<tag>.<data>"): always a real change.
+    const [v, iv, tag, data] = enc.split(".");
+    const bytes = Buffer.from(data, "base64");
+    bytes[0] ^= 0x01;
+    expect(() => decrypt([v, iv, tag, bytes.toString("base64")].join("."))).toThrow();
   });
 });
 
