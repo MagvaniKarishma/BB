@@ -67,6 +67,11 @@ export async function analyzeMessage(text: string, language: VoiceLanguage = "AU
     const tried = page ? (page.status === "OK" ? "; the listing page doesn't say either" : `; couldn't read the listing page (${page.reason})`) : "";
     warnings.push(`The ${label} message doesn't say whether it's for rent or sale${hint}${tried} — confirm with the client`);
   }
+  portalLead.listingFacts = {
+    transactionType: fromListing.transactionType?.value,
+    category: fromListing.category?.value,
+    locality: fromListing.locations?.[0]?.value,
+  };
   if (hasFields(fromListing)) {
     warnings.push(`Property type/area taken from the ${label} listing they enquired about — confirm it is what the client wants`);
   }

@@ -156,6 +156,11 @@ clientsRouter.get("/:id", async (req, res) => {
       assignedTo: { select: { id: true, name: true } },
       inquiries: { orderBy: [{ status: "asc" }, { updatedAt: "desc" }] },
       reminders: { where: { status: "PENDING" }, orderBy: { dueAt: "asc" } },
+      // Portal enquiries: which 99acres / Housing.com listings they asked about, and when.
+      portalLeads: {
+        orderBy: { enquiredAt: "desc" },
+        include: { listing: { select: { id: true, title: true, locality: true, portal: true, url: true } } },
+      },
     },
   });
   if (!client) throw notFound("Client");

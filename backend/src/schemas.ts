@@ -10,6 +10,7 @@ import {
   PropertyCategory,
   ReminderStatus,
   RequirementField,
+  ReminderKind,
   RequirementSource,
   Role,
   TransactionType,
@@ -216,6 +217,7 @@ export const createReminderSchema = z.object({
   clientId: z.string().nullish(),
   inquiryId: z.string().nullish(),
   assignedToId: z.string().optional(),
+  kind: absentIfNull(z.nativeEnum(ReminderKind)),
 });
 
 export const updateReminderSchema = z.object({
@@ -228,6 +230,7 @@ export const updateReminderSchema = z.object({
 
 export const listRemindersSchema = z.object({
   status: z.nativeEnum(ReminderStatus).optional(),
+  kind: z.nativeEnum(ReminderKind).optional(),
   scope: z.enum(["mine", "all"]).default("mine"),
   clientId: z.string().optional(),
   from: isoDate.optional(),

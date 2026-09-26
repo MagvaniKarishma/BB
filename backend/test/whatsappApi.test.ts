@@ -202,12 +202,16 @@ describe("receiving messages", () => {
       ),
     );
     const [lead] = (await api.get("/whatsapp/inbox")).body.messages;
-    expect(lead).toMatchObject({ portal: "ACRES_99", leadName: "Amit Verma", leadPhone: "+919876543210", clientId: null });
+    expect(lead).toMatchObject({ portal: "ACRES_99", leadName: "Amit Verma", leadPhone: "+919876543210" });
     expect(lead.extraction.draft.budgetMax).toBeUndefined();
     expect(lead.extraction.advertisedPrices[0].value).toBe(65000);
 
-    const created = await api.post(`/whatsapp/messages/${lead.id}/create-client`, {});
-    expect(created.body.client).toMatchObject({ name: "Amit Verma", primaryPhone: "+919876543210", leadSource: "ACRES_99", email: "amit.v@example.com" });
+    // A portal lead with a phone number no client has becomes a client (and a portal lead on its listing).
+    const client = await prisma.client.findUniqueOrThrow({ where: { id: lead.clientId } });
+    expect(client).toMatchObject({ name: "Amit Verma", primaryPhone: "+919876543210", leadSource: "ACRES_99", email: "amit.v@example.com" });
+    const portalLead = await prisma.portalLead.findFirstOrThrow({ include: { listing: true } });
+    expect(portalLead).toMatchObject({ portal: "ACRES_99", clientId: client.id, channel: "WHATSAPP", sourceRef: lead.id });
+    expect(portalLead.listing).toMatchObject({ externalId: "A12345678", title: "2 BHK Apartment", locality: "Andheri West" });
     // The agent's own number never became a client or a client's chat.
     expect(await prisma.clientPhone.count({ where: { e164: "+919811122233" } })).toBe(0);
     expect((await prisma.whatsAppContact.findFirstOrThrow({ where: { waId: "+919811122233" } })).clientId).toBeNull();
@@ -347,18 +351,22 @@ describe("real Housing.com enquiries end to end", () => {
 
     await deliver(text("919867012345", REAL_HOUSING_1, "Sneha Kulkarni"));
     const [first] = (await api.get("/whatsapp/inbox")).body.messages;
-    expect(first).toMatchObject({ portal: "HOUSING_COM", leadName: "Sneha Kulkarni", leadPhone: "+919867012345", clientId: null });
+    expect(first).toMatchObject({ portal: "HOUSING_COM", leadName: "Sneha Kulkarni", leadPhone: "+919867012345" });
     const detail = (await api.get(`/whatsapp/messages/${first.id}`)).body;
     expect(detail.enquiredProperties.map((p: { id: string }) => p.id)).toEqual([mine.id]); // same type, area and price
 
-    const created = await api.post(`/whatsapp/messages/${first.id}/create-client`, {});
-    expect(created.body.client).toMatchObject({ name: "Sneha Kulkarni", leadSource: "HOUSING_COM" });
+    // The enquiry created the client (new phone number); the second enquiry links to it.
+    const client = await prisma.client.findUniqueOrThrow({ where: { id: first.clientId } });
+    expect(client).toMatchObject({ name: "Sneha Kulkarni", leadSource: "HOUSING_COM" });
 
     await deliver(text("919867012345", REAL_HOUSING_2, "Sneha Kulkarni"));
-    const history = (await api.get(`/whatsapp/clients/${created.body.client.id}/messages`)).body.messages;
+    const history = (await api.get(`/whatsapp/clients/${client.id}/messages`)).body.messages;
     expect(history).toHaveLength(2);
     expect(history[1].portalLead.listingPrice.value).toBe(33000);
     expect(await prisma.client.count()).toBe(1);
+    // Two separate enquiries, both on Housing.com, both Sneha's.
+    const leads = await prisma.portalLead.findMany({ orderBy: { enquiredAt: "asc" } });
+    expect(leads.map((l) => [l.portal, l.clientId])).toEqual([["HOUSING_COM", client.id], ["HOUSING_COM", client.id]]);
   });
 });
 

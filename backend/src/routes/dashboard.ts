@@ -76,6 +76,17 @@ dashboardRouter.get("/", async (req, res) => {
     prisma.reminder.count({ where: pendingMine }),
   ]);
 
+  // Today's Work: what the broker has to act on today. Follow-ups and callbacks include overdue ones;
+  // portal leads count enquiries received today (the portal screens open on "Today").
+  const todayRange = { gte: startOfToday, lte: endOfToday };
+  const [newLeadClients, callbacks, followUps, acres99Leads, housingLeads] = await Promise.all([
+    prisma.client.count({ where: { brokerageId: b, status: "NEW" } }),
+    prisma.reminder.count({ where: { ...pendingMine, kind: "CALLBACK", dueAt: { lte: endOfToday } } }),
+    prisma.reminder.count({ where: { ...pendingMine, kind: "FOLLOW_UP", dueAt: { lte: endOfToday } } }),
+    prisma.portalLead.count({ where: { brokerageId: b, portal: "ACRES_99", enquiredAt: todayRange } }),
+    prisma.portalLead.count({ where: { brokerageId: b, portal: "HOUSING_COM", enquiredAt: todayRange } }),
+  ]);
+
   // Today's follow-ups (overdue first), each with the requirement it's about.
   const reminders = await prisma.reminder.findMany({
     where: { ...pendingMine, dueAt: { lte: endOfToday } },
@@ -172,6 +183,7 @@ dashboardRouter.get("/", async (req, res) => {
       pendingFollowUps,
       followUpsDueToday: overdue + dueToday,
     },
+    todayWork: { newLeads: newLeadClients, callbacks, followUps, acres99Leads, housingLeads },
     todayFollowUps,
     newLeads,
     topMatches,

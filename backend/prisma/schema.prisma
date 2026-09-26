@@ -170,42 +170,47 @@ model Brokerage {
   name      String
   createdAt DateTime @default(now())
 
-  users      User[]
-  clients    Client[]
-  phones     ClientPhone[]
-  inquiries  Inquiry[]
-  properties Property[]
-  reminders  Reminder[]
-  voiceNotes VoiceNote[]
-  notes      ClientNote[]
-  whatsappAccounts WhatsAppAccount[]
-  whatsappContacts WhatsAppContact[]
-  whatsappMessages WhatsAppMessage[]
-  callAssistant    CallAssistantSettings?
-  callGreetings    CallGreeting[]
-  callSessions     CallSession[]
+  users              User[]
+  clients            Client[]
+  phones             ClientPhone[]
+  inquiries          Inquiry[]
+  properties         Property[]
+  reminders          Reminder[]
+  voiceNotes         VoiceNote[]
+  notes              ClientNote[]
+  whatsappAccounts   WhatsAppAccount[]
+  whatsappContacts   WhatsAppContact[]
+  whatsappMessages   WhatsAppMessage[]
+  callAssistant      CallAssistantSettings?
+  callGreetings      CallGreeting[]
+  callSessions       CallSession[]
+  portalListings     PortalListing[]
+  portalLeads        PortalLead[]
+  portalIntegrations PortalIntegration[]
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   brokerageId  String
   brokerage    Brokerage @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
   name         String
-  email        String   @unique
-  /** E.164; unique so an OTP login maps to exactly one account. */
-  phone        String?  @unique
+  email        String    @unique
+  /**
+   * E.164; unique so an OTP login maps to exactly one account.
+   */
+  phone        String?   @unique
   passwordHash String
-  role         Role     @default(AGENT)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  role         Role      @default(AGENT)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
 
-  assignedClients   Client[]          @relation("AssignedClients")
-  reminders         Reminder[]        @relation("ReminderAssignee")
-  createdReminders  Reminder[]        @relation("ReminderCreator")
-  inquiryRevisions  InquiryRevision[]
-  listedProperties  Property[]
-  voiceNotes        VoiceNote[]
-  clientNotes       ClientNote[]
+  assignedClients  Client[]          @relation("AssignedClients")
+  reminders        Reminder[]        @relation("ReminderAssignee")
+  createdReminders Reminder[]        @relation("ReminderCreator")
+  inquiryRevisions InquiryRevision[]
+  listedProperties Property[]
+  voiceNotes       VoiceNote[]
+  clientNotes      ClientNote[]
 
   @@index([brokerageId])
 }
@@ -226,13 +231,14 @@ model Client {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  phones     ClientPhone[]
-  inquiries  Inquiry[]
-  reminders  Reminder[]
-  voiceNotes VoiceNote[]
+  phones            ClientPhone[]
+  inquiries         Inquiry[]
+  reminders         Reminder[]
+  voiceNotes        VoiceNote[]
   conversationNotes ClientNote[]
   whatsappContacts  WhatsAppContact[]
   whatsappMessages  WhatsAppMessage[]
+  portalLeads       PortalLead[]
 
   @@index([brokerageId, status])
   @@index([brokerageId, name])
@@ -256,14 +262,14 @@ model ClientPhone {
 // One client inquiry / requirement. A client may have many (e.g. rent a 1BHK now,
 // buy a 2BHK later). NULL means "not specified by the client".
 model Inquiry {
-  id              String            @id @default(cuid())
+  id              String             @id @default(cuid())
   brokerageId     String
-  brokerage       Brokerage         @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  brokerage       Brokerage          @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
   clientId        String
-  client          Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client          Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
   transactionType TransactionType
   category        PropertyCategory
-  status          InquiryStatus     @default(ACTIVE)
+  status          InquiryStatus      @default(ACTIVE)
   // Budget in whole rupees. For RENT this is monthly rent.
   budgetMin       BigInt?
   budgetMax       BigInt?
@@ -276,14 +282,14 @@ model Inquiry {
   possessionBy    DateTime?
   mandatory       RequirementField[]
   notes           String?
-  source          RequirementSource @default(MANUAL)
-  version         Int               @default(1)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  source          RequirementSource  @default(MANUAL)
+  version         Int                @default(1)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
-  revisions  InquiryRevision[]
-  reminders  Reminder[]
-  voiceNotes VoiceNote[]
+  revisions        InquiryRevision[]
+  reminders        Reminder[]
+  voiceNotes       VoiceNote[]
   whatsappMessages WhatsAppMessage[]
 
   @@index([brokerageId, transactionType, category, status])
@@ -292,23 +298,23 @@ model Inquiry {
 
 // Append-only history of requirement changes.
 model InquiryRevision {
-  id          String            @id @default(cuid())
-  inquiryId   String
-  inquiry     Inquiry           @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
-  version     Int
-  changedById String?
-  changedBy   User?             @relation(fields: [changedById], references: [id], onDelete: SetNull)
-  source      RequirementSource
+  id                String            @id @default(cuid())
+  inquiryId         String
+  inquiry           Inquiry           @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  version           Int
+  changedById       String?
+  changedBy         User?             @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  source            RequirementSource
   // { field: { from, to } } for updates; full snapshot for version 1.
-  changes     Json
-  snapshot    Json
+  changes           Json
+  snapshot          Json
   // Set when the change came from a reviewed voice note.
-  voiceNoteId String?
-  voiceNote   VoiceNote?        @relation(fields: [voiceNoteId], references: [id], onDelete: SetNull)
+  voiceNoteId       String?
+  voiceNote         VoiceNote?        @relation(fields: [voiceNoteId], references: [id], onDelete: SetNull)
   // Set when the change came from a reviewed WhatsApp message.
   whatsappMessageId String?
-  whatsappMessage   WhatsAppMessage? @relation(fields: [whatsappMessageId], references: [id], onDelete: SetNull)
-  createdAt   DateTime          @default(now())
+  whatsappMessage   WhatsAppMessage?  @relation(fields: [whatsappMessageId], references: [id], onDelete: SetNull)
+  createdAt         DateTime          @default(now())
 
   @@unique([inquiryId, version])
 }
@@ -335,7 +341,7 @@ model VoiceNote {
   // As produced by speech-to-text, kept for audit even if the agent corrects it.
   originalTranscript String?
   transcript         String?
-  transcriptSource   String?         // "stt:<provider>" or "manual"
+  transcriptSource   String? // "stt:<provider>" or "manual"
   extraction         Json?
   extractor          String?
   error              String?
@@ -377,13 +383,16 @@ model Property {
   listedById      String?
   listedBy        User?            @relation(fields: [listedById], references: [id], onDelete: SetNull)
   photos          PropertyPhoto[]
+  portalListings  PortalListing[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
   @@index([brokerageId, transactionType, category, availability])
 }
 
-/** Listing photos. The file is in blob storage (see src/storage); this row holds its key. */
+/**
+ * Listing photos. The file is in blob storage (see src/storage); this row holds its key.
+ */
 model PropertyPhoto {
   id          String   @id @default(cuid())
   brokerageId String
@@ -413,6 +422,7 @@ model Reminder {
   dueAt        DateTime
   title        String
   note         String?
+  kind         ReminderKind   @default(FOLLOW_UP)
   status       ReminderStatus @default(PENDING)
   completedAt  DateTime?
   createdAt    DateTime       @default(now())
@@ -465,7 +475,7 @@ model WhatsAppContact {
   brokerage     Brokerage        @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
   accountId     String?
   account       WhatsAppAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  waId          String           // E.164
+  waId          String // E.164
   profileName   String?
   clientId      String?
   client        Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
@@ -524,18 +534,22 @@ model WhatsAppMessage {
 
 // ---------- AI Call Assistant ----------
 
-/** How calls to the business number are handled. */
+/**
+ * How calls to the business number are handled.
+ */
 enum CallMode {
-  DIRECT          // ring the team only; the AI never answers
+  DIRECT // ring the team only; the AI never answers
   AI_RECEPTIONIST // the AI answers every call
   SMART_ASSISTANT // ring the team first; the AI answers if nobody picks up, the line is busy or it's after hours
 }
 
-/** Voice after the recorded greeting. Only RECORDED_STANDARD is implemented today. */
+/**
+ * Voice after the recorded greeting. Only RECORDED_STANDARD is implemented today.
+ */
 enum AssistantVoice {
   RECORDED_STANDARD // broker's recording, then the telephony provider's standard voice
-  RECORDED_NATURAL  // broker's recording, then a natural TTS voice (planned)
-  CUSTOM_AI_VOICE   // provider voice creation with the broker's verified consent (planned)
+  RECORDED_NATURAL // broker's recording, then a natural TTS voice (planned)
+  CUSTOM_AI_VOICE // provider voice creation with the broker's verified consent (planned)
 }
 
 enum GreetingLanguage {
@@ -545,44 +559,60 @@ enum GreetingLanguage {
   MARATHI
 }
 
-/** What the AI does when it can't understand the caller after the allowed retries. */
+/**
+ * What the AI does when it can't understand the caller after the allowed retries.
+ */
 enum UnclearBehavior {
   TAKE_CALLBACK // note the number and promise a callback
-  TRANSFER      // hand over to a person (when a transfer number is set and within hours)
+  TRANSFER // hand over to a person (when a transfer number is set and within hours)
 }
 
 enum HumanTransfer {
   ON_REQUEST // when the caller asks for a person
-  NEVER      // always take a callback instead
+  NEVER // always take a callback instead
 }
 
 model CallAssistantSettings {
-  brokerageId          String           @id
-  brokerage            Brokerage        @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
-  enabled              Boolean          @default(false)
-  mode                 CallMode         @default(DIRECT)
-  voice                AssistantVoice   @default(RECORDED_STANDARD)
-  customGreetingEnabled Boolean         @default(false)
-  defaultLanguage      GreetingLanguage @default(HINGLISH)
-  /** {"days":[1,2,3,4,5,6],"start":"09:30","end":"20:00","timeZone":"Asia/Kolkata"} (ISO weekdays, 1 = Monday) */
-  businessHours        Json
-  /** Create a follow-up for every AI call with a callback request. */
-  callbackReminder     Boolean          @default(true)
-  /** Minutes after the call the callback follow-up is due. */
-  callbackDelayMinutes Int              @default(15)
-  /** Who gets callback follow-ups; null = the owner. */
-  callbackAssigneeId   String?
-  unclearBehavior      UnclearBehavior  @default(TAKE_CALLBACK)
-  maxUnclearRetries    Int              @default(2)
-  humanTransfer        HumanTransfer    @default(ON_REQUEST)
-  /** E.164 number calls are handed to when a caller asks for a person. */
-  transferNumber       String?
-  /** Business number(s) this configuration answers for, as the provider reports them (E.164). */
-  businessNumbers      String[]
-  updatedAt            DateTime         @updatedAt
+  brokerageId           String           @id
+  brokerage             Brokerage        @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  enabled               Boolean          @default(false)
+  mode                  CallMode         @default(DIRECT)
+  voice                 AssistantVoice   @default(RECORDED_STANDARD)
+  customGreetingEnabled Boolean          @default(false)
+  defaultLanguage       GreetingLanguage @default(HINGLISH)
+  /**
+   * {"days":[1,2,3,4,5,6],"start":"09:30","end":"20:00","timeZone":"Asia/Kolkata"} (ISO weekdays, 1 = Monday)
+   */
+  businessHours         Json
+  /**
+   * Create a follow-up for every AI call with a callback request.
+   */
+  callbackReminder      Boolean          @default(true)
+  /**
+   * Minutes after the call the callback follow-up is due.
+   */
+  callbackDelayMinutes  Int              @default(15)
+  /**
+   * Who gets callback follow-ups; null = the owner.
+   */
+  callbackAssigneeId    String?
+  unclearBehavior       UnclearBehavior  @default(TAKE_CALLBACK)
+  maxUnclearRetries     Int              @default(2)
+  humanTransfer         HumanTransfer    @default(ON_REQUEST)
+  /**
+   * E.164 number calls are handed to when a caller asks for a person.
+   */
+  transferNumber        String?
+  /**
+   * Business number(s) this configuration answers for, as the provider reports them (E.164).
+   */
+  businessNumbers       String[]
+  updatedAt             DateTime         @updatedAt
 }
 
-/** One greeting per language. The audio is in blob storage; the script is editable text. */
+/**
+ * One greeting per language. The audio is in blob storage; the script is editable text.
+ */
 model CallGreeting {
   id          String           @id @default(cuid())
   brokerageId String
@@ -608,29 +638,39 @@ enum CallSessionStatus {
   FAILED
 }
 
-/** One call handled by the assistant. (provider, providerCallId) makes webhook retries idempotent. */
+/**
+ * One call handled by the assistant. (provider, providerCallId) makes webhook retries idempotent.
+ */
 model CallSession {
   id                String            @id @default(cuid())
   brokerageId       String
   brokerage         Brokerage         @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
   provider          String
   providerCallId    String
-  /** In-app "Test your assistant" conversations: never saved to the CRM. */
+  /**
+   * In-app "Test your assistant" conversations: never saved to the CRM.
+   */
   isTest            Boolean           @default(false)
   fromNumber        String?
   toNumber          String?
   status            CallSessionStatus @default(IN_PROGRESS)
   language          GreetingLanguage?
-  /** Conversation state: collected fields (with the caller's words as evidence), retries, pending question. */
+  /**
+   * Conversation state: collected fields (with the caller's words as evidence), retries, pending question.
+   */
   state             Json
-  /** Provider event ids already applied (duplicate deliveries are ignored). */
+  /**
+   * Provider event ids already applied (duplicate deliveries are ignored).
+   */
   seenEvents        String[]
   callbackRequested Boolean           @default(false)
   humanRequested    Boolean           @default(false)
   summary           String?
   clientId          String?
   inquiryId         String?
-  /** Set once the call has been saved to the CRM (never saved twice). */
+  /**
+   * Set once the call has been saved to the CRM (never saved twice).
+   */
   savedAt           DateTime?
   startedAt         DateTime          @default(now())
   endedAt           DateTime?
@@ -659,7 +699,7 @@ model CallTurn {
 }
 
 enum OtpPurpose {
-  LOGIN        // sign in with a mobile number
+  LOGIN // sign in with a mobile number
   VERIFY_PHONE // a signed-in user proving a number is theirs before it's saved
 }
 
@@ -671,17 +711,169 @@ model OtpChallenge {
   id         String     @id @default(cuid())
   phone      String
   purpose    OtpPurpose
-  /** For VERIFY_PHONE: the user adding the number. */
+  /**
+   * For VERIFY_PHONE: the user adding the number.
+   */
   userId     String?
   codeHash   String
   attempts   Int        @default(0)
   expiresAt  DateTime
   consumedAt DateTime?
-  /** Superseded by a newer code, or locked after too many attempts. */
+  /**
+   * Superseded by a newer code, or locked after too many attempts.
+   */
   voidedAt   DateTime?
   ip         String?
   createdAt  DateTime   @default(now())
 
   @@index([phone, purpose, createdAt])
   @@index([ip, createdAt])
+}
+
+/**
+ * A follow-up the broker set, or a callback someone is waiting for (e.g. promised by the AI call assistant).
+ */
+enum ReminderKind {
+  FOLLOW_UP
+  CALLBACK
+}
+
+/**
+ * A listing as advertised on one portal. The same flat on 99acres and Housing.com is two listings.
+ */
+enum PortalListingStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/**
+ * Where a portal lead is in the broker's workflow.
+ */
+enum PortalLeadStatus {
+  NEW
+  CONTACTED
+  FOLLOW_UP
+  CONVERTED
+  NOT_INTERESTED
+  CLOSED
+}
+
+/**
+ * How a portal lead reached BrokerBuddy.
+ */
+enum PortalLeadChannel {
+  WHATSAPP // a portal notification or "Chat on WhatsApp" enquiry, shared into the app or received by the WhatsApp Business API
+  CSV // the portal's lead export (Excel saved as CSV), imported by the broker
+  EMAIL // a portal lead email, pasted into the app
+  WEBHOOK // pushed to the brokerage's inbound lead URL (portal CRM integration, email parser, Zapier…)
+}
+
+/**
+ * A listing on 99acres or Housing.com that has received enquiries. Only what the source
+ * supplied is stored (no guessed fields). `propertyId` is set only when the listing was
+ * matched to one of the brokerage's own properties without ambiguity.
+ */
+model PortalListing {
+  id              String              @id @default(cuid())
+  brokerageId     String
+  brokerage       Brokerage           @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  /**
+   * ACRES_99 or HOUSING_COM.
+   */
+  portal          LeadSource
+  externalId      String?
+  url             String?
+  title           String?
+  transactionType TransactionType?
+  category        PropertyCategory?
+  locality        String?
+  /**
+   * Advertised price (BUY) or monthly rent (RENT), whole rupees.
+   */
+  price           BigInt?
+  carpetAreaSqft  Int?
+  photoUrl        String?
+  propertyId      String?
+  property        Property?           @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  /**
+   * How `propertyId` was matched ("listing id in property notes", "same type, area and price").
+   */
+  propertyMatch   String?
+  /**
+   * Only when no id/link is known: the advertised details that identify it, so repeat enquiries share one listing.
+   */
+  fingerprint     String?
+  status          PortalListingStatus @default(ACTIVE)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  leads PortalLead[]
+
+  @@unique([brokerageId, portal, externalId])
+  @@unique([brokerageId, portal, url])
+  @@unique([brokerageId, portal, fingerprint])
+  @@index([brokerageId, portal])
+}
+
+/**
+ * One enquiry from a portal. Each distinct enquiry keeps its own record, even from the same
+ * person about the same listing; `dedupeKey` stops the same enquiry being stored twice.
+ * The client is linked by phone or email only — never by name.
+ */
+model PortalLead {
+  id             String            @id @default(cuid())
+  brokerageId    String
+  brokerage      Brokerage         @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  portal         LeadSource
+  listingId      String?
+  listing        PortalListing?    @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  clientId       String?
+  client         Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  externalLeadId String?
+  enquiredAt     DateTime
+  name           String?
+  /**
+   * E.164 when the source gave a valid number.
+   */
+  phone          String?
+  email          String?
+  message        String?
+  budgetMin      BigInt?
+  budgetMax      BigInt?
+  requirement    String?
+  status         PortalLeadStatus  @default(NEW)
+  channel        PortalLeadChannel
+  /**
+   * The WhatsApp message id, import batch, etc. the lead came from.
+   */
+  sourceRef      String?
+  /**
+   * The source's original fields, unchanged.
+   */
+  raw            Json?
+  dedupeKey      String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([brokerageId, portal, dedupeKey])
+  @@index([brokerageId, portal, enquiredAt])
+  @@index([listingId, enquiredAt])
+  @@index([clientId])
+}
+
+/**
+ * A brokerage's inbound lead URL for one portal. Only a hash of the key is stored.
+ */
+model PortalIntegration {
+  id             String     @id @default(cuid())
+  brokerageId    String
+  brokerage      Brokerage  @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  portal         LeadSource
+  keyHash        String     @unique
+  keyPrefix      String
+  lastReceivedAt DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([brokerageId, portal])
 }

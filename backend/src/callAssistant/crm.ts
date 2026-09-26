@@ -144,6 +144,7 @@ export async function saveCallToCrm(sessionId: string): Promise<void> {
             dueAt: new Date(Date.now() + settings.callbackDelayMinutes * 60_000),
             title: `Call back ${state.name?.value ?? phone} (${interrupted && !state.callbackRequested ? "AI call ended early" : "AI call"})`,
             note: summary.slice(0, 2000),
+            kind: "CALLBACK",
           },
         });
       }

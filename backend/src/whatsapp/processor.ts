@@ -1,4 +1,4 @@
-import { Prisma, type WhatsAppAccount, type WhatsAppMessage } from "@prisma/client";
+import { Prisma, type PropertyCategory, type WhatsAppAccount, type WhatsAppMessage } from "@prisma/client";
 import { prisma } from "../db.js";
 import { decrypt } from "../lib/crypto.js";
 import { normalizePhone } from "../lib/phone.js";
@@ -8,6 +8,7 @@ import { getVoiceServices } from "../voice/service.js";
 import { analyzeMessage } from "./analyze.js";
 import { GraphClient } from "./graph.js";
 import type { PortalLead } from "./portalLeads.js";
+import { brokerageActor, isPortal, recordLead } from "../services/portalLeads.js";
 import type { WebhookChange } from "./webhook.js";
 
 const STATUS_MAP = { sent: "SENT", delivered: "DELIVERED", read: "READ", failed: "FAILED" } as const;
@@ -171,6 +172,39 @@ export async function processMessage(id: string, opts: { clientId?: string } = {
         await tx.whatsAppContact.update({ where: { id: msg.contactId }, data: { clientId } });
       }
     });
+
+    // 99acres / Housing.com enquiries are also kept as portal leads, tied to their listing.
+    if (portalLead && isPortal(portalLead.portal)) {
+      const facts = portalLead.listingFacts ?? {};
+      const draft = extraction?.draft;
+      const { lead, clientCreated } = await recordLead(await brokerageActor(msg.brokerageId), {
+        portal: portalLead.portal,
+        channel: "WHATSAPP",
+        sourceRef: msg.id,
+        dedupeKey: `wa:${msg.id}`,
+        enquiredAt: msg.sentAt,
+        name: leadName,
+        phone: leadPhone,
+        email: portalLead.leadEmail,
+        message: portalLead.leadMessage ?? text,
+        budgetMin: draft?.budgetMin?.value ?? null,
+        budgetMax: draft?.budgetMax?.value ?? null,
+        listing: {
+          externalId: portalLead.listingRef,
+          url: portalLead.listingPage?.url ?? portalLead.listingUrl,
+          title: portalLead.listingTitle,
+          transactionType: facts.transactionType ?? null,
+          category: (facts.category as PropertyCategory | undefined) ?? null,
+          locality: facts.locality,
+          price: portalLead.listingPrice?.value ?? null,
+        },
+        clientId,
+        raw: { text },
+      });
+      if (clientCreated && lead.clientId && !clientId) {
+        await prisma.whatsAppMessage.update({ where: { id }, data: { clientId: lead.clientId } });
+      }
+    }
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     await prisma.whatsAppMessage.update({ where: { id }, data: { processError: reason.slice(0, 500) } });

@@ -40,6 +40,10 @@ export interface PortalLead {
   listingPrice?: Evidence<number>;
   /** Spans of every advertised price in the text — masked before budget extraction. */
   priceSpans: Span[];
+  /** How the listing is described ("2 BHK Apartment"), exactly as written. */
+  listingTitle?: string;
+  /** Listing type/area read from the listing's own text or page (set by analysis; never guessed). */
+  listingFacts?: { transactionType?: "RENT" | "BUY"; category?: string; locality?: string };
   /** The lead's own words, when the notification quotes them ("Message: …"). */
   leadMessage?: string;
   leadMessageSpan?: Span;
@@ -95,6 +99,7 @@ const SIGN_OFF_RE =
 // "in/at <Area>" ending the clause: "Flat in Veena Nagar.", "₹ 27,000 in Mulund West, Mumbai".
 const AREA_RE = /\b(?:in|at)\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*){0,3})(?=\s*[,.;!\n]|\s*$)/g;
 const NOT_AREA = /^(?:mumbai|india|maharashtra|housing|99\s?acres|magic\s?bricks|the|your|my)\b/i;
+const TITLE_RE = /\b((?:\d\s?(?:BHK|RK)|studio)(?:\s+(?:independent\s+house|builder\s+floor|apartment|flat|house|villa|penthouse|studio(?:\s+apartment)?))?)\b/i;
 const MESSAGE_RE = /(?:^|[\s|,.])(?:message|msg|query|comment|remarks?|requirement)\s*[:\-]\s*/i;
 
 export function parsePortalLead(input: string): PortalLead | null {
@@ -136,6 +141,8 @@ export function parsePortalLead(input: string): PortalLead | null {
     lead.listingLocality = { value: m[1], evidence: m[1] };
     break;
   }
+  const title = TITLE_RE.exec(text);
+  if (title && !inMessage(title.index)) lead.listingTitle = title[1].replace(/\s+/g, " ");
   const email = EMAIL_RE.exec(text)?.[0];
   if (email) lead.leadEmail = email.toLowerCase();
   const ref = REF_RE.exec(text)?.[1];

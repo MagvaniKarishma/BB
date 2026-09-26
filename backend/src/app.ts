@@ -15,6 +15,8 @@ import { callerRouter } from "./routes/caller.js";
 import { whatsappRouter } from "./routes/whatsapp.js";
 import { whatsappWebhookRouter } from "./routes/whatsappWebhook.js";
 import { callAssistantRouter } from "./routes/callAssistant.js";
+import { portalInboundRouter, portalLeadsRouter } from "./routes/portalLeads.js";
+import { assistantRouter } from "./routes/assistant.js";
 import { telephonyRouter } from "./routes/telephony.js";
 
 export function createApp() {
@@ -43,6 +45,7 @@ export function createApp() {
 
   const api = express.Router();
   api.use("/auth", authRouter);
+  api.use("/portal-inbound", portalInboundRouter);
   api.use(requireAuth);
   api.use("/team", teamRouter);
   api.use("/clients", clientsRouter);
@@ -54,6 +57,8 @@ export function createApp() {
   api.use("/caller", callerRouter);
   api.use("/whatsapp", whatsappRouter);
   api.use("/call-assistant", callAssistantRouter);
+  api.use("/portal-leads", portalLeadsRouter);
+  api.use("/assistant", assistantRouter);
   app.use("/api/v1", api);
 
   app.use((_req, _res, next) => next(notFound("Route")));

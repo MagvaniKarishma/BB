@@ -10,6 +10,7 @@ import { HttpError, badRequest, notFound } from "../lib/errors.js";
 import { normalizePhone } from "../lib/phone.js";
 import { createInquirySchema, updateInquirySchema } from "../schemas.js";
 import { addPhoneChecked, createClientChecked, findByPhones } from "../services/clients.js";
+import { linkLeadsOfMessage } from "../services/portalLeads.js";
 import { createInquiryTx, updateInquiryTx } from "./inquiries.js";
 import { parseChatExport } from "../whatsapp/chatExport.js";
 import { GraphApiError, GraphClient } from "../whatsapp/graph.js";
@@ -198,6 +199,7 @@ whatsappRouter.get("/messages/:id", async (req, res) => {
 /** Attaches a client to this message and to other unlinked messages about the same person. */
 async function attachClient(msg: WhatsAppMessage, clientId: string) {
   await prisma.whatsAppMessage.update({ where: { id: msg.id }, data: { clientId, inquiryId: null } });
+  await linkLeadsOfMessage(msg.brokerageId, msg.id, clientId);
   if (msg.leadPhone) {
     await prisma.whatsAppMessage.updateMany({
       where: { brokerageId: msg.brokerageId, clientId: null, leadPhone: msg.leadPhone },

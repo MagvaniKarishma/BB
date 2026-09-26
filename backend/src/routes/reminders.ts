@@ -24,6 +24,7 @@ remindersRouter.get("/", async (req, res) => {
       brokerageId: me.brokerageId,
       assignedToId: q.scope === "mine" ? me.id : undefined,
       status: q.status,
+      kind: q.kind,
       clientId: q.clientId,
       dueAt: { gte: q.from, lte: q.to },
     },
@@ -61,6 +62,7 @@ remindersRouter.post("/", async (req, res) => {
       dueAt: body.dueAt,
       title: body.title,
       note: body.note ?? null,
+      kind: body.kind ?? "FOLLOW_UP",
     },
     include,
   });
