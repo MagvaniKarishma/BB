@@ -1,0 +1,290 @@
+// BrokerBuddy data model.
+//
+// Design rules enforced here:
+//  - Everything is scoped to a Brokerage (team) — no cross-tenant access.
+//  - Client phone numbers are unique per brokerage (duplicate prevention).
+//  - Client requirements (Inquiry) are stored separately from Property inventory.
+//  - Every requirement change is appended to InquiryRevision (never rewritten).
+//  - Optional fields stay NULL when unknown — we never invent client data.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  AGENT
+}
+
+enum LeadSource {
+  WALK_IN
+  REFERRAL
+  PHONE_CALL
+  WHATSAPP
+  ACRES_99
+  HOUSING_COM
+  MAGICBRICKS
+  WEBSITE
+  SOCIAL_MEDIA
+  OTHER
+}
+
+enum ClientStatus {
+  NEW
+  CONTACTED
+  SITE_VISIT
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+  ON_HOLD
+}
+
+enum TransactionType {
+  RENT
+  BUY
+}
+
+enum PropertyCategory {
+  STUDIO
+  BHK_1
+  BHK_2
+  BHK_3
+  BHK_4
+  BHK_5_PLUS
+  COMMERCIAL
+  OTHER
+}
+
+enum Furnishing {
+  UNFURNISHED
+  SEMI_FURNISHED
+  FULLY_FURNISHED
+}
+
+enum Possession {
+  READY_TO_MOVE
+  UNDER_CONSTRUCTION
+}
+
+enum InquiryStatus {
+  ACTIVE
+  PAUSED
+  FULFILLED
+  DROPPED
+}
+
+// Requirement fields a broker can flag as mandatory ("must have").
+enum RequirementField {
+  BUDGET
+  LOCATION
+  FURNISHING
+  PARKING
+  FLOOR
+  POSSESSION
+}
+
+enum RequirementSource {
+  MANUAL
+  VOICE_NOTE
+  PORTAL_LEAD
+  WHATSAPP
+}
+
+enum Availability {
+  AVAILABLE
+  ON_HOLD
+  RENTED
+  SOLD
+  WITHDRAWN
+}
+
+enum ReminderStatus {
+  PENDING
+  DONE
+  CANCELLED
+}
+
+model Brokerage {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users      User[]
+  clients    Client[]
+  phones     ClientPhone[]
+  inquiries  Inquiry[]
+  properties Property[]
+  reminders  Reminder[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  brokerageId  String
+  brokerage    Brokerage @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         Role     @default(AGENT)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  assignedClients   Client[]          @relation("AssignedClients")
+  reminders         Reminder[]        @relation("ReminderAssignee")
+  createdReminders  Reminder[]        @relation("ReminderCreator")
+  inquiryRevisions  InquiryRevision[]
+  listedProperties  Property[]
+
+  @@index([brokerageId])
+}
+
+model Client {
+  id           String       @id @default(cuid())
+  brokerageId  String
+  brokerage    Brokerage    @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  name         String
+  // Primary phone in E.164 form (e.g. +919820012345). Also present in ClientPhone.
+  primaryPhone String
+  email        String?
+  leadSource   LeadSource
+  status       ClientStatus @default(NEW)
+  notes        String?
+  assignedToId String?
+  assignedTo   User?        @relation("AssignedClients", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  phones    ClientPhone[]
+  inquiries Inquiry[]
+  reminders Reminder[]
+
+  @@index([brokerageId, status])
+  @@index([brokerageId, name])
+}
+
+// All numbers belonging to a client. The unique constraint is the database-level
+// guarantee that one phone number maps to exactly one client per brokerage.
+model ClientPhone {
+  id          String    @id @default(cuid())
+  brokerageId String
+  brokerage   Brokerage @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  e164        String
+  label       String?
+
+  @@unique([brokerageId, e164])
+  @@index([clientId])
+}
+
+// One client inquiry / requirement. A client may have many (e.g. rent a 1BHK now,
+// buy a 2BHK later). NULL means "not specified by the client".
+model Inquiry {
+  id              String            @id @default(cuid())
+  brokerageId     String
+  brokerage       Brokerage         @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  clientId        String
+  client          Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  transactionType TransactionType
+  category        PropertyCategory
+  status          InquiryStatus     @default(ACTIVE)
+  // Budget in whole rupees. For RENT this is monthly rent.
+  budgetMin       BigInt?
+  budgetMax       BigInt?
+  locations       String[]
+  furnishing      Furnishing[]
+  minParking      Int?
+  floorMin        Int?
+  floorMax        Int?
+  possession      Possession?
+  possessionBy    DateTime?
+  mandatory       RequirementField[]
+  notes           String?
+  source          RequirementSource @default(MANUAL)
+  version         Int               @default(1)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  revisions InquiryRevision[]
+  reminders Reminder[]
+
+  @@index([brokerageId, transactionType, category, status])
+  @@index([clientId])
+}
+
+// Append-only history of requirement changes.
+model InquiryRevision {
+  id          String            @id @default(cuid())
+  inquiryId   String
+  inquiry     Inquiry           @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  version     Int
+  changedById String?
+  changedBy   User?             @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  source      RequirementSource
+  // { field: { from, to } } for updates; full snapshot for version 1.
+  changes     Json
+  snapshot    Json
+  createdAt   DateTime          @default(now())
+
+  @@unique([inquiryId, version])
+}
+
+model Property {
+  id              String           @id @default(cuid())
+  brokerageId     String
+  brokerage       Brokerage        @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  title           String
+  transactionType TransactionType
+  category        PropertyCategory
+  // Whole rupees. For RENT: monthly rent. For BUY: total price.
+  price           BigInt
+  deposit         BigInt?
+  locality        String
+  building        String?
+  address         String?
+  carpetAreaSqft  Int?
+  furnishing      Furnishing?
+  parkingSpots    Int?
+  floor           Int?
+  totalFloors     Int?
+  possession      Possession?
+  possessionDate  DateTime?
+  availability    Availability     @default(AVAILABLE)
+  ownerName       String?
+  ownerPhone      String?
+  notes           String?
+  listedById      String?
+  listedBy        User?            @relation(fields: [listedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([brokerageId, transactionType, category, availability])
+}
+
+model Reminder {
+  id           String         @id @default(cuid())
+  brokerageId  String
+  brokerage    Brokerage      @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  clientId     String?
+  client       Client?        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  inquiryId    String?
+  inquiry      Inquiry?       @relation(fields: [inquiryId], references: [id], onDelete: SetNull)
+  assignedToId String
+  assignedTo   User           @relation("ReminderAssignee", fields: [assignedToId], references: [id], onDelete: Cascade)
+  createdById  String?
+  createdBy    User?          @relation("ReminderCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  dueAt        DateTime
+  title        String
+  note         String?
+  status       ReminderStatus @default(PENDING)
+  completedAt  DateTime?
+  createdAt    DateTime       @default(now())
+
+  @@index([brokerageId, assignedToId, status, dueAt])
+}
