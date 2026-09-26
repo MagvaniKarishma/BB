@@ -1,6 +1,7 @@
 import type { LeadSource } from "@prisma/client";
 import { normalizePhone } from "../lib/phone.js";
 import type { Evidence } from "../voice/draft.js";
+import type { ListingPage } from "./listingLookup.js";
 
 /**
  * Recognises property-portal leads (99acres, Housing.com, Magicbricks) in message text:
@@ -31,6 +32,8 @@ export interface PortalLead {
   leadEmail?: string;
   listingRef?: string;
   listingUrl?: string;
+  /** What the listing link's page says (filled in by analysis when the link is opened). */
+  listingPage?: ListingPage;
   /** Area of the listing as written ("1 BHK Flat in Veena Nagar" → "Veena Nagar"). */
   listingLocality?: Evidence<string>;
   /** The advertised price/rent of the listing (not the client's budget). */

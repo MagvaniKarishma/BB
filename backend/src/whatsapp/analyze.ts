@@ -2,6 +2,7 @@ import type { VoiceLanguage } from "@prisma/client";
 import type { Evidence, Extraction, RequirementDraft } from "../voice/draft.js";
 import { extractWithRules } from "../voice/rulesExtractor.js";
 import { extractRequirement } from "../voice/service.js";
+import { getListingLookup } from "./listingLookup.js";
 import { PORTAL_LABEL, type PortalLead, parsePortalLead } from "./portalLeads.js";
 
 export interface MessageAnalysis {
@@ -46,11 +47,25 @@ export async function analyzeMessage(text: string, language: VoiceLanguage = "AU
   if (listing.locations) fromListing.locations = listing.locations;
   // Sub-localities ("Veena Nagar") aren't in the lexicon; keep the area exactly as written.
   else if (portalLead.listingLocality) fromListing.locations = [portalLead.listingLocality];
+  // Not in the message → open the listing link and read it from the listing page.
+  const lookup = getListingLookup();
+  if (!fromListing.transactionType && portalLead.listingUrl && lookup) {
+    portalLead.listingPage = await lookup(portalLead.listingUrl);
+    const found = portalLead.listingPage.transactionType;
+    if (found) {
+      fromListing.transactionType = found;
+      warnings.push(
+        `${found.value === "RENT" ? "For rent" : "For sale"} — read from the ${label} listing page ("${found.evidence}"), not from the message; confirm with the client`,
+      );
+    }
+  }
   if (!fromListing.transactionType) {
     const p = portalLead.listingPrice?.value;
     // A hint only — never filled in: the agent confirms rent or buy with the client.
     const hint = p != null && p < 2_00_000 ? ` (${inr(p)} looks like a monthly rent)` : "";
-    warnings.push(`The ${label} message doesn't say whether it's for rent or sale${hint} — confirm with the client`);
+    const page = portalLead.listingPage;
+    const tried = page ? (page.status === "OK" ? "; the listing page doesn't say either" : `; couldn't read the listing page (${page.reason})`) : "";
+    warnings.push(`The ${label} message doesn't say whether it's for rent or sale${hint}${tried} — confirm with the client`);
   }
   if (hasFields(fromListing)) {
     warnings.push(`Property type/area taken from the ${label} listing they enquired about — confirm it is what the client wants`);

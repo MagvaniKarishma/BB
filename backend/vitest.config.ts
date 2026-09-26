@@ -8,6 +8,8 @@ export default defineConfig({
     env: {
       DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://bb:bb@localhost:5432/brokerbuddy_test",
       JWT_SECRET: "test-secret-test-secret-test-secret-1234",
+      // Tests never reach real portals; listing lookups are faked per test.
+      LISTING_LOOKUP: "off",
       DATA_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     },
   },
