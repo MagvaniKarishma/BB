@@ -279,7 +279,61 @@ data class Dashboard(
     val clientsByStatus: Map<String, Int> = emptyMap(),
     val reminders: ReminderCounts,
     val availableProperties: Int,
+    val totals: DashboardTotals? = null,
+    val todayFollowUps: List<HomeFollowUp> = emptyList(),
+    val newLeads: List<HomeLead> = emptyList(),
+    val topMatches: List<TopMatch> = emptyList(),
 )
+
+@Serializable
+data class DashboardTotals(
+    val clients: Int = 0,
+    val newClientsThisWeek: Int = 0,
+    val activeRequirements: Int = 0,
+    val newRequirementsThisWeek: Int = 0,
+    val availableProperties: Int = 0,
+    val newPropertiesThisWeek: Int = 0,
+    val pendingFollowUps: Int = 0,
+    val followUpsDueToday: Int = 0,
+)
+
+/** "2 BHK · Rent · Andheri West" */
+@Serializable
+data class RequirementSummary(
+    val transactionType: TransactionType,
+    val category: PropertyCategory,
+    val location: String? = null,
+) {
+    fun text(): String = listOfNotNull(category.label, transactionType.label, location).joinToString(" • ")
+}
+
+@Serializable
+data class HomeFollowUp(
+    val id: String,
+    val title: String,
+    val dueAt: String,
+    val overdue: Boolean = false,
+    val client: ClientRef? = null,
+    val requirement: RequirementSummary? = null,
+)
+
+@Serializable
+data class HomeLead(
+    /** CLIENT = new client this week; WHATSAPP = WhatsApp/portal lead not yet a client. */
+    val kind: String,
+    val id: String,
+    val clientId: String? = null,
+    val messageId: String? = null,
+    val name: String? = null,
+    val phone: String? = null,
+    /** A LeadSource name (ACRES_99, HOUSING_COM, MAGICBRICKS, WHATSAPP, WALK_IN…). */
+    val source: String,
+    val at: String,
+    val requirement: RequirementSummary? = null,
+)
+
+@Serializable
+data class TopMatch(val property: Property, val matchingRequirements: Int)
 
 @Serializable
 data class Reminder(

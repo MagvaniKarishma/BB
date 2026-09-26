@@ -281,3 +281,42 @@ describe("team", () => {
     expect((await agent.get("/clients")).status).toBe(401);
   });
 });
+
+describe("home screen data", () => {
+  it("returns totals, today's follow-ups with requirement, new leads and top matches — all from real records", async () => {
+    const { api } = await registerBroker();
+    const c = (await api.post("/clients", newClient())).body.client;
+    const inquiry = (await api.post(`/clients/${c.id}/inquiries`, rent2bhk)).body.inquiry;
+    await api.post("/properties", { title: "Lokhandwala 2BHK", transactionType: "RENT", category: "BHK_2", price: 65000, locality: "Andheri West" });
+    await api.post("/properties", { title: "Too pricey", transactionType: "RENT", category: "BHK_2", price: 95000, locality: "Andheri West" });
+    await api.post("/reminders", { title: "Send properties", dueAt: new Date(Date.now() - 60_000).toISOString(), clientId: c.id });
+    await api.post("/reminders", { title: "Next week", dueAt: new Date(Date.now() + 8 * 86_400_000).toISOString(), clientId: c.id });
+
+    const d = (await api.get("/dashboard?tz=330")).body;
+    expect(d.totals).toMatchObject({
+      clients: 1, newClientsThisWeek: 1, activeRequirements: 1, newRequirementsThisWeek: 1,
+      availableProperties: 2, newPropertiesThisWeek: 2, pendingFollowUps: 2, followUpsDueToday: 1,
+    });
+    expect(d.todayFollowUps).toHaveLength(1);
+    expect(d.todayFollowUps[0]).toMatchObject({
+      title: "Send properties", overdue: true, client: { name: "Rahul Sharma" },
+      requirement: { transactionType: "RENT", category: "BHK_2", location: "Andheri" },
+    });
+    expect(d.newLeads[0]).toMatchObject({ kind: "CLIENT", name: "Rahul Sharma", source: "WALK_IN" });
+    expect(d.topMatches).toHaveLength(1); // over-budget listing excluded by the mandatory budget
+    expect(d.topMatches[0]).toMatchObject({ property: { title: "Lokhandwala 2BHK" }, matchingRequirements: 1 });
+    expect(inquiry.id).toBeTruthy();
+  });
+
+  it("uses the agent's timezone for 'today'", async () => {
+    const { api } = await registerBroker();
+    // 23:00 IST today is still today in India even though it may be "tomorrow" in UTC terms.
+    const now = new Date();
+    const istMidnight = new Date(Math.floor((now.getTime() + 330 * 60_000) / 86_400_000) * 86_400_000 - 330 * 60_000);
+    const lateTonightIst = new Date(istMidnight.getTime() + 23 * 3_600_000);
+    if (lateTonightIst > now) {
+      await api.post("/reminders", { title: "Late call", dueAt: lateTonightIst.toISOString() });
+      expect((await api.get("/dashboard?tz=330")).body.totals.followUpsDueToday).toBe(1);
+    }
+  });
+});

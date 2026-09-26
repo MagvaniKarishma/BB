@@ -87,8 +87,9 @@ interface ApiService {
     @GET("auth/me")
     suspend fun me(): MeResponse
 
+    /** @param tz device UTC offset in minutes, so "today" is the agent's today. */
     @GET("dashboard")
-    suspend fun dashboard(): Dashboard
+    suspend fun dashboard(@Query("tz") tz: Int): Dashboard
 
     // Clients
     @GET("clients")

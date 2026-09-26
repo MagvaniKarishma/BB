@@ -54,6 +54,22 @@ import com.brokerbuddy.ui.reminders.RemindersScreen
 import com.brokerbuddy.ui.settings.SettingsScreen
 import com.brokerbuddy.ui.voice.VoiceNoteScreen
 import com.brokerbuddy.ui.caller.CallerScreen
+import com.brokerbuddy.ui.dashboard.HomeActions
+import com.brokerbuddy.ui.design.BottomItem
+import com.brokerbuddy.ui.design.BrandBottomBar
+import com.brokerbuddy.ui.theme.brand
+import com.brokerbuddy.ui.whatsapp.ClientPickerDialog
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.Apartment
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.People
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.brokerbuddy.ui.whatsapp.WhatsAppConversationScreen
 import com.brokerbuddy.ui.whatsapp.WhatsAppImportScreen
 import com.brokerbuddy.ui.whatsapp.WhatsAppInboxScreen
@@ -85,13 +101,11 @@ object Routes {
         "voice/$clientId?inquiryId=${inquiryId.orEmpty()}&noteId=${noteId.orEmpty()}"
 }
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
-
 private val tabs = listOf(
-    Tab(Routes.DASHBOARD, "Dashboard", Icons.Filled.Dashboard),
-    Tab(Routes.CLIENTS, "Clients", Icons.Filled.People),
-    Tab(Routes.PROPERTIES, "Properties", Icons.Filled.Apartment),
-    Tab(Routes.REMINDERS, "Follow-ups", Icons.Filled.Alarm),
+    BottomItem(Routes.DASHBOARD, "Home", Icons.Outlined.Home, Icons.Filled.Home),
+    BottomItem(Routes.CLIENTS, "Clients", Icons.Outlined.People, Icons.Filled.People),
+    BottomItem(Routes.PROPERTIES, "Properties", Icons.Outlined.Apartment, Icons.Filled.Apartment),
+    BottomItem(Routes.REMINDERS, "Follow Ups", Icons.Outlined.CalendarMonth, Icons.Filled.CalendarMonth),
 )
 
 @Composable
@@ -122,6 +136,7 @@ fun BrokerBuddyNavHost(openRoute: String?, onRouteOpened: () -> Unit) {
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
     val nav = rememberNavController()
@@ -129,6 +144,10 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
     val currentRoute = backStack?.destination?.route
     val back: () -> Unit = { nav.popBackStack() }
     RequestNotificationPermissionOnce()
+    val container = appContainer()
+    val scope = rememberCoroutineScope()
+    var showMenu by remember { mutableStateOf(false) }
+    var pickingVoiceClient by remember { mutableStateOf(false) }
 
     LaunchedEffect(openRoute) {
         if (openRoute != null) {
@@ -138,28 +157,36 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
     }
 
     Scaffold(
+        containerColor = MaterialTheme.brand.background,
+        // Each screen draws its own top bar and handles the status-bar inset itself.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (tabs.any { it.route == currentRoute }) {
-                NavigationBar {
-                    tabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = currentRoute == tab.route,
-                            onClick = { nav.navigateTab(tab.route) },
-                            icon = { Icon(tab.icon, contentDescription = null) },
-                            label = { Text(tab.label) },
-                        )
-                    }
-                }
+                BrandBottomBar(
+                    items = tabs,
+                    selectedRoute = currentRoute,
+                    onSelect = { nav.navigateTab(it) },
+                    onMic = { pickingVoiceClient = true },
+                )
             }
         },
     ) { padding ->
-        NavHost(nav, startDestination = Routes.DASHBOARD, modifier = Modifier.padding(padding)) {
+        NavHost(nav, startDestination = Routes.DASHBOARD, modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
             composable(Routes.DASHBOARD) {
                 DashboardScreen(
-                    onTile = { type, category -> nav.navigate(Routes.inquiryList(type, category)) },
-                    onSettings = { nav.navigate(Routes.SETTINGS) },
-                    onReminders = { nav.navigateTab(Routes.REMINDERS) },
-                    onWhatsApp = { nav.navigate("whatsapp/inbox") },
+                    HomeActions(
+                        onMenu = { showMenu = true },
+                        onSearch = { nav.navigateTab(Routes.CLIENTS) },
+                        onProfile = { nav.navigate(Routes.SETTINGS) },
+                        onFollowUps = { nav.navigateTab(Routes.REMINDERS) },
+                        onClients = { nav.navigateTab(Routes.CLIENTS) },
+                        onProperties = { nav.navigateTab(Routes.PROPERTIES) },
+                        onLeads = { nav.navigate("whatsapp/inbox") },
+                        onTile = { type, category -> nav.navigate(Routes.inquiryList(type, category)) },
+                        onClient = { nav.navigate(Routes.client(it)) },
+                        onProperty = { nav.navigate(Routes.property(it)) },
+                        onLeadMessage = { nav.navigate("whatsapp/message/$it") },
+                    ),
                 )
             }
             composable(Routes.CLIENTS) {
@@ -366,6 +393,20 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                 val id = entry.arguments?.getString("id")!!
                 PropertyFormScreen(propertyId = id, onBack = back, onSaved = { nav.popBackStack() })
             }
+        }
+    }
+
+    if (showMenu) {
+        MoreMenuSheet(
+            onDismiss = { showMenu = false },
+            onNavigate = { route -> showMenu = false; nav.navigate(route) },
+            onSignOut = { showMenu = false; scope.launch { container.sessionStore.signOut() } },
+        )
+    }
+    if (pickingVoiceClient) {
+        ClientPickerDialog(showAddNumber = false, onDismiss = { pickingVoiceClient = false }) { client, _ ->
+            pickingVoiceClient = false
+            nav.navigate(Routes.voice(client.id))
         }
     }
 }

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stylised Mumbai skyline with the sea link at sunset (original vector artwork). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="360dp"
+    android:height="170dp"
+    android:viewportWidth="360"
+    android:viewportHeight="170">
+
+    <!-- Sky -->
+    <path android:pathData="M0,0h360v170h-360z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="180" android:startY="0" android:endX="180" android:endY="125"
+                android:startColor="#FFCFE2F7" android:centerColor="#FFE9EEF5" android:endColor="#FFFBE3CC" />
+        </aapt:attr>
+    </path>
+    <!-- Sun glow -->
+    <path android:pathData="M262,78m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="262" android:centerY="78" android:gradientRadius="46"
+                android:startColor="#CCFFE7B8" android:endColor="#00FFE7B8" />
+        </aapt:attr>
+    </path>
+
+    <!-- Far, hazy towers -->
+    <path android:fillColor="#FFB9CBE0"
+        android:pathData="M150,112v-16h8v-22h8v38z M170,112v-30h9v30z M184,112v-18h8v18z M196,112v-40h10v40z M210,112v-26h9v26z M222,112v-34h11v34z M238,112v-20h8v20z M250,112v-46h9v46z M262,112v-28h10v28z M276,112v-36h10v36z M290,112v-22h12v22z" />
+
+    <!-- Mid towers -->
+    <path android:fillColor="#FF8FA3C2"
+        android:pathData="M178,112v-44h14v-6h6v6h4v44z M206,112v-62h16v62z M226,112v-36h12v36z M244,112v-78h6v-6h8v6h6v78z M268,112v-50h14v50z M286,112v-66h16v66z M306,112v-40h12v40z M322,112v-58h14v58z M340,112v-30h20v30z" />
+
+    <!-- Foreground towers -->
+    <path android:fillColor="#FF5C6F92"
+        android:pathData="M232,122v-70h20v70z M258,122v-92h6v-8h10v8h6v92z M288,122v-58h18v58z M312,122v-78h22v78z M338,122v-46h22v46z" />
+    <!-- Window lights -->
+    <path android:fillColor="#FFDCE6F3"
+        android:pathData="M236,58h4v3h-4z M244,58h4v3h-4z M236,66h4v3h-4z M244,66h4v3h-4z M236,74h4v3h-4z M244,74h4v3h-4z M236,82h4v3h-4z M244,82h4v3h-4z M236,90h4v3h-4z M244,90h4v3h-4z
+            M262,38h4v3h-4z M270,38h4v3h-4z M262,48h4v3h-4z M270,48h4v3h-4z M262,58h4v3h-4z M270,58h4v3h-4z M262,68h4v3h-4z M270,68h4v3h-4z M262,78h4v3h-4z M270,78h4v3h-4z M262,88h4v3h-4z M270,88h4v3h-4z M262,98h4v3h-4z M270,98h4v3h-4z
+            M292,70h4v3h-4z M299,70h4v3h-4z M292,80h4v3h-4z M299,80h4v3h-4z M292,90h4v3h-4z M299,90h4v3h-4z
+            M316,52h4v3h-4z M324,52h4v3h-4z M316,62h4v3h-4z M324,62h4v3h-4z M316,72h4v3h-4z M324,72h4v3h-4z M316,82h4v3h-4z M324,82h4v3h-4z M316,92h4v3h-4z M324,92h4v3h-4z
+            M342,84h4v3h-4z M350,84h4v3h-4z M342,94h4v3h-4z M350,94h4v3h-4z" />
+
+    <!-- Sea -->
+    <path android:pathData="M0,112h360v58h-360z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="180" android:startY="112" android:endX="180" android:endY="170"
+                android:startColor="#FF9CC6DD" android:endColor="#FF5E97BA" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#40FFFFFF" android:pathData="M40,126h40v1.5h-40z M120,138h56v1.5h-56z M60,150h34v1.5h-34z M190,132h30v1.5h-30z" />
+
+    <!-- Sea link: pylons, cables, deck -->
+    <path android:strokeColor="#FFF4F6FA" android:strokeWidth="2.2"
+        android:pathData="M70,120V88 M120,117V82" />
+    <path android:strokeColor="#CCF4F6FA" android:strokeWidth="0.8"
+        android:pathData="M70,90L40,121 M70,90L52,120 M70,90L88,119 M70,90L100,118 M120,84L96,118 M120,84L108,117 M120,84L134,116 M120,84L150,115" />
+    <path android:strokeColor="#FFF9FAFC" android:strokeWidth="3.2" android:strokeLineCap="round"
+        android:pathData="M0,124C60,121 140,116 236,113" />
+
+    <!-- Coastal road curving into the foreground -->
+    <path android:fillColor="#FF4B5563"
+        android:pathData="M150,170C200,150 250,134 360,126V138C270,144 220,158 196,170z" />
+    <path android:strokeColor="#FFF8D48A" android:strokeWidth="1"
+        android:pathData="M176,170C222,152 268,138 360,131" />
+
+    <!-- Palms -->
+    <path android:strokeColor="#FF6B4F3A" android:strokeWidth="2.4" android:strokeLineCap="round"
+        android:pathData="M330,170C329,154 332,142 338,132 M350,170C352,156 350,146 346,138" />
+    <path android:fillColor="#FF2F6B3A"
+        android:pathData="M338,132C330,126 320,126 312,132C322,130 330,131 338,133z M338,132C344,124 354,122 362,126C352,126 346,129 339,134z M338,132C334,122 336,114 342,110C340,118 340,125 339,133z M338,132C348,132 356,138 358,146C350,140 344,137 338,134z" />
+    <path android:fillColor="#FF3F8A4B"
+        android:pathData="M346,138C340,133 332,134 326,139C334,137 340,138 346,140z M346,138C352,132 360,132 366,136C358,136 352,138 347,141z" />
+</vector>

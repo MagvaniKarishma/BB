@@ -154,6 +154,23 @@ API: `GET /caller/lookup?phone=` · `GET /caller/directory` · `GET|POST /client
 
 Credentials, Meta setup steps and limitations are in [`docs/WHATSAPP.md`](docs/WHATSAPP.md).
 
+## Design
+
+The UI follows the BrokerBuddy home-screen design:
+- **Colours:** navy/blue brand, a light-blue page background, and white rounded cards with pastel category colours.
+- **Font:** Poppins, bundled with its SIL Open Font License. It includes Devanagari and the ₹ sign.
+- **Home screen:**
+  - a greeting card with Mumbai skyline artwork;
+  - stat tiles (clients, enquiries, properties, follow-ups) with new-this-week trends;
+  - a Rent/Buy switch and category chips;
+  - today's follow-ups, new leads (including portal and WhatsApp leads) and top property matches.
+- **Navigation:** a bottom bar with a centre microphone for a quick voice note.
+
+Every number on the home screen comes from real data (`GET /dashboard`); nothing is decorative placeholder data.
+Property cards show a placeholder illustration until listing photos are supported.
+
+`docs/design-preview-home.png` is an HTML approximation of the home screen with sample data, for design review only; it is not a screenshot of the app.
+
 ## Running locally
 
 ### Backend

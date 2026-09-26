@@ -33,6 +33,11 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.brokerbuddy.ui.theme.brand
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -118,11 +123,50 @@ fun EmptyMessage(text: String) {
 @Composable
 fun BackTopBar(title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}) {
     TopAppBar(
-        title = { Text(title) },
+        title = { Text(title, maxLines = 1) },
         navigationIcon = {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
         },
         actions = { actions() },
+        colors = brandTopBarColors(),
+    )
+}
+
+/** Top bar for the main tabs: large navy title on the page background. */
+@Composable
+fun BrandTopBar(title: String, actions: @Composable () -> Unit = {}) {
+    TopAppBar(
+        title = { Text(title, style = MaterialTheme.typography.headlineSmall) },
+        actions = { actions() },
+        colors = brandTopBarColors(),
+    )
+}
+
+@Composable
+fun brandTopBarColors() = TopAppBarDefaults.topAppBarColors(
+    containerColor = MaterialTheme.brand.background,
+    scrolledContainerColor = MaterialTheme.brand.background,
+    titleContentColor = MaterialTheme.brand.navy,
+    navigationIconContentColor = MaterialTheme.brand.navy,
+    actionIconContentColor = MaterialTheme.brand.navy,
+)
+
+/** Rounded white search box used on list screens. */
+@Composable
+fun SearchField(value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+        placeholder = { Text(placeholder) },
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.brand.card,
+            unfocusedContainerColor = MaterialTheme.brand.card,
+            unfocusedBorderColor = MaterialTheme.brand.divider,
+        ),
+        modifier = modifier,
     )
 }
 

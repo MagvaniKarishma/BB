@@ -70,6 +70,15 @@ import com.brokerbuddy.ui.common.sendSms
 import com.brokerbuddy.ui.common.toast
 import com.brokerbuddy.ui.inquiries.requirementSummary
 import com.brokerbuddy.ui.reminders.AddReminderDialog
+import com.brokerbuddy.ui.design.Avatar
+import com.brokerbuddy.ui.design.BrandCard
+import com.brokerbuddy.ui.design.Pill
+import com.brokerbuddy.ui.design.RoundIconButton
+import com.brokerbuddy.ui.design.whatsAppIcon
+import com.brokerbuddy.ui.theme.Brand
+import com.brokerbuddy.ui.theme.Tint
+import com.brokerbuddy.ui.theme.brand
+import androidx.compose.foundation.layout.height
 import kotlinx.coroutines.launch
 
 @Composable
@@ -109,18 +118,13 @@ fun ClientDetailScreen(
     ) { padding ->
         LoadContent(loader) { client ->
             Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-                Header(client)
-                Row(Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(onClick = { dial(context, client.primaryPhone) }) {
-                        Icon(Icons.Filled.Call, null); Spacer(Modifier.width(6.dp)); Text("Call")
-                    }
-                    FilledTonalButton(onClick = { openWhatsApp(context, client.primaryPhone) }) {
-                        Icon(Icons.AutoMirrored.Filled.Chat, null); Spacer(Modifier.width(6.dp)); Text("WhatsApp")
-                    }
-                    IconButton(onClick = { sendSms(context, client.primaryPhone) }) {
-                        Icon(Icons.AutoMirrored.Filled.Message, contentDescription = "SMS")
-                    }
-                }
+                Header(
+                    client,
+                    onCall = { dial(context, client.primaryPhone) },
+                    onWhatsApp = { openWhatsApp(context, client.primaryPhone) },
+                    onSms = { sendSms(context, client.primaryPhone) },
+                )
+                Spacer(Modifier.height(8.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SectionTitle("Inquiries", Modifier.weight(1f))
@@ -195,12 +199,27 @@ fun ClientDetailScreen(
 }
 
 @Composable
-private fun Header(client: Client) {
-    Text(client.name, style = MaterialTheme.typography.headlineSmall)
-    Text(PhoneNumbers.display(client.primaryPhone), style = MaterialTheme.typography.bodyLarge)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        AssistChip(onClick = {}, label = { Text(client.status.label) })
-        AssistChip(onClick = {}, label = { Text(client.leadSource.label) })
+private fun Header(client: Client, onCall: () -> Unit, onWhatsApp: () -> Unit, onSms: () -> Unit) {
+    val b = MaterialTheme.brand
+    BrandCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Avatar(client.name, size = 64.dp)
+            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                Text(client.name, style = MaterialTheme.typography.titleLarge, color = b.navy)
+                Text(PhoneNumbers.display(client.primaryPhone), style = MaterialTheme.typography.bodyMedium, color = b.muted)
+                Spacer(Modifier.height(6.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Pill(client.status.label, statusTint(client.status))
+                    Pill(client.leadSource.label, b.neutral)
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            RoundIconButton(Icons.Filled.Call, "Call", b.info, onCall)
+            RoundIconButton(whatsAppIcon(), "WhatsApp", Tint(b.success.container, Brand.WhatsApp), onWhatsApp)
+            RoundIconButton(Icons.AutoMirrored.Filled.Message, "SMS", b.purple, onSms)
+        }
     }
 }
 

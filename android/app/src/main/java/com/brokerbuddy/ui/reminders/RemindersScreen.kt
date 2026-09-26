@@ -57,6 +57,12 @@ import com.brokerbuddy.notifications.ReminderNotifier
 import com.brokerbuddy.notifications.ReminderScheduler
 import com.brokerbuddy.notifications.ReminderSyncWorker
 import com.brokerbuddy.ui.common.EmptyMessage
+import com.brokerbuddy.ui.common.BrandTopBar
+import com.brokerbuddy.ui.design.Avatar
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.ListItemDefaults
+import com.brokerbuddy.ui.design.BrandCard
+import com.brokerbuddy.ui.theme.brand
 import com.brokerbuddy.ui.common.LoadContent
 import com.brokerbuddy.ui.common.appContainer
 import com.brokerbuddy.ui.common.formatDateTime
@@ -92,7 +98,7 @@ fun RemindersScreen(onClient: (String) -> Unit) {
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Follow-ups") }) }) { padding ->
+    Scaffold(containerColor = MaterialTheme.brand.background, topBar = { BrandTopBar("Follow Ups") }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (!ReminderNotifier.canNotify(context)) {
                 // Fallback when notifications are blocked: reminders remain usable in this list.
@@ -120,7 +126,11 @@ fun RemindersScreen(onClient: (String) -> Unit) {
                 if (reminders.isEmpty()) {
                     EmptyMessage(if (tab == 0) "Nothing pending. Add follow-ups from a client's page." else "No completed follow-ups yet")
                 } else {
-                    LazyColumn(Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
                         items(reminders, key = { it.id }) { r ->
                             ReminderRow(
                                 r,
@@ -131,7 +141,6 @@ fun RemindersScreen(onClient: (String) -> Unit) {
                                     update(r, UpdateReminderRequest(dueAt = next))
                                 },
                             )
-                            HorizontalDivider()
                         }
                     }
                 }
@@ -145,7 +154,9 @@ private fun ReminderRow(r: Reminder, onClient: (String) -> Unit, onDone: () -> U
     val overdue = r.status == ReminderStatus.PENDING &&
         runCatching { Instant.parse(r.dueAt).isBefore(Instant.now()) }.getOrDefault(false)
     val client = r.client
-    ListItem(
+    BrandCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) { ListItem(
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.brand.card),
+        leadingContent = { Avatar(client?.name ?: r.title, size = 44.dp) },
         headlineContent = { Text(r.title) },
         overlineContent = {
             Text(
@@ -168,7 +179,7 @@ private fun ReminderRow(r: Reminder, onClient: (String) -> Unit, onDone: () -> U
         } else {
             null
         },
-    )
+    ) }
 }
 
 private enum class QuickTime(val label: String) { HOUR("In 1 hour"), TOMORROW("Tomorrow 10 AM"), THREE_DAYS("In 3 days"), CUSTOM("Pick…") }

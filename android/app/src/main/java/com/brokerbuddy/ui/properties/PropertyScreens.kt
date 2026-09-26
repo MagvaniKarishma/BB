@@ -71,6 +71,15 @@ import com.brokerbuddy.ui.common.formatDate
 import com.brokerbuddy.ui.common.rememberLoad
 import com.brokerbuddy.ui.common.rememberText
 import com.brokerbuddy.ui.inquiries.CheckLine
+import com.brokerbuddy.ui.common.BrandTopBar
+import com.brokerbuddy.ui.common.SearchField
+import com.brokerbuddy.ui.design.Pill
+import com.brokerbuddy.ui.design.PropertyCard
+import com.brokerbuddy.ui.theme.Brand
+import com.brokerbuddy.ui.theme.brand
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.Alignment
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -92,19 +101,16 @@ fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit) {
         }
     }
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Properties") }) },
+        containerColor = MaterialTheme.brand.background,
+        topBar = { BrandTopBar("Properties") },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) { Icon(Icons.Filled.Add, contentDescription = "Add property") }
+            FloatingActionButton(onClick = onAdd, containerColor = MaterialTheme.brand.link, contentColor = Brand.Surface) {
+                Icon(Icons.Filled.Add, contentDescription = "Add property")
+            }
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            OutlinedTextField(
-                query, { query = it },
-                leadingIcon = { Icon(Icons.Filled.Search, null) },
-                placeholder = { Text("Search title, area or building") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            )
+            SearchField(query, { query = it }, "Search title, area or building", Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp))
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TransactionType.entries.forEach { t ->
                     FilterChip(selected = type == t, onClick = { type = if (type == t) null else t }, label = { Text(t.label) })
@@ -116,22 +122,18 @@ fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit) {
                     if (list.properties.isEmpty()) {
                         EmptyMessage("No properties found. Tap + to add a listing.")
                     } else {
-                        LazyColumn(Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 88.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                             items(list.properties, key = { it.id }) { p ->
-                                ListItem(
-                                    modifier = Modifier.clickable { onProperty(p.id) },
-                                    headlineContent = { Text(p.title) },
-                                    supportingContent = {
-                                        Text("${p.transactionType.label} · ${p.category.label} · ${p.locality}")
-                                    },
-                                    trailingContent = {
-                                        Column {
-                                            Text(Money.compact(p.price), style = MaterialTheme.typography.titleSmall)
-                                            if (p.availability != Availability.AVAILABLE) Text(p.availability.label)
-                                        }
-                                    },
-                                )
-                                HorizontalDivider()
+                                Box {
+                                    PropertyCard(p, onClick = { onProperty(p.id) }, modifier = Modifier.fillMaxWidth(), imageHeight = 150.dp)
+                                    if (p.availability != Availability.AVAILABLE) {
+                                        Pill(p.availability.label, MaterialTheme.brand.danger, Modifier.align(Alignment.TopEnd).padding(10.dp))
+                                    }
+                                }
                             }
                         }
                     }
