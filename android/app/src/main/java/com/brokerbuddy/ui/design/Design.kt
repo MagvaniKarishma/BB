@@ -347,9 +347,12 @@ fun <T> FilterTabs(tabs: List<TabItem<T>>, selected: T, onSelect: (T) -> Unit, m
     }
 }
 
-/** Two-option pill switch (Rent | Buy) with a navy selected half. */
+/**
+ * Two-option pill switch (Rent | Buy) with a navy selected half. [selected] may be null
+ * (rent/buy not stated yet); then neither half is highlighted.
+ */
 @Composable
-fun <T> SegmentedPill(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit, modifier: Modifier = Modifier) {
+fun <T : Any> SegmentedPill(options: List<T>, selected: T?, label: (T) -> String, onSelect: (T) -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFE6EBF5)),
     ) {
