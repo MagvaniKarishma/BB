@@ -96,6 +96,24 @@ enum RequirementSource {
   WHATSAPP
 }
 
+enum VoiceLanguage {
+  AUTO
+  HINDI
+  HINGLISH
+  MARATHI
+  ENGLISH
+}
+
+// NEEDS_TRANSCRIPT: audio stored but not transcribed (STT unavailable/failed) – agent types it.
+// READY: transcript + extracted draft awaiting the agent's review.
+// APPLIED: reviewed draft saved to an inquiry. DISCARDED: agent threw it away.
+enum VoiceNoteStatus {
+  NEEDS_TRANSCRIPT
+  READY
+  APPLIED
+  DISCARDED
+}
+
 enum Availability {
   AVAILABLE
   ON_HOLD
@@ -121,6 +139,7 @@ model Brokerage {
   inquiries  Inquiry[]
   properties Property[]
   reminders  Reminder[]
+  voiceNotes VoiceNote[]
 }
 
 model User {
@@ -140,6 +159,7 @@ model User {
   createdReminders  Reminder[]        @relation("ReminderCreator")
   inquiryRevisions  InquiryRevision[]
   listedProperties  Property[]
+  voiceNotes        VoiceNote[]
 
   @@index([brokerageId])
 }
@@ -160,9 +180,10 @@ model Client {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  phones    ClientPhone[]
-  inquiries Inquiry[]
-  reminders Reminder[]
+  phones     ClientPhone[]
+  inquiries  Inquiry[]
+  reminders  Reminder[]
+  voiceNotes VoiceNote[]
 
   @@index([brokerageId, status])
   @@index([brokerageId, name])
@@ -211,8 +232,9 @@ model Inquiry {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  revisions InquiryRevision[]
-  reminders Reminder[]
+  revisions  InquiryRevision[]
+  reminders  Reminder[]
+  voiceNotes VoiceNote[]
 
   @@index([brokerageId, transactionType, category, status])
   @@index([clientId])
@@ -230,9 +252,48 @@ model InquiryRevision {
   // { field: { from, to } } for updates; full snapshot for version 1.
   changes     Json
   snapshot    Json
+  // Set when the change came from a reviewed voice note.
+  voiceNoteId String?
+  voiceNote   VoiceNote?        @relation(fields: [voiceNoteId], references: [id], onDelete: SetNull)
   createdAt   DateTime          @default(now())
 
   @@unique([inquiryId, version])
+}
+
+// A recorded (or typed) note about a client's requirement, its transcript and the
+// AI-extracted draft. The draft never touches the inquiry until an agent reviews it.
+model VoiceNote {
+  id                 String          @id @default(cuid())
+  brokerageId        String
+  brokerage          Brokerage       @relation(fields: [brokerageId], references: [id], onDelete: Cascade)
+  clientId           String
+  client             Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  // Inquiry the note is about (chosen when recording, or when applied).
+  inquiryId          String?
+  inquiry            Inquiry?        @relation(fields: [inquiryId], references: [id], onDelete: SetNull)
+  createdById        String?
+  createdBy          User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  language           VoiceLanguage   @default(AUTO)
+  status             VoiceNoteStatus
+  audio              Bytes?
+  audioMimeType      String?
+  audioSize          Int?
+  durationMs         Int?
+  // As produced by speech-to-text, kept for audit even if the agent corrects it.
+  originalTranscript String?
+  transcript         String?
+  transcriptSource   String?         // "stt:<provider>" or "manual"
+  extraction         Json?
+  extractor          String?
+  error              String?
+  appliedVersion     Int?
+  appliedAt          DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  revisions InquiryRevision[]
+
+  @@index([brokerageId, clientId, createdAt])
 }
 
 model Property {

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.AddAlarm
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -47,6 +48,7 @@ import com.brokerbuddy.core.model.Client
 import com.brokerbuddy.core.model.Inquiry
 import com.brokerbuddy.core.model.InquiryStatus
 import com.brokerbuddy.core.model.Role
+import com.brokerbuddy.core.model.VoiceNoteStatus
 import com.brokerbuddy.core.phone.PhoneNumbers
 import com.brokerbuddy.ui.common.BackTopBar
 import com.brokerbuddy.ui.common.EmptyMessage
@@ -73,6 +75,8 @@ fun ClientDetailScreen(
     onEdit: () -> Unit,
     onAddInquiry: () -> Unit,
     onInquiry: (String) -> Unit,
+    /** null = record a new note; otherwise resume that note. */
+    onVoiceNote: (noteId: String?) -> Unit,
 ) {
     val container = appContainer()
     val context = LocalContext.current
@@ -88,6 +92,7 @@ fun ClientDetailScreen(
     Scaffold(
         topBar = {
             BackTopBar("Client", onBack) {
+                IconButton(onClick = { onVoiceNote(null) }) { Icon(Icons.Filled.Mic, contentDescription = "Record voice note") }
                 IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit") }
                 if (canDelete) {
                     IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
@@ -116,6 +121,8 @@ fun ClientDetailScreen(
                 }
                 if (client.inquiries.isEmpty()) EmptyMessage("No requirements recorded yet")
                 client.inquiries.forEach { InquiryCard(it) { onInquiry(it.id) } }
+
+                VoiceNotesSection(clientId, onVoiceNote)
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SectionTitle("Follow-ups", Modifier.weight(1f))
@@ -192,6 +199,38 @@ fun InquiryCard(inquiry: Inquiry, onClick: () -> Unit) {
                 }
             }
             Text(requirementSummary(inquiry), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/** Voice notes for this client; ones not yet saved can be resumed. */
+@Composable
+private fun VoiceNotesSection(clientId: String, onVoiceNote: (String?) -> Unit) {
+    val api = appContainer().api
+    val notes = rememberLoad(clientId) { api.call { voiceNotes(clientId = clientId).voiceNotes } }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        SectionTitle("Voice notes", Modifier.weight(1f))
+        TextButton(onClick = { onVoiceNote(null) }) { Icon(Icons.Filled.Mic, null); Text("Record") }
+    }
+    val list = (notes.state as? Load.Ready)?.value.orEmpty()
+    if (list.isEmpty()) EmptyMessage("Tap Record and describe what the client wants")
+    list.take(5).forEach { n ->
+        val pending = n.status == VoiceNoteStatus.READY || n.status == VoiceNoteStatus.NEEDS_TRANSCRIPT
+        val status = when (n.status) {
+            VoiceNoteStatus.NEEDS_TRANSCRIPT -> "Needs transcript"
+            VoiceNoteStatus.READY -> "Ready to review"
+            VoiceNoteStatus.APPLIED -> "Saved"
+            VoiceNoteStatus.DISCARDED -> "Discarded"
+        }
+        Card(
+            onClick = { if (pending) onVoiceNote(n.id) },
+            enabled = pending,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Text("$status · ${formatDateTime(n.createdAt)}", style = MaterialTheme.typography.labelLarge)
+                n.transcript?.let { Text(it.take(140), style = MaterialTheme.typography.bodySmall) }
+            }
         }
     }
 }

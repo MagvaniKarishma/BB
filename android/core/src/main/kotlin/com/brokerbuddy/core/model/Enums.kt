@@ -92,3 +92,15 @@ enum class ReminderStatus { PENDING, DONE, CANCELLED }
 
 @Serializable
 enum class Role { OWNER, ADMIN, AGENT }
+
+@Serializable
+enum class VoiceLanguage(val label: String) {
+    AUTO("Auto-detect"),
+    HINDI("हिन्दी Hindi"),
+    HINGLISH("Hinglish"),
+    MARATHI("मराठी Marathi"),
+    ENGLISH("English"),
+}
+
+@Serializable
+enum class VoiceNoteStatus { NEEDS_TRANSCRIPT, READY, APPLIED, DISCARDED }

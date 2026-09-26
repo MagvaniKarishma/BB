@@ -51,6 +51,7 @@ import com.brokerbuddy.ui.properties.PropertyFormScreen
 import com.brokerbuddy.ui.properties.PropertyListScreen
 import com.brokerbuddy.ui.reminders.RemindersScreen
 import com.brokerbuddy.ui.settings.SettingsScreen
+import com.brokerbuddy.ui.voice.VoiceNoteScreen
 import kotlinx.coroutines.launch
 
 object Routes {
@@ -69,6 +70,8 @@ object Routes {
     const val PROPERTY_NEW = "property/new"
     fun property(id: String) = "property/$id"
     fun propertyEdit(id: String) = "property/$id/edit"
+    fun voice(clientId: String, inquiryId: String? = null, noteId: String? = null) =
+        "voice/$clientId?inquiryId=${inquiryId.orEmpty()}&noteId=${noteId.orEmpty()}"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -175,6 +178,7 @@ private fun MainScaffold(openClientId: String?, onClientOpened: () -> Unit) {
                     onEdit = { nav.navigate(Routes.clientEdit(id)) },
                     onAddInquiry = { nav.navigate(Routes.inquiryNew(id)) },
                     onInquiry = { nav.navigate(Routes.inquiry(it)) },
+                    onVoiceNote = { noteId -> nav.navigate(Routes.voice(id, noteId = noteId)) },
                 )
             }
             composable("client/{id}/edit") { entry ->
@@ -206,6 +210,7 @@ private fun MainScaffold(openClientId: String?, onClientOpened: () -> Unit) {
                     onEdit = { nav.navigate(Routes.inquiryEdit(id)) },
                     onClient = { nav.navigate(Routes.client(it)) },
                     onProperty = { nav.navigate(Routes.property(it)) },
+                    onVoiceNote = { clientId -> nav.navigate(Routes.voice(clientId, inquiryId = id)) },
                 )
             }
             composable("inquiry/{id}/edit") { entry ->
@@ -220,6 +225,26 @@ private fun MainScaffold(openClientId: String?, onClientOpened: () -> Unit) {
                     category = category,
                     onBack = back,
                     onInquiry = { nav.navigate(Routes.inquiry(it)) },
+                )
+            }
+            composable(
+                "voice/{clientId}?inquiryId={inquiryId}&noteId={noteId}",
+                listOf(
+                    navArgument("clientId") { type = NavType.StringType },
+                    navArgument("inquiryId") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("noteId") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                val args = entry.arguments!!
+                VoiceNoteScreen(
+                    clientId = args.getString("clientId")!!,
+                    inquiryId = args.getString("inquiryId")?.ifEmpty { null },
+                    noteId = args.getString("noteId")?.ifEmpty { null },
+                    onBack = back,
+                    onSaved = { inquiryId ->
+                        nav.popBackStack()
+                        nav.navigate(Routes.inquiry(inquiryId))
+                    },
                 )
             }
             composable(Routes.PROPERTY_NEW) {

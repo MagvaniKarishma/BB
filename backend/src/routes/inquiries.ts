@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { Inquiry, Prisma } from "@prisma/client";
+import type { Inquiry, Prisma, RequirementSource } from "@prisma/client";
 import type { z } from "zod";
 import { prisma } from "../db.js";
 import { type AuthUser, currentUser } from "../lib/auth.js";
@@ -12,36 +12,101 @@ export const inquiriesRouter = Router();
 
 const toBig = (v: number | null | undefined) => (v == null ? v : BigInt(v));
 
-export async function createInquiry(
+type CreateBody = z.infer<typeof createInquirySchema>;
+type UpdatePatch = Omit<z.infer<typeof updateInquirySchema>, "source">;
+
+/** Creates an inquiry and its version-1 revision inside the given transaction. */
+export async function createInquiryTx(
+  tx: Prisma.TransactionClient,
   me: AuthUser,
   clientId: string,
-  body: z.infer<typeof createInquirySchema>,
+  body: CreateBody,
+  voiceNoteId?: string,
 ): Promise<Inquiry> {
   const { source, ...fields } = body;
-  return prisma.$transaction(async (tx) => {
-    const inquiry = await tx.inquiry.create({
-      data: {
-        ...fields,
-        budgetMin: toBig(fields.budgetMin),
-        budgetMax: toBig(fields.budgetMax),
-        brokerageId: me.brokerageId,
-        clientId,
-        source,
-      },
-    });
-    const snapshot = snapshotOf(inquiry);
-    await tx.inquiryRevision.create({
-      data: {
-        inquiryId: inquiry.id,
-        version: 1,
-        changedById: me.id,
-        source,
-        changes: snapshot as Prisma.InputJsonObject,
-        snapshot: snapshot as Prisma.InputJsonObject,
-      },
-    });
-    return inquiry;
+  const inquiry = await tx.inquiry.create({
+    data: {
+      ...fields,
+      budgetMin: toBig(fields.budgetMin),
+      budgetMax: toBig(fields.budgetMax),
+      brokerageId: me.brokerageId,
+      clientId,
+      source,
+    },
   });
+  const snapshot = snapshotOf(inquiry);
+  await tx.inquiryRevision.create({
+    data: {
+      inquiryId: inquiry.id,
+      version: 1,
+      changedById: me.id,
+      source,
+      voiceNoteId: voiceNoteId ?? null,
+      changes: snapshot as Prisma.InputJsonObject,
+      snapshot: snapshot as Prisma.InputJsonObject,
+    },
+  });
+  return inquiry;
+}
+
+export function createInquiry(me: AuthUser, clientId: string, body: CreateBody): Promise<Inquiry> {
+  return prisma.$transaction((tx) => createInquiryTx(tx, me, clientId, body));
+}
+
+/**
+ * Applies a partial requirement update inside the given transaction. The previous
+ * state is never overwritten silently: each change appends an InquiryRevision with a
+ * field-level diff and the full resulting snapshot. Optimistic concurrency on `version`.
+ */
+export async function updateInquiryTx(
+  tx: Prisma.TransactionClient,
+  me: AuthUser,
+  current: Inquiry,
+  patch: UpdatePatch,
+  source: RequirementSource,
+  voiceNoteId?: string,
+): Promise<{ inquiry: Inquiry; changed: boolean }> {
+  const merged = {
+    budgetMin: patch.budgetMin !== undefined ? patch.budgetMin : current.budgetMin == null ? null : Number(current.budgetMin),
+    budgetMax: patch.budgetMax !== undefined ? patch.budgetMax : current.budgetMax == null ? null : Number(current.budgetMax),
+    floorMin: patch.floorMin !== undefined ? patch.floorMin : current.floorMin,
+    floorMax: patch.floorMax !== undefined ? patch.floorMax : current.floorMax,
+  };
+  if (merged.budgetMin != null && merged.budgetMax != null && merged.budgetMin > merged.budgetMax) {
+    throw badRequest("budgetMin cannot exceed budgetMax");
+  }
+  if (merged.floorMin != null && merged.floorMax != null && merged.floorMin > merged.floorMax) {
+    throw badRequest("floorMin cannot exceed floorMax");
+  }
+
+  const data: Prisma.InquiryUpdateInput = {
+    ...patch,
+    budgetMin: toBig(patch.budgetMin),
+    budgetMax: toBig(patch.budgetMax),
+  };
+  const candidate = { ...current, ...stripUndefined(data) } as Inquiry;
+  const changes = diffSnapshots(snapshotOf(current), snapshotOf(candidate));
+  if (Object.keys(changes).length === 0) return { inquiry: current, changed: false };
+
+  const version = current.version + 1;
+  const { count } = await tx.inquiry.updateMany({
+    where: { id: current.id, version: current.version },
+    data: { ...(data as Prisma.InquiryUpdateManyMutationInput), version, source },
+  });
+  if (count === 0) throw badRequest("Inquiry was modified concurrently; reload and try again");
+  const inquiry = await tx.inquiry.findUniqueOrThrow({ where: { id: current.id } });
+  await tx.inquiryRevision.create({
+    data: {
+      inquiryId: inquiry.id,
+      version,
+      changedById: me.id,
+      source,
+      voiceNoteId: voiceNoteId ?? null,
+      changes: changes as Prisma.InputJsonObject,
+      snapshot: snapshotOf(inquiry) as Prisma.InputJsonObject,
+    },
+  });
+  return { inquiry, changed: true };
 }
 
 async function loadInquiry(brokerageId: string, id: string) {
@@ -78,59 +143,13 @@ inquiriesRouter.get("/:id", async (req, res) => {
   res.json({ inquiry });
 });
 
-/**
- * Updates a requirement. The previous state is never overwritten silently:
- * each change appends an InquiryRevision with a field-level diff and the full
- * resulting snapshot.
- */
+/** Updates a requirement (history is recorded by updateInquiryTx). */
 inquiriesRouter.patch("/:id", async (req, res) => {
   const me = currentUser(req);
   const { source, ...patch } = updateInquirySchema.parse(req.body);
   const current = await loadInquiry(me.brokerageId, req.params.id);
 
-  const merged = {
-    budgetMin: patch.budgetMin !== undefined ? patch.budgetMin : current.budgetMin == null ? null : Number(current.budgetMin),
-    budgetMax: patch.budgetMax !== undefined ? patch.budgetMax : current.budgetMax == null ? null : Number(current.budgetMax),
-    floorMin: patch.floorMin !== undefined ? patch.floorMin : current.floorMin,
-    floorMax: patch.floorMax !== undefined ? patch.floorMax : current.floorMax,
-  };
-  if (merged.budgetMin != null && merged.budgetMax != null && merged.budgetMin > merged.budgetMax) {
-    throw badRequest("budgetMin cannot exceed budgetMax");
-  }
-  if (merged.floorMin != null && merged.floorMax != null && merged.floorMin > merged.floorMax) {
-    throw badRequest("floorMin cannot exceed floorMax");
-  }
-
-  const result = await prisma.$transaction(async (tx) => {
-    const data: Prisma.InquiryUpdateInput = {
-      ...patch,
-      budgetMin: toBig(patch.budgetMin),
-      budgetMax: toBig(patch.budgetMax),
-    };
-    const candidate = { ...current, ...stripUndefined(data) } as Inquiry;
-    const changes = diffSnapshots(snapshotOf(current), snapshotOf(candidate));
-    if (Object.keys(changes).length === 0) return { inquiry: current, changed: false };
-
-    const version = current.version + 1;
-    // Optimistic concurrency: only succeeds if nobody else bumped the version.
-    const { count } = await tx.inquiry.updateMany({
-      where: { id: current.id, version: current.version },
-      data: { ...(data as Prisma.InquiryUpdateManyMutationInput), version, source },
-    });
-    if (count === 0) throw badRequest("Inquiry was modified concurrently; reload and try again");
-    const inquiry = await tx.inquiry.findUniqueOrThrow({ where: { id: current.id } });
-    await tx.inquiryRevision.create({
-      data: {
-        inquiryId: inquiry.id,
-        version,
-        changedById: me.id,
-        source,
-        changes: changes as Prisma.InputJsonObject,
-        snapshot: snapshotOf(inquiry) as Prisma.InputJsonObject,
-      },
-    });
-    return { inquiry, changed: true };
-  });
+  const result = await prisma.$transaction((tx) => updateInquiryTx(tx, me, current, patch, source));
   res.json(result);
 });
 
@@ -144,7 +163,10 @@ inquiriesRouter.get("/:id/history", async (req, res) => {
   const revisions = await prisma.inquiryRevision.findMany({
     where: { inquiryId: inquiry.id },
     orderBy: { version: "desc" },
-    include: { changedBy: { select: { id: true, name: true } } },
+    include: {
+      changedBy: { select: { id: true, name: true } },
+      voiceNote: { select: { id: true, transcript: true, language: true, createdAt: true } },
+    },
   });
   res.json({ revisions });
 });

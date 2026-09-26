@@ -165,7 +165,12 @@ data class InquiryRevision(
     val snapshot: JsonObject,
     val createdAt: String,
     val changedBy: UserRef? = null,
+    val voiceNote: RevisionVoiceNote? = null,
 )
+
+/** The voice note a requirement change came from (history view). */
+@Serializable
+data class RevisionVoiceNote(val id: String, val transcript: String? = null, val language: VoiceLanguage? = null)
 
 @Serializable
 data class RevisionList(val revisions: List<InquiryRevision>)

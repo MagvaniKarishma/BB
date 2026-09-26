@@ -10,6 +10,7 @@ import { inquiriesRouter } from "./routes/inquiries.js";
 import { propertiesRouter } from "./routes/properties.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { remindersRouter } from "./routes/reminders.js";
+import { voiceNotesRouter } from "./routes/voiceNotes.js";
 
 export function createApp() {
   const app = express();
@@ -36,6 +37,7 @@ export function createApp() {
   api.use("/properties", propertiesRouter);
   api.use("/dashboard", dashboardRouter);
   api.use("/reminders", remindersRouter);
+  api.use("/voice-notes", voiceNotesRouter);
   app.use("/api/v1", api);
 
   app.use((_req, _res, next) => next(notFound("Route")));

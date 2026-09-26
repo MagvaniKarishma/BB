@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +36,7 @@ import com.brokerbuddy.core.phone.PhoneNumbers
 import com.brokerbuddy.ui.common.BackTopBar
 import com.brokerbuddy.ui.common.EmptyMessage
 import com.brokerbuddy.ui.common.LabeledValue
+import com.brokerbuddy.ui.common.Load
 import com.brokerbuddy.ui.common.LoadContent
 import com.brokerbuddy.ui.common.appContainer
 import com.brokerbuddy.ui.common.formatDate
@@ -63,6 +65,7 @@ fun InquiryDetailScreen(
     onEdit: () -> Unit,
     onClient: (String) -> Unit,
     onProperty: (String) -> Unit,
+    onVoiceNote: (clientId: String) -> Unit,
 ) {
     val api = appContainer().api
     val loader = rememberLoad(inquiryId) { api.call { inquiry(inquiryId).inquiry } }
@@ -71,6 +74,12 @@ fun InquiryDetailScreen(
     Scaffold(
         topBar = {
             BackTopBar("Requirement", onBack) {
+                val clientId = (loader.state as? Load.Ready)?.value?.clientId
+                if (clientId != null) {
+                    IconButton(onClick = { onVoiceNote(clientId) }) {
+                        Icon(Icons.Filled.Mic, contentDescription = "Update by voice note")
+                    }
+                }
                 IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit") }
             }
         },
@@ -190,6 +199,10 @@ private fun RevisionCard(r: InquiryRevision) {
                 "v${r.version} · ${formatDateTime(r.createdAt)}" + (r.changedBy?.let { " · ${it.name}" } ?: ""),
                 style = MaterialTheme.typography.labelLarge,
             )
+            r.voiceNote?.transcript?.let {
+                Text("🎙 From voice note: “${it.take(200)}”", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary)
+            }
             if (r.version == 1) {
                 Text("Requirement created (${r.source.name.lowercase().replace('_', ' ')})", style = MaterialTheme.typography.bodySmall)
             } else {

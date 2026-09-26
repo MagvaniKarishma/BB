@@ -36,7 +36,9 @@ class ApiClient(private val sessionStore: SessionStore, val json: Json) {
 
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        // Voice notes are transcribed and analysed synchronously; allow for that.
+        .readTimeout(120, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .addInterceptor { chain ->
             val token = runBlocking { sessionStore.current().token }
             val request = chain.request().newBuilder().apply {

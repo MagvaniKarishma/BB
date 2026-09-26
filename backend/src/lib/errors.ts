@@ -33,6 +33,13 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(409).json({ error: { code: "CONFLICT", message: "Record already exists" } });
     return;
   }
+  if (err?.name === "MulterError") {
+    const tooLarge = err.code === "LIMIT_FILE_SIZE";
+    res.status(tooLarge ? 413 : 400).json({
+      error: { code: tooLarge ? "AUDIO_TOO_LARGE" : "BAD_UPLOAD", message: tooLarge ? "Recording is too large" : err.message },
+    });
+    return;
+  }
   if (err?.type === "entity.parse.failed") {
     res.status(400).json({ error: { code: "BAD_JSON", message: "Malformed JSON body" } });
     return;

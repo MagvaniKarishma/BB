@@ -35,8 +35,20 @@ import com.brokerbuddy.core.model.TransactionType
 import com.brokerbuddy.core.model.UpdateClientRequest
 import com.brokerbuddy.core.model.UpdateMemberRequest
 import com.brokerbuddy.core.model.UpdateReminderRequest
+import com.brokerbuddy.core.model.ApplyVoiceNoteRequest
+import com.brokerbuddy.core.model.ApplyVoiceNoteResponse
+import com.brokerbuddy.core.model.TextVoiceNoteRequest
+import com.brokerbuddy.core.model.TranscriptRequest
+import com.brokerbuddy.core.model.VoiceNoteEnvelope
+import com.brokerbuddy.core.model.VoiceNoteList
+import com.brokerbuddy.core.model.VoiceNoteResponse
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.Multipart
+import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
@@ -157,4 +169,36 @@ interface ApiService {
 
     @PATCH("team/{id}")
     suspend fun updateMember(@Path("id") id: String, @Body body: UpdateMemberRequest): MemberEnvelope
+
+    // Voice notes (Phase 2)
+    @Multipart
+    @POST("voice-notes")
+    suspend fun uploadVoiceNote(
+        @Part("clientId") clientId: RequestBody,
+        @Part("inquiryId") inquiryId: RequestBody?,
+        @Part("language") language: RequestBody,
+        @Part("durationMs") durationMs: RequestBody,
+        @Part audio: MultipartBody.Part,
+    ): VoiceNoteResponse
+
+    @POST("voice-notes/text")
+    suspend fun createTextVoiceNote(@Body body: TextVoiceNoteRequest): VoiceNoteResponse
+
+    @GET("voice-notes")
+    suspend fun voiceNotes(@Query("clientId") clientId: String? = null): VoiceNoteList
+
+    @GET("voice-notes/{id}")
+    suspend fun voiceNote(@Path("id") id: String): VoiceNoteResponse
+
+    @PUT("voice-notes/{id}/transcript")
+    suspend fun updateTranscript(@Path("id") id: String, @Body body: TranscriptRequest): VoiceNoteResponse
+
+    @POST("voice-notes/{id}/retry")
+    suspend fun retryTranscription(@Path("id") id: String): VoiceNoteResponse
+
+    @POST("voice-notes/{id}/apply")
+    suspend fun applyVoiceNote(@Path("id") id: String, @Body body: ApplyVoiceNoteRequest): ApplyVoiceNoteResponse
+
+    @POST("voice-notes/{id}/discard")
+    suspend fun discardVoiceNote(@Path("id") id: String): VoiceNoteEnvelope
 }

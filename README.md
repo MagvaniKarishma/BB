@@ -13,7 +13,7 @@ A real estate CRM for Mumbai brokers. It manages clients, remembers each client'
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | CRM, dashboards, requirements, inventory, matching, reminders, team | **Done** (backend fully tested; Android app compiled in CI) |
-| 2 | Voice notes (Hindi/Hinglish/Marathi/English) → AI requirement extraction | Not started |
+| 2 | Voice notes (Hindi/Hinglish/Marathi/English) → AI requirement extraction | **Done** (backend tested; Android compiled in CI) |
 | 3 | Caller screen for known clients (incoming-call detection) | Backend lookup endpoint ready (`GET /clients/lookup`) |
 | 4 | WhatsApp Business Cloud API; 99acres / Housing.com / Magicbricks lead parsing | Not started (the app has a `wa.me` click-to-chat fallback) |
 | 5 | Security hardening, deployment, signed APK and download site | Signing config and CI are in place |
@@ -66,6 +66,41 @@ A real estate CRM for Mumbai brokers. It manages clients, remembers each client'
 - Call opens the dialer; no call permission is needed.
 - WhatsApp uses the official `wa.me` click-to-chat link and falls back to the browser. SMS is also available.
 
+## Phase 2: voice notes
+
+**Recording and review in the app**
+- Tap the mic on a client (a new note) or on a requirement (an update).
+- The app records mono AAC, up to 3 minutes, and uploads it with the chosen language: Auto, Hindi, Hinglish, Marathi or English.
+- On the review screen the agent can:
+  - read and correct the transcript (the speech-to-text original is kept);
+  - see warnings to check;
+  - choose which inquiry the note belongs to: a suggestion, any of the client's inquiries, or a new one;
+  - edit a pre-filled requirement form. Each extracted field shows the exact words it came from (🎙 “60 se 70 hazaar”), and on an existing requirement, its previous value.
+- Nothing is saved until the agent taps Save.
+
+**Server pipeline** (`backend/src/voice/`): audio → speech-to-text → extraction → evidence check.
+- **Speech-to-text:** `transcriber.ts` works with any Whisper-style `/audio/transcriptions` service (`STT_URL`). Hindi and Marathi send a language hint. Hinglish uses auto-detection plus a romanized prompt, so the transcript stays in Latin script.
+- **Extraction:** `claudeExtractor.ts` uses Claude (`claude-opus-5`, structured JSON output) when an Anthropic key is configured. Otherwise, or if the Claude call fails, `rulesExtractor.ts` handles Hindi (Devanagari), Hinglish, Marathi and English. It understands:
+  - lakh/crore/hazaar and number words (डेढ़, dhai, साढ़े तीन, चाळीस);
+  - ranges ("60 se 70 hazaar") and max/min phrasing, including "35000 se zyada nahi";
+  - 70+ Mumbai localities with East/West;
+  - "Khar nahi chahiye" (excluded area), and deposit amounts, which are not treated as budget;
+  - parking counts, floor ranges, and possession status and date.
+- **Never invents:**
+  - Every extracted value must quote the transcript word for word. `verifyDraft` drops any value whose quote isn't actually in the transcript; this is how Claude hallucinations are caught.
+  - When something is ambiguous (two sizes, rent *and* buy, "high floor" with no number), the field is left empty and a warning is added.
+  - A voice note fills only what was said. Existing values stay, and new locations are added to the old ones rather than replacing them.
+- **Fallbacks:**
+  - Microphone permission denied, no speech-to-text configured, or transcription failed → the recording is kept and the agent types or dictates the note.
+  - Upload failed → the recording stays on the phone and can be re-sent.
+  - AI unavailable → the built-in rules are used, with a warning.
+- **History and association:**
+  - Saving creates or updates the inquiry inside one database transaction.
+  - It writes a `VOICE_NOTE` history entry linked to the voice note (`InquiryRevision.voiceNoteId`); the history tab shows the transcript.
+  - A note can only be saved to an inquiry of its own client, can't be saved twice, and never crosses brokerages.
+
+API: `POST /voice-notes` (multipart `audio`, `clientId`, `inquiryId?`, `language`, `durationMs`) · `POST /voice-notes/text` · `GET /voice-notes?clientId=` · `GET /voice-notes/:id` · `GET /voice-notes/:id/audio` · `PUT /voice-notes/:id/transcript` · `POST /voice-notes/:id/retry` · `POST /voice-notes/:id/apply` · `POST /voice-notes/:id/discard`
+
 ## Running locally
 
 ### Backend
@@ -99,11 +134,6 @@ Release signing reads `android/keystore.properties` (`storeFile`, `storePassword
 `properties` (CRUD, `:id/matches`) · `dashboard` · `reminders` (list, create, patch, delete) · `team` (list, add, patch)
 
 ## Plans for the next phases
-- **Phase 2 – voice notes.**
-  - Record in the app, upload the audio, then transcribe it with a multilingual speech-to-text service.
-  - An LLM extracts a *draft* requirement using a strict JSON schema: only fields the speaker actually said, each with its source quote.
-  - The broker reviews and confirms the draft. It is saved as a revision with `source = VOICE_NOTE`.
-  - If AI is unavailable: keep the audio and transcript, and let the broker fill the form manually.
 - **Phase 3 – caller screen.**
   - Use Android's `CallScreeningService`, with the user granting the call-screening role, plus an overlay or notification for known numbers, filled from `GET /clients/lookup`.
   - No call-log scraping, and no restricted permissions beyond what the role grants.
