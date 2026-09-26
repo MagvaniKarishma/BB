@@ -121,7 +121,7 @@ describe("greeting management", () => {
     const g = await prisma.callGreeting.findFirstOrThrow();
     const good = new URL(signedGreetingUrl(g.id));
     expect((await request(app).get(good.pathname + good.search)).status).toBe(200);
-    expect((await request(app).get(good.pathname + good.search.replace(/sig=./, "sig=X"))).status).toBe(403);
+    expect((await request(app).get(good.pathname + good.search.replace(/sig=[^&]+/, "sig=tampered"))).status).toBe(403);
     const expired = new URL(signedGreetingUrl(g.id, 60, Date.now() - 3_600_000));
     expect((await request(app).get(expired.pathname + expired.search)).status).toBe(403);
   });
