@@ -47,6 +47,7 @@ import com.brokerbuddy.core.model.Role as UserRole
 import com.brokerbuddy.core.model.UnclearBehavior
 import com.brokerbuddy.core.phone.PhoneNumbers
 import com.brokerbuddy.ui.common.BackTopBar
+import com.brokerbuddy.ui.common.Load
 import com.brokerbuddy.ui.common.LoadContent
 import com.brokerbuddy.ui.common.SectionTitle
 import com.brokerbuddy.ui.common.appContainer
@@ -68,13 +69,20 @@ fun CallAssistantScreen(onBack: () -> Unit, onTest: () -> Unit, onClient: (Strin
     val me = rememberLoad { container.api.call { me() } }
     val info = rememberLoad { container.api.call { callAssistant() } }
     val calls = rememberLoad { container.api.call { aiCalls().calls } }
-    val role = (me.state as? com.brokerbuddy.ui.common.Load.Ready)?.value?.user?.role
+    val role = when (val st = me.state) {
+        is Load.Ready -> st.value.user.role
+        else -> null
+    }
+    val recentCalls = when (val st = calls.state) {
+        is Load.Ready -> st.value
+        else -> null
+    }
     val manager = role == UserRole.OWNER || role == UserRole.ADMIN
 
     Scaffold(topBar = { BackTopBar("AI Call Assistant", onBack) }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             LoadContent(info) { data ->
-                Content(data, manager, onTest, onClient, onSaved = info.reload, calls = (calls.state as? com.brokerbuddy.ui.common.Load.Ready)?.value)
+                Content(data, manager, onTest, onClient, onSaved = info.reload, calls = recentCalls)
             }
         }
     }
