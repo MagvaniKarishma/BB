@@ -48,6 +48,29 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import com.brokerbuddy.core.model.Property
+import com.brokerbuddy.core.model.TransactionType
+import com.brokerbuddy.ui.common.openWhatsApp
+import com.brokerbuddy.ui.design.BrandCard
+import com.brokerbuddy.ui.design.FilterTabs
+import com.brokerbuddy.ui.design.Pill
+import com.brokerbuddy.ui.design.PropertyPhoto
+import com.brokerbuddy.ui.design.TabItem
+import com.brokerbuddy.ui.design.chipLabel
+import com.brokerbuddy.ui.design.priceText
+import com.brokerbuddy.ui.design.whatsAppIcon
+import com.brokerbuddy.ui.theme.Brand
+import com.brokerbuddy.ui.theme.brand
 
 /** One-line summary: "Up to ₹70K · Andheri, Jogeshwari · Semi-furnished · 1+ parking". */
 fun requirementSummary(i: Inquiry): String = listOfNotNull(
@@ -74,7 +97,8 @@ fun InquiryDetailScreen(
 
     Scaffold(
         topBar = {
-            BackTopBar("Requirement", onBack) {
+            val clientName = (loader.state as? Load.Ready)?.value?.client?.name
+            BackTopBar(if (tab == 1 && clientName != null) "Matches for $clientName" else "Requirement", onBack) {
                 val clientId = (loader.state as? Load.Ready)?.value?.clientId
                 if (clientId != null) {
                     IconButton(onClick = { onVoiceNote(clientId) }) {
@@ -100,7 +124,7 @@ fun InquiryDetailScreen(
                     }
                     when (tab) {
                         0 -> RequirementDetails(inquiry)
-                        1 -> MatchesTab(inquiry.id, onProperty)
+                        1 -> MatchesTab(inquiry, onProperty)
                         else -> HistoryTab(inquiry.id)
                     }
                 }
@@ -135,36 +159,100 @@ private fun RequirementDetails(i: Inquiry) {
     }
 }
 
+private enum class MatchFilter(val label: String) { ALL("All"), BEST("Best"), VERIFY("To verify") }
+
+/** Matches (screen 10): eligible listings, best first, shareable with the client. */
 @Composable
-private fun MatchesTab(inquiryId: String, onProperty: (String) -> Unit) {
+private fun MatchesTab(inquiry: Inquiry, onProperty: (String) -> Unit) {
     val api = appContainer().api
-    val loader = rememberLoad(inquiryId) { api.call { inquiryMatches(inquiryId).matches } }
+    val context = LocalContext.current
+    val loader = rememberLoad(inquiry.id) { api.call { inquiryMatches(inquiry.id).matches } }
+    var filter by rememberSaveable { mutableStateOf(MatchFilter.ALL) }
     LoadContent(loader) { matches ->
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-            if (matches.isEmpty()) {
-                EmptyMessage("No available properties satisfy this requirement's must-haves yet.")
+        val best = matches.filter { it.score >= 90 }
+        val verify = matches.filter { it.needsVerification.isNotEmpty() }
+        val shown = when (filter) {
+            MatchFilter.ALL -> matches
+            MatchFilter.BEST -> best
+            MatchFilter.VERIFY -> verify
+        }
+        Column(Modifier.fillMaxSize()) {
+            FilterTabs(
+                listOf(
+                    TabItem(MatchFilter.ALL, "All", matches.size),
+                    TabItem(MatchFilter.BEST, "Best", best.size),
+                    TabItem(MatchFilter.VERIFY, "To verify", verify.size),
+                ),
+                selected = filter,
+                onSelect = { filter = it },
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+                if (shown.isEmpty()) {
+                    EmptyMessage(
+                        if (matches.isEmpty()) "No available properties satisfy this requirement's must-haves yet."
+                        else "Nothing in this list.",
+                    )
+                }
+                shown.forEach { m ->
+                    MatchCard(
+                        m,
+                        onClick = { onProperty(m.property.id) },
+                        onShare = inquiry.client?.let { c -> { openWhatsApp(context, c.primaryPhone, shareText(m.property)) } },
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
             }
-            matches.forEach { MatchCard(it) { onProperty(it.property.id) } }
         }
     }
 }
 
+private fun shareText(p: Property): String = listOfNotNull(
+    p.title,
+    listOfNotNull(p.building, p.locality).joinToString(", "),
+    priceText(p),
+    listOfNotNull(p.carpetAreaSqft?.let { "$it sq ft" }, p.furnishing?.chipLabel()).joinToString(" · ").ifEmpty { null },
+).joinToString("\n")
+
 @Composable
-private fun MatchCard(m: PropertyMatch, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Column(Modifier.padding(12.dp)) {
-            Row {
-                Text(m.property.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Text("${m.score}%", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+private fun MatchCard(m: PropertyMatch, onClick: () -> Unit, onShare: (() -> Unit)?) {
+    val b = MaterialTheme.brand
+    val p = m.property
+    val scoreTint = when {
+        m.score >= 90 -> b.success
+        m.score >= 75 -> b.amber
+        else -> b.neutral
+    }
+    BrandCard(Modifier.fillMaxWidth().padding(vertical = 5.dp), onClick = onClick, contentPadding = 10.dp) {
+        Row {
+            Box(Modifier.size(width = 108.dp, height = 112.dp).clip(RoundedCornerShape(14.dp))) {
+                PropertyPhoto(p.id, p.photoIds.firstOrNull(), Modifier.fillMaxSize(), maxPx = 400)
             }
-            Text("${Money.compact(m.property.price)} · ${m.property.locality}")
-            m.checks.filter { it.outcome != "n/a" }.forEach { CheckLine(it) }
-            if (m.needsVerification.isNotEmpty()) {
-                Text(
-                    "Verify with owner: ${m.needsVerification.joinToString { it.label }}",
-                    color = MaterialTheme.colorScheme.tertiary,
-                    style = MaterialTheme.typography.bodySmall,
-                )
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Pill("${m.score}% Match", scoreTint)
+                Text(p.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
+                Text(p.locality, style = MaterialTheme.typography.bodySmall, color = b.muted, maxLines = 1)
+                Text(priceText(p), style = MaterialTheme.typography.titleSmall, color = b.link)
+                val facts = listOfNotNull(
+                    p.bedrooms?.let { if (it == 1) "1 Bed" else "$it Beds" },
+                    p.carpetAreaSqft?.let { "$it sq ft" },
+                ).joinToString(" • ")
+                if (facts.isNotEmpty()) Text(facts, style = MaterialTheme.typography.bodySmall, color = b.muted)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
+                    Pill(p.transactionType.label, if (p.transactionType == TransactionType.RENT) b.success else b.info)
+                    p.furnishing?.let { Pill(it.chipLabel(), b.neutral) }
+                }
+            }
+        }
+        // Only what the broker should look at: near misses, unknowns and things to verify.
+        m.checks.filter { it.outcome == "near" || it.outcome == "unknown" }.forEach { CheckLine(it) }
+        if (m.needsVerification.isNotEmpty()) {
+            Text("Verify with owner: ${m.needsVerification.joinToString { it.label }}", color = b.amber.content, style = MaterialTheme.typography.bodySmall)
+        }
+        if (onShare != null) {
+            TextButton(onClick = onShare) {
+                Icon(whatsAppIcon(), null, tint = Brand.WhatsApp, modifier = Modifier.size(18.dp))
+                Text("  Send to client")
             }
         }
     }
