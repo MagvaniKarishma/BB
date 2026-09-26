@@ -65,13 +65,39 @@ data class Client(
     val createdAt: String,
     val updatedAt: String,
     val activeInquiries: Int? = null,
+    /** Latest active requirement (client list only). */
+    val requirement: ClientRequirement? = null,
+    /** A pending follow-up is due today or overdue (client list only). */
+    val followUpDue: Boolean = false,
+    val nextFollowUpAt: String? = null,
     val phones: List<ClientPhone> = emptyList(),
     val inquiries: List<Inquiry> = emptyList(),
     val reminders: List<Reminder> = emptyList(),
 )
 
 @Serializable
-data class ClientList(val total: Int, val page: Int, val pageSize: Int, val clients: List<Client>)
+data class ClientList(
+    val total: Int,
+    val page: Int,
+    val pageSize: Int,
+    val clients: List<Client>,
+    /** Size of each list tab: all, new, active, followup, lost. */
+    val groupCounts: Map<String, Int> = emptyMap(),
+)
+
+/** The one-line requirement shown under a client's name. */
+@Serializable
+data class ClientRequirement(
+    val id: String,
+    val transactionType: TransactionType,
+    val category: PropertyCategory,
+    val locations: List<String> = emptyList(),
+    val budgetMin: Long? = null,
+    val budgetMax: Long? = null,
+) {
+    /** "2 BHK • Rent • Andheri West" */
+    fun text(): String = listOfNotNull(category.label, transactionType.label, locations.firstOrNull()).joinToString(" • ")
+}
 
 @Serializable
 data class ClientEnvelope(val client: Client)
@@ -125,7 +151,7 @@ data class Inquiry(
     val createdAt: String,
     val updatedAt: String,
     val client: ClientRef? = null,
-    /** Available properties meeting the must-haves (caller lookup only). */
+    /** Available properties meeting the must-haves (caller lookup and requirement list). */
     val matchCount: Int? = null,
 )
 
@@ -156,7 +182,7 @@ data class InquiryEnvelope(val inquiry: Inquiry)
 data class InquiryUpdateResponse(val inquiry: Inquiry, val changed: Boolean)
 
 @Serializable
-data class InquiryList(val inquiries: List<Inquiry>)
+data class InquiryList(val inquiries: List<Inquiry>, val total: Int? = null)
 
 @Serializable
 data class InquiryRevision(

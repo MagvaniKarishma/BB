@@ -97,7 +97,8 @@ object Routes {
     fun inquiryNew(clientId: String) = "inquiry/new/$clientId"
     fun inquiry(id: String) = "inquiry/$id"
     fun inquiryEdit(id: String) = "inquiry/$id/edit"
-    fun inquiryList(type: TransactionType, category: PropertyCategory) = "inquiries/${type.name}/${category.name}"
+    fun inquiryList(type: TransactionType, category: PropertyCategory) = "requirements?type=${type.name}&category=${category.name}"
+    fun requirements(type: TransactionType? = null) = if (type == null) "requirements" else "requirements?type=${type.name}"
     const val PROPERTY_NEW = "property/new"
     fun property(id: String) = "property/$id"
     fun propertyEdit(id: String) = "property/$id/edit"
@@ -187,6 +188,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                         onProperties = { nav.navigateTab(Routes.PROPERTIES) },
                         onLeads = { nav.navigate("whatsapp/inbox") },
                         onTile = { type, category -> nav.navigate(Routes.inquiryList(type, category)) },
+                        onRequirements = { type -> nav.navigate(Routes.requirements(type)) },
                         onClient = { nav.navigate(Routes.client(it)) },
                         onProperty = { nav.navigate(Routes.property(it)) },
                         onLeadMessage = { nav.navigate("whatsapp/message/$it") },
@@ -294,14 +296,19 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                 val id = entry.arguments?.getString("id")!!
                 InquiryFormScreen(clientId = null, inquiryId = id, onBack = back, onSaved = { nav.popBackStack() })
             }
-            composable("inquiries/{type}/{category}") { entry ->
-                val type = TransactionType.valueOf(entry.arguments?.getString("type")!!)
-                val category = PropertyCategory.valueOf(entry.arguments?.getString("category")!!)
+            composable(
+                "requirements?type={type}&category={category}",
+                listOf(
+                    navArgument("type") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("category") { type = NavType.StringType; nullable = true; defaultValue = null },
+                ),
+            ) { entry ->
                 InquiryListScreen(
-                    type = type,
-                    category = category,
+                    type = entry.arguments?.getString("type")?.let { t -> TransactionType.entries.firstOrNull { it.name == t } },
+                    category = entry.arguments?.getString("category")?.let { c -> PropertyCategory.entries.firstOrNull { it.name == c } },
                     onBack = back,
                     onInquiry = { nav.navigate(Routes.inquiry(it)) },
+                    onMatches = { nav.navigate("inquiry/$it?tab=1") },
                 )
             }
             composable(

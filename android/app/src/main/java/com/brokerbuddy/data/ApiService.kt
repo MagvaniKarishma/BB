@@ -106,6 +106,10 @@ interface ApiService {
     suspend fun clients(
         @Query("q") q: String? = null,
         @Query("status") status: ClientStatus? = null,
+        /** all | new | active | followup | lost */
+        @Query("group") group: String? = null,
+        /** Minutes east of UTC, for "follow-up due today". */
+        @Query("tz") tz: Int? = null,
         @Query("page") page: Int = 1,
         @Query("pageSize") pageSize: Int = 50,
     ): ClientList
@@ -134,6 +138,7 @@ interface ApiService {
 
     @GET("inquiries")
     suspend fun inquiries(
+        @Query("q") q: String? = null,
         @Query("transactionType") transactionType: TransactionType? = null,
         @Query("category") category: PropertyCategory? = null,
         @Query("status") status: InquiryStatus? = null,

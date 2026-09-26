@@ -101,6 +101,7 @@ data class HomeActions(
     val onProperties: () -> Unit,
     val onLeads: () -> Unit,
     val onTile: (TransactionType, PropertyCategory) -> Unit,
+    val onRequirements: (TransactionType) -> Unit,
     val onClient: (String) -> Unit,
     val onProperty: (String) -> Unit,
     val onLeadMessage: (String) -> Unit,
@@ -196,7 +197,7 @@ private fun HomeContent(
                 StatTile(Icons.Outlined.People, b.info, "${t?.clients ?: 0}", "Clients",
                     t?.newClientsThisWeek?.takeIf { it > 0 }?.let { "↑ $it new" }, b.success.content, m, actions.onClients)
                 StatTile(Icons.Outlined.Description, b.info, "${t?.activeRequirements ?: board.total}", "Enquiries",
-                    t?.newRequirementsThisWeek?.takeIf { it > 0 }?.let { "↑ $it new" }, b.success.content, m)
+                    t?.newRequirementsThisWeek?.takeIf { it > 0 }?.let { "↑ $it new" }, b.success.content, m) { actions.onRequirements(type) }
                 StatTile(Icons.Outlined.Home, b.success, "${t?.availableProperties ?: d.availableProperties}", "Properties",
                     t?.newPropertiesThisWeek?.takeIf { it > 0 }?.let { "↑ $it new" }, b.success.content, m, actions.onProperties)
                 StatTile(Icons.Outlined.CalendarMonth, b.danger, "${t?.pendingFollowUps ?: 0}", "Follow-ups",

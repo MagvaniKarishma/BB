@@ -76,15 +76,54 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import com.brokerbuddy.ui.common.Load
+import com.brokerbuddy.ui.common.dial
+import com.brokerbuddy.ui.common.openWhatsApp
+import com.brokerbuddy.ui.design.FilterTabs
+import com.brokerbuddy.ui.design.TabItem
+import com.brokerbuddy.ui.design.RoundIconButton
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
+private enum class FollowUpTab(val label: String) { TODAY("Today"), UPCOMING("Upcoming"), OVERDUE("Overdue"), DONE("Done") }
+
+private fun dueDate(r: Reminder, zone: ZoneId): LocalDate? =
+    runCatching { Instant.parse(r.dueAt).atZone(zone).toLocalDate() }.getOrNull()
+
+/** Follow Ups (screen 14): Today / Upcoming / Overdue from pending follow-ups, plus Done. */
 @Composable
 fun RemindersScreen(onClient: (String) -> Unit) {
     val api = appContainer().api
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var tab by rememberSaveable { mutableIntStateOf(0) }
-    val status = if (tab == 0) ReminderStatus.PENDING else ReminderStatus.DONE
+    var tab by rememberSaveable { mutableStateOf(FollowUpTab.TODAY) }
+    val status = if (tab == FollowUpTab.DONE) ReminderStatus.DONE else ReminderStatus.PENDING
     val loader = rememberLoad(status) { api.call { reminders(status = status).reminders } }
+    val zone = ZoneId.systemDefault()
+    val today = LocalDate.now(zone)
+
+    // By calendar day: earlier days are overdue; anything due today (even an hour ago) is "Today".
+    fun bucket(r: Reminder): FollowUpTab {
+        val day = dueDate(r, zone)
+        return when {
+            day != null && day.isBefore(today) -> FollowUpTab.OVERDUE
+            day == today -> FollowUpTab.TODAY
+            else -> FollowUpTab.UPCOMING
+        }
+    }
+    val pending = when (val st = loader.state) {
+        is Load.Ready -> if (status == ReminderStatus.PENDING) st.value else null
+        else -> null
+    }
+    val counts = pending?.groupingBy { bucket(it) }?.eachCount()
 
     fun update(r: Reminder, body: UpdateReminderRequest) {
         scope.launch {
@@ -98,7 +137,10 @@ fun RemindersScreen(onClient: (String) -> Unit) {
         }
     }
 
-    Scaffold(containerColor = MaterialTheme.brand.background, topBar = { BrandTopBar("Follow Ups") }) { padding ->
+    Scaffold(
+        containerColor = MaterialTheme.brand.background,
+        topBar = { BrandTopBar(pending?.let { "Follow Ups (${it.size})" } ?: "Follow Ups") },
+    ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (!ReminderNotifier.canNotify(context)) {
                 // Fallback when notifications are blocked: reminders remain usable in this list.
@@ -118,22 +160,33 @@ fun RemindersScreen(onClient: (String) -> Unit) {
                     }
                 }
             }
-            TabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Pending") })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Done") })
-            }
-            LoadContent(loader) { reminders ->
-                if (reminders.isEmpty()) {
-                    EmptyMessage(if (tab == 0) "Nothing pending. Add follow-ups from a client's page." else "No completed follow-ups yet")
+            FilterTabs(
+                FollowUpTab.entries.map { TabItem(it, it.label, if (it == FollowUpTab.DONE) null else counts?.get(it) ?: 0) },
+                selected = tab,
+                onSelect = { tab = it },
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+            LoadContent(loader) { all ->
+                val shown = if (tab == FollowUpTab.DONE) all else all.filter { bucket(it) == tab }
+                if (shown.isEmpty()) {
+                    EmptyMessage(
+                        when (tab) {
+                            FollowUpTab.TODAY -> "Nothing due today."
+                            FollowUpTab.UPCOMING -> "No upcoming follow-ups. Add them from a client's page."
+                            FollowUpTab.OVERDUE -> "Nothing overdue. 👍"
+                            FollowUpTab.DONE -> "No completed follow-ups yet"
+                        },
+                    )
                 } else {
                     LazyColumn(
                         Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        items(reminders, key = { it.id }) { r ->
+                        items(shown, key = { it.id }) { r ->
                             ReminderRow(
                                 r,
+                                showDay = tab != FollowUpTab.TODAY,
                                 onClient = onClient,
                                 onDone = { update(r, UpdateReminderRequest(status = ReminderStatus.DONE)) },
                                 onSnooze = {
@@ -149,37 +202,50 @@ fun RemindersScreen(onClient: (String) -> Unit) {
     }
 }
 
+private val TIME_FMT = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
+private val DAY_FMT = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
+
 @Composable
-private fun ReminderRow(r: Reminder, onClient: (String) -> Unit, onDone: () -> Unit, onSnooze: () -> Unit) {
-    val overdue = r.status == ReminderStatus.PENDING &&
-        runCatching { Instant.parse(r.dueAt).isBefore(Instant.now()) }.getOrDefault(false)
+private fun ReminderRow(r: Reminder, showDay: Boolean, onClient: (String) -> Unit, onDone: () -> Unit, onSnooze: () -> Unit) {
+    val b = MaterialTheme.brand
+    val context = LocalContext.current
     val client = r.client
-    BrandCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) { ListItem(
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.brand.card),
-        leadingContent = { Avatar(client?.name ?: r.title, size = 44.dp) },
-        headlineContent = { Text(r.title) },
-        overlineContent = {
-            Text(
-                (if (overdue) "Overdue · " else "") + formatDateTime(r.dueAt),
-                color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        supportingContent = if (client != null) {
-            { TextButton(onClick = { onClient(client.id) }) { Text(client.name) } }
-        } else {
-            null
-        },
-        trailingContent = if (r.status == ReminderStatus.PENDING) {
-            {
-                FlowRow {
-                    IconButton(onClick = onSnooze) { Icon(Icons.Filled.Snooze, contentDescription = "Snooze 1 day") }
-                    IconButton(onClick = onDone) { Icon(Icons.Filled.CheckCircle, contentDescription = "Mark done") }
+    var menu by remember { mutableStateOf(false) }
+    val due = runCatching { Instant.parse(r.dueAt).atZone(ZoneId.systemDefault()) }.getOrNull()
+    val overdue = r.status == ReminderStatus.PENDING && due != null && due.toInstant().isBefore(Instant.now())
+    BrandCard(Modifier.fillMaxWidth(), onClick = client?.let { c -> { onClient(c.id) } }, contentPadding = 12.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Avatar(client?.name ?: r.title, size = 44.dp)
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(client?.name ?: r.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (client != null) Text(r.title, style = MaterialTheme.typography.bodySmall, color = b.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                if (r.status == ReminderStatus.PENDING && client != null) {
+                    RoundIconButton(Icons.Filled.Call, "Call ${client.name}", b.info, { dial(context, client.primaryPhone) }, size = 36.dp)
+                }
+                if (due != null) {
+                    Text(
+                        (if (showDay) due.format(DAY_FMT) + " · " else "") + due.format(TIME_FMT),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (overdue) MaterialTheme.colorScheme.error else b.muted,
+                    )
                 }
             }
-        } else {
-            null
-        },
-    ) }
+            if (r.status == ReminderStatus.PENDING) {
+                Box {
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        if (client != null) {
+                            DropdownMenuItem(text = { Text("WhatsApp") }, onClick = { menu = false; openWhatsApp(context, client.primaryPhone) })
+                        }
+                        DropdownMenuItem(text = { Text("Mark done") }, onClick = { menu = false; onDone() })
+                        DropdownMenuItem(text = { Text("Snooze 1 day") }, onClick = { menu = false; onSnooze() })
+                    }
+                }
+            }
+        }
+    }
 }
 
 private enum class QuickTime(val label: String) { HOUR("In 1 hour"), TOMORROW("Tomorrow 10 AM"), THREE_DAYS("In 3 days"), CUSTOM("Pick…") }

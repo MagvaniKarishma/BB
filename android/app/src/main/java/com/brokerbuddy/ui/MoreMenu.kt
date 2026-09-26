@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material.icons.outlined.PhoneInTalk
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.UploadFile
@@ -39,9 +41,11 @@ fun MoreMenuSheet(onDismiss: () -> Unit, onNavigate: (String) -> Unit, onSignOut
     ) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 12.dp)) {
             BrandWordmark(Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            MenuRow(Icons.Outlined.Description, "Requirements", "Every active client requirement and its matches") { onNavigate(Routes.requirements()) }
             MenuRow(Icons.Outlined.Forum, "WhatsApp & portal leads", "New enquiries and messages to review") { onNavigate("whatsapp/inbox") }
             MenuRow(Icons.Outlined.UploadFile, "Import from WhatsApp", "Paste a message or an exported chat") { onNavigate("whatsapp/import") }
             MenuRow(Icons.Outlined.PhoneInTalk, "Caller screen", "Set up caller identification") { onNavigate(Routes.SETTINGS) }
+            MenuRow(Icons.Outlined.SupportAgent, "AI Call Assistant", "Voice & greeting, AI receptionist") { onNavigate(Routes.CALL_ASSISTANT) }
             MenuRow(Icons.Outlined.Settings, "Settings & team", "Team members, WhatsApp connection, account") { onNavigate(Routes.SETTINGS) }
             MenuRow(Icons.AutoMirrored.Outlined.Logout, "Sign out", null, onSignOut)
         }

@@ -3,6 +3,8 @@ package com.brokerbuddy.ui.design
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -315,6 +317,33 @@ fun CategoryChip(category: PropertyCategory, count: Int, onClick: () -> Unit, mo
     ) {
         Text(category.shortLabel, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = tint.content, maxLines = 1, softWrap = false)
         Text("$count", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 18.sp), color = tint.content, maxLines = 1)
+    }
+}
+
+/** A list tab: label plus an optional count, e.g. "Follow Up (8)". */
+data class TabItem<T>(val key: T, val label: String, val count: Int? = null)
+
+/** Scrollable row of pill tabs (Clients: All / New / Active …; Follow Ups: Today / Upcoming / Overdue). */
+@Composable
+fun <T> FilterTabs(tabs: List<TabItem<T>>, selected: T, onSelect: (T) -> Unit, modifier: Modifier = Modifier) {
+    val b = MaterialTheme.brand
+    Row(
+        modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        tabs.forEach { t ->
+            val on = t.key == selected
+            Text(
+                t.label + (t.count?.let { " ($it)" } ?: ""),
+                modifier = Modifier.clip(RoundedCornerShape(50))
+                    .background(if (on) b.info.container else Color.Transparent)
+                    .clickable { onSelect(t.key) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (on) b.link else b.muted,
+                maxLines = 1,
+            )
+        }
     }
 }
 

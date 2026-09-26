@@ -39,3 +39,23 @@ class CallAssistantDtoTest {
         assertTrue(out.contains("\"transferNumber\":null"))
     }
 }
+
+class ClientListDtoTest {
+    private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+
+    @Test
+    fun `reads tab counts and the one-line requirement`() {
+        val body = """
+            {"total":1,"page":1,"pageSize":50,"groupCounts":{"all":4,"new":2,"active":1,"followup":1,"lost":1},
+             "clients":[{"id":"c1","name":"Amit Patil","primaryPhone":"+919820011111","leadSource":"AI_CALL_ASSISTANT",
+              "status":"CONTACTED","createdAt":"x","updatedAt":"x","activeInquiries":1,"followUpDue":true,
+              "requirement":{"id":"i1","transactionType":"RENT","category":"BHK_2","locations":["Andheri West","Powai"],
+               "budgetMin":65000,"budgetMax":75000}}]}
+        """.trimIndent()
+        val list = json.decodeFromString(ClientList.serializer(), body)
+        assertEquals(2, list.groupCounts["new"])
+        val c = list.clients.single()
+        assertTrue(c.followUpDue)
+        assertEquals("2 BHK • Rent • Andheri West", c.requirement?.text())
+    }
+}
