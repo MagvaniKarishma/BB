@@ -2,6 +2,10 @@
 
 package com.brokerbuddy.ui.whatsapp
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,6 +82,7 @@ import com.brokerbuddy.ui.common.rememberLoad
 import com.brokerbuddy.ui.common.rememberText
 import com.brokerbuddy.ui.common.toast
 import com.brokerbuddy.ui.inquiries.RequirementEditor
+import com.brokerbuddy.ui.design.PropertyCard
 import com.brokerbuddy.ui.inquiries.RequirementFormSaver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -138,6 +143,7 @@ fun WhatsAppMessageScreen(
     onBack: () -> Unit,
     onClient: (String) -> Unit,
     onInquiry: (String) -> Unit,
+    onProperty: (String) -> Unit = {},
 ) {
     val api = appContainer().api
     val context = LocalContext.current
@@ -175,6 +181,15 @@ fun WhatsAppMessageScreen(
                             Text("Advertised price: ${Money.full(it.value)} — the listing's price, not the client's budget",
                                 style = MaterialTheme.typography.bodySmall)
                         }
+                        p.listingUrl?.let { url ->
+                            TextButton(onClick = { openUrl(context, url) }) { Text("Open listing on ${p.portal.label}") }
+                        }
+                    }
+                }
+                if (d.enquiredProperties.isNotEmpty()) {
+                    SectionTitle(if (d.enquiredProperties.size == 1) "Probably about your listing" else "Possibly about one of your listings")
+                    d.enquiredProperties.forEach { prop ->
+                        PropertyCard(prop, onClick = { onProperty(prop.id) }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), imageHeight = 96.dp)
                     }
                 }
             }
@@ -463,5 +478,13 @@ fun WhatsAppImportScreen(initialText: String, presetClientId: String?, onBack: (
     }
     if (picking) {
         ClientPickerDialog(showAddNumber = false, onDismiss = { picking = false }) { c, _ -> client = c.id to c.name; picking = false }
+    }
+}
+
+private fun openUrl(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (_: ActivityNotFoundException) {
+        toast(context, "No app can open this link")
     }
 }

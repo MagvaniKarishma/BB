@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
 import { parseWebhook } from "../src/whatsapp/webhook.js";
-import { metaPayload } from "./helpers.js";
+import { REAL_HOUSING_1, REAL_HOUSING_2, metaPayload } from "./helpers.js";
 import { parseChatExport } from "../src/whatsapp/chatExport.js";
 import { detectPortal, parsePortalLead } from "../src/whatsapp/portalLeads.js";
 import { analyzeMessage } from "../src/whatsapp/analyze.js";
@@ -199,5 +199,29 @@ describe("message analysis: advertised prices stay out of client budgets", () =>
 
     const smalltalk = (await analyzeMessage("Ok thanks, kal baat karte hain 🙏")).extraction;
     expect(smalltalk.draft).toEqual({});
+  });
+});
+
+describe("real Housing.com enquiries", () => {
+  it.each([
+    [REAL_HOUSING_1, 27000, "https://dzfki.app.link/XTXUr0PoI6b"],
+    [REAL_HOUSING_2, 33000, "https://dzfki.app.link/WswPAG2oI6b"],
+  ])("recognises the lead, keeps ₹%s as the listing price and invents nothing", async (text, price, url) => {
+    const lead = parsePortalLead(text)!;
+    expect(lead).toMatchObject({ portal: "HOUSING_COM", listingUrl: url, listingPrice: { value: price } });
+    expect(lead.leadName).toBeUndefined(); // no name in the message → taken from the WhatsApp profile instead
+    expect(lead.leadPhone).toBeUndefined(); // the sender is the lead
+
+    const { extraction } = await analyzeMessage(text);
+    expect(extraction.draft).toEqual({
+      category: { value: "BHK_1", evidence: "1 BHK" },
+      locations: [{ value: "Mulund West", evidence: "Mulund West" }],
+    });
+    // Not stated → not guessed; the agent gets a hint instead.
+    expect(extraction.draft.transactionType).toBeUndefined();
+    expect(extraction.draft.budgetMax).toBeUndefined();
+    const w = extraction.warnings.join(" | ");
+    expect(w).toMatch(/doesn't say whether it's for rent or sale \(₹\d{2},000 looks like a monthly rent\)/);
+    expect(w).toMatch(/not the client's budget/);
   });
 });

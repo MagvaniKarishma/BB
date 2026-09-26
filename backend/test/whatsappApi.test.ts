@@ -3,7 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { createHmac } from "node:crypto";
 import request from "supertest";
-import { app, authed, metaPayload, registerBroker, resetDb } from "./helpers.js";
+import { REAL_HOUSING_1, REAL_HOUSING_2, app, authed, metaPayload, registerBroker, resetDb } from "./helpers.js";
 import { webhookIdle } from "../src/routes/whatsappWebhook.js";
 import { prisma } from "../src/db.js";
 import { rulesExtractor, setVoiceServices } from "../src/voice/service.js";
@@ -334,5 +334,30 @@ describe("manual alternatives (no Business API)", () => {
     // Extraction on demand for an imported line.
     const extracted = await api.post(`/whatsapp/messages/${history[2].id}/extract`, {});
     expect(extracted.body.message.extraction.draft.budgetMax.value).toBe(70000);
+  });
+});
+
+describe("real Housing.com enquiries end to end", () => {
+  it("points the agent to their own listing, creates the client once and links the second enquiry", async () => {
+    const { api, deliver, text } = await setup();
+    const mine = (await api.post("/properties", {
+      title: "1 BHK, Mulund West (Housing.com)", transactionType: "RENT", category: "BHK_1", price: 27000, locality: "Mulund (W)",
+    })).body.property;
+    await api.post("/properties", { title: "Other 1 BHK", transactionType: "RENT", category: "BHK_1", price: 27000, locality: "Thane West" });
+
+    await deliver(text("919867012345", REAL_HOUSING_1, "Sneha Kulkarni"));
+    const [first] = (await api.get("/whatsapp/inbox")).body.messages;
+    expect(first).toMatchObject({ portal: "HOUSING_COM", leadName: "Sneha Kulkarni", leadPhone: "+919867012345", clientId: null });
+    const detail = (await api.get(`/whatsapp/messages/${first.id}`)).body;
+    expect(detail.enquiredProperties.map((p: { id: string }) => p.id)).toEqual([mine.id]); // same type, area and price
+
+    const created = await api.post(`/whatsapp/messages/${first.id}/create-client`, {});
+    expect(created.body.client).toMatchObject({ name: "Sneha Kulkarni", leadSource: "HOUSING_COM" });
+
+    await deliver(text("919867012345", REAL_HOUSING_2, "Sneha Kulkarni"));
+    const history = (await api.get(`/whatsapp/clients/${created.body.client.id}/messages`)).body.messages;
+    expect(history).toHaveLength(2);
+    expect(history[1].portalLead.listingPrice.value).toBe(33000);
+    expect(await prisma.client.count()).toBe(1);
   });
 });

@@ -44,6 +44,12 @@ export async function analyzeMessage(text: string, language: VoiceLanguage = "AU
   }
   if (listing.category) fromListing.category = listing.category;
   if (listing.locations) fromListing.locations = listing.locations;
+  if (!fromListing.transactionType) {
+    const p = portalLead.listingPrice?.value;
+    // A hint only — never filled in: the agent confirms rent or buy with the client.
+    const hint = p != null && p < 2_00_000 ? ` (${inr(p)} looks like a monthly rent)` : "";
+    warnings.push(`The ${label} message doesn't say whether it's for rent or sale${hint} — confirm with the client`);
+  }
   if (hasFields(fromListing)) {
     warnings.push(`Property type/area taken from the ${label} listing they enquired about — confirm it is what the client wants`);
   }

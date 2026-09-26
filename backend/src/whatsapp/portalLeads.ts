@@ -117,7 +117,9 @@ export function parsePortalLead(input: string): PortalLead | null {
   if (email) lead.leadEmail = email.toLowerCase();
   const ref = REF_RE.exec(text)?.[1];
   if (ref) lead.listingRef = ref;
-  const url = URL_RE.exec(text)?.[0];
+  // Portal domains first; otherwise any link in a portal message (Housing.com shares
+  // listings as short links such as dzfki.app.link/…).
+  const url = URL_RE.exec(text)?.[0] ?? /https?:\/\/\S+/i.exec(text)?.[0];
   if (url) {
     lead.listingUrl = url.replace(/[).,]+$/, "");
     lead.listingRef ??= /[-_/]([A-Z]?\d{5,12})(?:[/?#]|$)/i.exec(lead.listingUrl)?.[1];

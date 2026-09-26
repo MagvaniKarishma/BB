@@ -15,6 +15,7 @@ import { GraphApiError, GraphClient } from "../whatsapp/graph.js";
 import type { PortalLead } from "../whatsapp/portalLeads.js";
 import { processMessage, suggestInquiry } from "../whatsapp/processor.js";
 import type { Extraction } from "../voice/draft.js";
+import { localityMatches } from "../domain/locality.js";
 
 export const whatsappRouter = Router();
 
@@ -48,7 +49,31 @@ async function detail(me: AuthUser, id: string) {
     !msg.clientId && msg.leadPhone
       ? await findByPhones(me.brokerageId, [msg.leadPhone]).then((c) => (c ? { id: c.id, name: c.name } : null))
       : null;
-  return { message: view(msg), inquiries, suggestedInquiryId, existingClient };
+  return { message: view(msg), inquiries, suggestedInquiryId, existingClient, enquiredProperties: await enquiredProperties(me, msg) };
+}
+
+/**
+ * Portal enquiries usually describe the agent's OWN listing ("your 1 BHK … ₹27,000 in
+ * Mulund West"). Find inventory with the same property type, locality and exact price so
+ * the agent sees which listing the enquiry is about. Suggestions only; nothing is linked.
+ */
+async function enquiredProperties(me: AuthUser, msg: { portalLead: Prisma.JsonValue; extraction: Prisma.JsonValue }) {
+  const lead = msg.portalLead as unknown as PortalLead | null;
+  const draft = (msg.extraction as unknown as Extraction | null)?.draft;
+  const price = lead?.listingPrice?.value;
+  if (!lead || price == null) return [];
+  const candidates = await prisma.property.findMany({
+    where: {
+      brokerageId: me.brokerageId,
+      price: BigInt(price),
+      ...(draft?.category ? { category: draft.category.value } : {}),
+      ...(draft?.transactionType ? { transactionType: draft.transactionType.value } : {}),
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 20,
+  });
+  const wanted = draft?.locations?.map((l) => l.value) ?? [];
+  return candidates.filter((p) => wanted.length === 0 || wanted.some((w) => localityMatches(w, p.locality))).slice(0, 3);
 }
 
 // ---------- connection (owners/admins) ----------

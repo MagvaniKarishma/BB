@@ -45,7 +45,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      # GitHub's Ubuntu runners ship the Android SDK (ANDROID_HOME); AGP downloads any missing
+      # platform/build-tools itself. (android-actions/setup-android@v3 fails installing the
+      # removed legacy "tools" package.)
+      - name: Check Android SDK
+        run: echo "ANDROID_HOME=$ANDROID_HOME" && ls "$ANDROID_HOME"
       - uses: gradle/actions/setup-gradle@v4
       - name: Unit tests
         run: ./gradlew --no-daemon :core:test :app:testDebugUnitTest

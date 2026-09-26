@@ -340,6 +340,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                     onBack = back,
                     onClient = { nav.navigate(Routes.client(it)) },
                     onInquiry = { nav.navigate(Routes.inquiry(it)) },
+                    onProperty = { nav.navigate(Routes.property(it)) },
                 )
             }
             composable("whatsapp/client/{clientId}") { entry ->

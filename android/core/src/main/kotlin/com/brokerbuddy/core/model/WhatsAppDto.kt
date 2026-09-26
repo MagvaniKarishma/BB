@@ -68,6 +68,8 @@ data class WaMessageDetail(
     val suggestedInquiryId: String? = null,
     /** Set when creating a client would duplicate this existing profile. */
     val existingClient: ExistingClientRef? = null,
+    /** The agent's own listings matching a portal enquiry (same type, area and price). */
+    val enquiredProperties: List<Property> = emptyList(),
     val duplicate: Boolean = false,
     val linkedExisting: Boolean = false,
 )
