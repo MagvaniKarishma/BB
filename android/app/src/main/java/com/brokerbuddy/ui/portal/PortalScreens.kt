@@ -545,6 +545,7 @@ private fun statusTint(s: PortalLeadStatus): Tint {
 
 // ---------- lead sources: status, imports, setup ----------
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LeadSourcesSheet(portal: Portal, status: PortalIntegration?, onDismiss: () -> Unit, onImported: () -> Unit) {
     val api = appContainer().api
