@@ -7,6 +7,7 @@ import { badRequest, notFound } from "../lib/errors.js";
 import { diffSnapshots, snapshotOf } from "../domain/requirementHistory.js";
 import { evaluateMatch, rankMatches } from "../domain/matching.js";
 import { createInquirySchema, listInquiriesSchema, updateInquirySchema } from "../schemas.js";
+import { withPhotoIds } from "../services/photos.js";
 
 export const inquiriesRouter = Router();
 
@@ -187,8 +188,9 @@ inquiriesRouter.get("/:id/matches", async (req, res) => {
     take: 2000,
   });
   const ranked = rankMatches(candidates, (p) => evaluateMatch(inquiry, p), (p) => p.price);
+  const withPhotos = await withPhotoIds(ranked.map((r) => r.item));
   res.json({
     inquiryId: inquiry.id,
-    matches: ranked.map(({ item, result }) => ({ property: item, ...result })),
+    matches: ranked.map(({ result }, i) => ({ property: withPhotos[i], ...result })),
   });
 });

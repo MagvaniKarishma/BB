@@ -88,9 +88,12 @@ object CallerOverlay {
 
     /** Android 11+ expects overlays to be added from a window context, not the application context. */
     private fun overlayContext(app: Context): Context =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val display = app.getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)
             app.createWindowContext(display, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, null)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            app.createDisplayContext(app.getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY))
+                .createWindowContext(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, null)
         } else {
             app
         }

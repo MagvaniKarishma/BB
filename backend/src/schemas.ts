@@ -165,6 +165,7 @@ const propertyFields = {
   building: optionalText(120),
   address: optionalText(300),
   carpetAreaSqft: z.number().int().positive().max(1_000_000).nullish(),
+  bathrooms: z.number().int().min(0).max(20).nullish(),
   furnishing: z.nativeEnum(Furnishing).nullish(),
   parkingSpots: z.number().int().min(0).max(50).nullish(),
   floor: z.number().int().min(-5).max(200).nullish(),

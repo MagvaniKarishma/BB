@@ -356,6 +356,7 @@ model Property {
   building        String?
   address         String?
   carpetAreaSqft  Int?
+  bathrooms       Int?
   furnishing      Furnishing?
   parkingSpots    Int?
   floor           Int?
@@ -368,10 +369,26 @@ model Property {
   notes           String?
   listedById      String?
   listedBy        User?            @relation(fields: [listedById], references: [id], onDelete: SetNull)
+  photos          PropertyPhoto[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
   @@index([brokerageId, transactionType, category, availability])
+}
+
+/** Listing photos. The file is in blob storage (see src/storage); this row holds its key. */
+model PropertyPhoto {
+  id          String   @id @default(cuid())
+  brokerageId String
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  mimeType    String
+  size        Int
+  storageKey  String   @unique
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([propertyId, position])
 }
 
 model Reminder {

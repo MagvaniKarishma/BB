@@ -168,7 +168,7 @@ private fun HomeContent(
 ) {
     val b = MaterialTheme.brand
     val t = d.totals
-    val leadsToday = d.newLeads.count { runCatching { LocalDate.ofInstant(Instant.parse(it.at), ZoneId.systemDefault()) == LocalDate.now() }.getOrDefault(false) }
+    val leadsToday = d.newLeads.count { runCatching { Instant.parse(it.at).atZone(ZoneId.systemDefault()).toLocalDate() == LocalDate.now() }.getOrDefault(false) }
     val dueToday = t?.followUpsDueToday ?: (d.reminders.overdue + d.reminders.dueToday)
     val subtitle = when {
         leadsToday > 0 -> "$leadsToday new lead${if (leadsToday == 1) "" else "s"} today. Let's find their perfect homes."

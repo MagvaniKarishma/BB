@@ -109,8 +109,8 @@ object CallerCards {
     fun relative(iso: String, now: Instant, zone: ZoneId): String {
         val t = runCatching { Instant.parse(iso) }.getOrNull() ?: return iso
         val d = Duration.between(t, now)
-        val today = LocalDate.ofInstant(now, zone)
-        val day = LocalDate.ofInstant(t, zone)
+        val today = now.atZone(zone).toLocalDate()
+        val day = t.atZone(zone).toLocalDate()
         val time = timeFormat.format(t.atZone(zone))
         return when {
             !d.isNegative && d.toMinutes() < 1 -> "just now"

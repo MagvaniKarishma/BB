@@ -36,6 +36,25 @@ export function decrypt(payload: string): string {
   return Buffer.concat([decipher.update(Buffer.from(data, "base64")), decipher.final()]).toString("utf8");
 }
 
+const BLOB_MAGIC = Buffer.from("BBE1");
+
+/** AES-256-GCM for stored files: "BBE1" | iv(12) | tag(16) | ciphertext. */
+export function encryptBytes(plain: Buffer): Buffer {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key(), iv);
+  const data = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return Buffer.concat([BLOB_MAGIC, iv, cipher.getAuthTag(), data]);
+}
+
+export const isEncryptedBytes = (b: Buffer) => b.length >= 32 && b.subarray(0, 4).equals(BLOB_MAGIC);
+
+export function decryptBytes(stored: Buffer): Buffer {
+  if (!isEncryptedBytes(stored)) throw new Error("Unrecognised encrypted file");
+  const decipher = createDecipheriv("aes-256-gcm", key(), stored.subarray(4, 16));
+  decipher.setAuthTag(stored.subarray(16, 32));
+  return Buffer.concat([decipher.update(stored.subarray(32)), decipher.final()]);
+}
+
 export const randomToken = (bytes = 24) => randomBytes(bytes).toString("base64url");
 
 /** Constant-time check of Meta's X-Hub-Signature-256 header ("sha256=<hex>") over the raw body. */

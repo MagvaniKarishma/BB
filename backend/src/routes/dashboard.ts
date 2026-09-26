@@ -5,6 +5,7 @@ import { prisma } from "../db.js";
 import { currentUser } from "../lib/auth.js";
 import { evaluateMatch } from "../domain/matching.js";
 import type { Extraction } from "../voice/draft.js";
+import { withPhotoIds } from "../services/photos.js";
 
 export const dashboardRouter = Router();
 
@@ -151,6 +152,8 @@ dashboardRouter.get("/", async (req, res) => {
     .filter((m) => m.matchingRequirements > 0)
     .sort((x, y) => y.matchingRequirements - x.matchingRequirements)
     .slice(0, 6);
+  const topPhotos = await withPhotoIds(topMatches.map((m) => m.property));
+  topMatches.forEach((m, i) => (m.property = topPhotos[i]));
 
   res.json({
     generatedAt: now.toISOString(),

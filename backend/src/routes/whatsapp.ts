@@ -16,6 +16,7 @@ import type { PortalLead } from "../whatsapp/portalLeads.js";
 import { processMessage, suggestInquiry } from "../whatsapp/processor.js";
 import type { Extraction } from "../voice/draft.js";
 import { localityMatches } from "../domain/locality.js";
+import { withPhotoIds } from "../services/photos.js";
 
 export const whatsappRouter = Router();
 
@@ -49,7 +50,7 @@ async function detail(me: AuthUser, id: string) {
     !msg.clientId && msg.leadPhone
       ? await findByPhones(me.brokerageId, [msg.leadPhone]).then((c) => (c ? { id: c.id, name: c.name } : null))
       : null;
-  return { message: view(msg), inquiries, suggestedInquiryId, existingClient, enquiredProperties: await enquiredProperties(me, msg) };
+  return { message: view(msg), inquiries, suggestedInquiryId, existingClient, enquiredProperties: await withPhotoIds(await enquiredProperties(me, msg)) };
 }
 
 /**
