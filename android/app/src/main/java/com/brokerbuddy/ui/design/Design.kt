@@ -271,6 +271,7 @@ fun SourceBadge(source: String, size: Dp = 52.dp) {
         "REFERRAL" -> "R" to Color(0xFF2563EB)
         "WALK_IN" -> "W" to Color(0xFF0EA5E9)
         "PHONE_CALL" -> "☎" to Color(0xFF0F766E)
+        "AI_CALL_ASSISTANT" -> "AI" to Color(0xFF7C3AED)
         else -> "•" to Color(0xFF64748B)
     }
     Box(

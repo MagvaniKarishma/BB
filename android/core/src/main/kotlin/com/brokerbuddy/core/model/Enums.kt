@@ -54,6 +54,7 @@ enum class LeadSource(val label: String) {
     MAGICBRICKS("Magicbricks"),
     WEBSITE("Website"),
     SOCIAL_MEDIA("Social media"),
+    AI_CALL_ASSISTANT("AI Call Assistant"),
     OTHER("Other"),
 }
 
@@ -76,7 +77,7 @@ enum class RequirementField(val label: String) {
 }
 
 @Serializable
-enum class RequirementSource { MANUAL, VOICE_NOTE, PORTAL_LEAD, WHATSAPP }
+enum class RequirementSource { MANUAL, VOICE_NOTE, PORTAL_LEAD, WHATSAPP, AI_CALL }
 
 @Serializable
 enum class Availability(val label: String) {
@@ -106,4 +107,4 @@ enum class VoiceLanguage(val label: String) {
 enum class VoiceNoteStatus { NEEDS_TRANSCRIPT, READY, APPLIED, DISCARDED }
 
 @Serializable
-enum class NoteSource { MANUAL, CALLER_SCREEN, NOTIFICATION }
+enum class NoteSource { MANUAL, CALLER_SCREEN, NOTIFICATION, AI_CALL }

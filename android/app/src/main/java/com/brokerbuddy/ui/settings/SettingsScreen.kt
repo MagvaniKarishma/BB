@@ -44,7 +44,7 @@ import com.brokerbuddy.ui.common.toast
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onCallAssistant: () -> Unit) {
     val container = appContainer()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -89,6 +89,9 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
             CallerSetupSection()
+            SectionTitle("AI Call Assistant")
+            Text("Let an AI receptionist answer calls to your business number, greet callers in your own recorded voice and note their requirements.")
+            OutlinedButton(onClick = onCallAssistant, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Voice & greeting, call handling…") }
             SectionTitle("Account")
             Button(onClick = { scope.launch { container.sessionStore.signOut() } }, modifier = Modifier.fillMaxWidth()) {
                 Text("Sign out")

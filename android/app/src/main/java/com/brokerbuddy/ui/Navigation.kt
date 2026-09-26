@@ -52,6 +52,8 @@ import com.brokerbuddy.ui.properties.PropertyFormScreen
 import com.brokerbuddy.ui.properties.PropertyListScreen
 import com.brokerbuddy.ui.reminders.RemindersScreen
 import com.brokerbuddy.ui.settings.SettingsScreen
+import com.brokerbuddy.ui.callassistant.CallAssistantScreen
+import com.brokerbuddy.ui.callassistant.TestAssistantScreen
 import com.brokerbuddy.ui.voice.VoiceNoteScreen
 import com.brokerbuddy.ui.caller.CallerScreen
 import com.brokerbuddy.ui.dashboard.HomeActions
@@ -87,6 +89,8 @@ object Routes {
     const val PROPERTIES = "properties"
     const val REMINDERS = "reminders"
     const val SETTINGS = "settings"
+    const val CALL_ASSISTANT = "settings/call-assistant"
+    const val CALL_ASSISTANT_TEST = "settings/call-assistant/test"
     const val CLIENT_NEW = "client/new"
     fun client(id: String) = "client/$id"
     fun clientEdit(id: String) = "client/$id/edit"
@@ -204,7 +208,17 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
             composable(Routes.REMINDERS) {
                 RemindersScreen(onClient = { nav.navigate(Routes.client(it)) })
             }
-            composable(Routes.SETTINGS) { SettingsScreen(onBack = back) }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(onBack = back, onCallAssistant = { nav.navigate(Routes.CALL_ASSISTANT) })
+            }
+            composable(Routes.CALL_ASSISTANT) {
+                CallAssistantScreen(
+                    onBack = back,
+                    onTest = { nav.navigate(Routes.CALL_ASSISTANT_TEST) },
+                    onClient = { id -> nav.navigate("client/$id") },
+                )
+            }
+            composable(Routes.CALL_ASSISTANT_TEST) { TestAssistantScreen(onBack = back) }
 
             composable(
                 "client/new?phone={phone}&source={source}",

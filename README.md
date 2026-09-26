@@ -12,11 +12,13 @@ A real estate CRM for Mumbai brokers. It manages clients, remembers each client'
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | CRM, dashboards, requirements, inventory, matching, reminders, team | **Done** (backend fully tested; Android code written, not yet compiled — first CI run pending) |
-| 2 | Voice notes (Hindi/Hinglish/Marathi/English) → AI requirement extraction | **Done** (backend tested; Android code written, not yet compiled — first CI run pending) |
-| 3 | Caller screen for known clients (incoming-call detection) | **Done** (backend tested; Android code written, not yet compiled — first CI run pending; device testing pending — see `docs/CALLER_SCREEN.md`) |
-| 4 | WhatsApp Business Cloud API; 99acres / Housing.com / Magicbricks lead recognition | **Done** (backend tested; Android code written, not yet compiled — first CI run pending; not tested against Meta's live API — see `docs/WHATSAPP.md`) |
+| 1 | CRM, dashboards, requirements, inventory, matching, reminders, team | **Done** (backend fully tested; Android compiles, passes lint and builds in CI) |
+| 2 | Voice notes (Hindi/Hinglish/Marathi/English) → AI requirement extraction | **Done** (backend tested; Android compiles, passes lint and builds in CI) |
+| 3 | Caller screen for known clients (incoming-call detection) | **Done** (backend tested; Android compiles, passes lint and builds in CI; device testing pending — see `docs/CALLER_SCREEN.md`) |
+| 4 | WhatsApp Business Cloud API; 99acres / Housing.com / Magicbricks lead recognition | **Done** (backend tested; Android compiles, passes lint and builds in CI; not tested against Meta's live API — see `docs/WHATSAPP.md`) |
 | 5 | Security hardening, deployment, signed APK and download site | Signing config and CI are in place |
+| — | AI Call Assistant: AI receptionist with the broker's recorded greeting, requirement capture into the CRM | **Backend built and tested** (typed conversations and simulated provider calls); app screens written, first CI compile pending; needs a telephony number to take real calls — see `docs/AI_CALL_ASSISTANT.md` |
+| — | Property photos (encrypted file storage) | Backend done; app upload/gallery pending |
 
 ## Phase 1: what works
 

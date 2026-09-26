@@ -7,7 +7,7 @@ import android.os.SystemClock
 import java.io.File
 
 data class Recording(val file: File, val durationMs: Long) {
-    val mimeType: String get() = "audio/mp4"
+    val mimeType: String get() = if (file.name.endsWith(".wav")) "audio/wav" else "audio/mp4"
 }
 
 /**

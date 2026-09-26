@@ -1,6 +1,15 @@
 package com.brokerbuddy.data
 
+import com.brokerbuddy.core.model.AiCallList
 import com.brokerbuddy.core.model.AuthResponse
+import com.brokerbuddy.core.model.CallAssistantInfo
+import com.brokerbuddy.core.model.CallAssistantSettings
+import com.brokerbuddy.core.model.CallAssistantSettingsResponse
+import com.brokerbuddy.core.model.GreetingResponse
+import com.brokerbuddy.core.model.GreetingScriptRequest
+import com.brokerbuddy.core.model.TestCallRequest
+import com.brokerbuddy.core.model.TestCallResponse
+import com.brokerbuddy.core.model.TestTurnRequest
 import com.brokerbuddy.core.model.Availability
 import com.brokerbuddy.core.model.ClientEnvelope
 import com.brokerbuddy.core.model.ClientList
@@ -64,6 +73,7 @@ import com.brokerbuddy.core.model.VoiceNoteList
 import com.brokerbuddy.core.model.VoiceNoteResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Multipart
@@ -278,4 +288,41 @@ interface ApiService {
 
     @PUT("whatsapp/account")
     suspend fun connectWhatsapp(@Body body: ConnectWhatsAppRequest): WaAccountEnvelope
+
+    // ---------- AI Call Assistant ----------
+
+    @GET("call-assistant")
+    suspend fun callAssistant(): CallAssistantInfo
+
+    @PUT("call-assistant/settings")
+    suspend fun updateCallAssistant(@Body body: CallAssistantSettings): CallAssistantSettingsResponse
+
+    @PUT("call-assistant/greetings/{language}")
+    suspend fun updateGreetingScript(@Path("language") language: String, @Body body: GreetingScriptRequest): GreetingResponse
+
+    @DELETE("call-assistant/greetings/{language}")
+    suspend fun resetGreeting(@Path("language") language: String): Response<Unit>
+
+    @Multipart
+    @POST("call-assistant/greetings/{language}/audio")
+    suspend fun uploadGreetingAudio(
+        @Path("language") language: String,
+        @Part("durationMs") durationMs: RequestBody?,
+        @Part audio: MultipartBody.Part,
+    ): GreetingResponse
+
+    @GET("call-assistant/greetings/{language}/audio")
+    suspend fun greetingAudio(@Path("language") language: String): ResponseBody
+
+    @DELETE("call-assistant/greetings/{language}/audio")
+    suspend fun deleteGreetingAudio(@Path("language") language: String): Response<Unit>
+
+    @GET("call-assistant/calls")
+    suspend fun aiCalls(): AiCallList
+
+    @POST("call-assistant/test-calls")
+    suspend fun startTestCall(@Body body: TestCallRequest): TestCallResponse
+
+    @POST("call-assistant/test-calls/{callId}/turns")
+    suspend fun testCallTurn(@Path("callId") callId: String, @Body body: TestTurnRequest): TestCallResponse
 }
