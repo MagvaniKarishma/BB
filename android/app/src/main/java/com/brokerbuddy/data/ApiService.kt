@@ -178,6 +178,16 @@ interface ApiService {
     @DELETE("properties/{id}")
     suspend fun deleteProperty(@Path("id") id: String): Response<Unit>
 
+    @GET("properties/{id}/photos/{photoId}")
+    suspend fun propertyPhoto(@Path("id") id: String, @Path("photoId") photoId: String): ResponseBody
+
+    @Multipart
+    @POST("properties/{id}/photos")
+    suspend fun uploadPropertyPhoto(@Path("id") id: String, @Part photo: MultipartBody.Part): PropertyEnvelope
+
+    @DELETE("properties/{id}/photos/{photoId}")
+    suspend fun deletePropertyPhoto(@Path("id") id: String, @Path("photoId") photoId: String): Response<Unit>
+
     @GET("properties/{id}/matches")
     suspend fun propertyMatches(@Path("id") id: String): InquiryMatches
 

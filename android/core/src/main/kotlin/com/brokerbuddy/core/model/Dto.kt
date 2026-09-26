@@ -215,6 +215,7 @@ data class Property(
     val building: String? = null,
     val address: String? = null,
     val carpetAreaSqft: Int? = null,
+    val bathrooms: Int? = null,
     val furnishing: Furnishing? = null,
     val parkingSpots: Int? = null,
     val floor: Int? = null,
@@ -227,7 +228,28 @@ data class Property(
     val notes: String? = null,
     val createdAt: String,
     val updatedAt: String,
-)
+    /** Photo ids in display order; the first is the cover. */
+    val photoIds: List<String> = emptyList(),
+) {
+    /** Every current value as a request, for updates that change one field: `toRequest().copy(availability = RENTED)`. */
+    fun toRequest(): PropertyRequest = PropertyRequest(
+        title = title, transactionType = transactionType, category = category, price = price, deposit = deposit,
+        locality = locality, building = building, address = address, carpetAreaSqft = carpetAreaSqft, bathrooms = bathrooms,
+        furnishing = furnishing, parkingSpots = parkingSpots, floor = floor, totalFloors = totalFloors, possession = possession,
+        possessionDate = possessionDate?.take(10), availability = availability, ownerName = ownerName, ownerPhone = ownerPhone, notes = notes,
+    )
+
+    /** Bedrooms implied by the property type (null for studio/commercial/other). */
+    val bedrooms: Int?
+        get() = when (category) {
+            PropertyCategory.BHK_1 -> 1
+            PropertyCategory.BHK_2 -> 2
+            PropertyCategory.BHK_3 -> 3
+            PropertyCategory.BHK_4 -> 4
+            PropertyCategory.BHK_5_PLUS -> 5
+            else -> null
+        }
+}
 
 @Serializable
 data class PropertyRequest(
@@ -240,6 +262,7 @@ data class PropertyRequest(
     val building: String? = null,
     val address: String? = null,
     val carpetAreaSqft: Int? = null,
+    val bathrooms: Int? = null,
     val furnishing: Furnishing? = null,
     val parkingSpots: Int? = null,
     val floor: Int? = null,

@@ -418,7 +418,7 @@ fun GreetingHero(greeting: String, name: String, subtitle: String, badge: String
 fun priceText(p: Property): String =
     Money.full(p.price) + if (p.transactionType == TransactionType.RENT) " / month" else ""
 
-private fun Furnishing.chipLabel() = when (this) {
+fun Furnishing.chipLabel() = when (this) {
     Furnishing.UNFURNISHED -> "Unfurnished"
     Furnishing.SEMI_FURNISHED -> "Semi Furnished"
     Furnishing.FULLY_FURNISHED -> "Furnished"
@@ -436,12 +436,7 @@ fun PropertyCard(
     val b = MaterialTheme.brand
     BrandCard(modifier, onClick = onClick, contentPadding = 0.dp) {
         Box(Modifier.fillMaxWidth().height(imageHeight).clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))) {
-            Image(
-                painterResource(R.drawable.property_placeholder),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
+            PropertyPhoto(property.id, property.photoIds.firstOrNull(), Modifier.fillMaxSize())
             if (matchCount != null && matchCount > 0) {
                 PhotoBadge(if (matchCount == 1) "1 client match" else "$matchCount client matches")
             }
@@ -471,4 +466,37 @@ private fun BoxScope.PhotoBadge(text: String) {
         style = MaterialTheme.typography.labelSmall,
         color = Brand.Navy,
     )
+}
+
+/** Compact listing row (Properties list): photo on the left, facts on the right. */
+@Composable
+fun PropertyRow(property: Property, onClick: () -> Unit, modifier: Modifier = Modifier, badge: String? = null) {
+    val b = MaterialTheme.brand
+    val p = property
+    BrandCard(modifier.fillMaxWidth(), onClick = onClick, contentPadding = 10.dp) {
+        Row {
+            Box(Modifier.size(width = 104.dp, height = 96.dp).clip(RoundedCornerShape(14.dp))) {
+                PropertyPhoto(p.id, p.photoIds.firstOrNull(), Modifier.fillMaxSize(), maxPx = 400)
+                if (p.photoIds.size > 1) {
+                    Text(
+                        "${p.photoIds.size}",
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp)
+                            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(8.dp)).padding(horizontal = 6.dp, vertical = 1.dp),
+                        color = Color.White, style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(p.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    if (badge != null) Pill(badge, b.danger)
+                }
+                Text(p.locality, style = MaterialTheme.typography.bodySmall, color = b.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(priceText(p), style = MaterialTheme.typography.titleSmall, color = b.link, maxLines = 1)
+                val facts = listOfNotNull(p.furnishing?.chipLabel(), p.bathrooms?.let { if (it == 1) "1 Bath" else "$it Baths" }).joinToString(" • ")
+                if (facts.isNotEmpty()) Text(facts, style = MaterialTheme.typography.bodySmall, color = b.muted, maxLines = 1)
+                p.carpetAreaSqft?.let { Text("$it sq ft", style = MaterialTheme.typography.bodySmall, color = b.muted) }
+            }
+        }
+    }
 }

@@ -59,3 +59,25 @@ class ClientListDtoTest {
         assertEquals("2 BHK • Rent • Andheri West", c.requirement?.text())
     }
 }
+
+class PropertyDtoTest {
+    private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+
+    @Test
+    fun `keeps every field when only availability changes`() {
+        val p = json.decodeFromString(
+            Property.serializer(),
+            """{"id":"p1","title":"2 BHK Apartment","transactionType":"RENT","category":"BHK_2","price":75000,
+               "locality":"Andheri East","building":"Oberoi Splendor","carpetAreaSqft":850,"bathrooms":2,
+               "floor":5,"totalFloors":15,"availability":"AVAILABLE","possessionDate":"2027-03-01T00:00:00.000Z",
+               "createdAt":"x","updatedAt":"x","photoIds":["ph1","ph2"]}""",
+        )
+        assertEquals(listOf("ph1", "ph2"), p.photoIds)
+        assertEquals(2, p.bedrooms)
+        val req = p.toRequest().copy(availability = Availability.RENTED)
+        assertEquals(Availability.RENTED, req.availability)
+        assertEquals(2, req.bathrooms)
+        assertEquals("Oberoi Splendor", req.building)
+        assertEquals("2027-03-01", req.possessionDate)
+    }
+}
