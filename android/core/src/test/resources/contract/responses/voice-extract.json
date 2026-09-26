@@ -1,0 +1,29 @@
+{
+  "draft": {
+    "transactionType": {
+      "value": "RENT",
+      "evidence": "rent"
+    },
+    "category": {
+      "value": "BHK_2",
+      "evidence": "2 BHK"
+    },
+    "budgetMax": {
+      "value": 70000,
+      "evidence": "60 se 70 hazaar"
+    },
+    "budgetMin": {
+      "value": 60000,
+      "evidence": "60 se 70 hazaar"
+    },
+    "locations": [
+      {
+        "value": "Andheri West",
+        "evidence": "Andheri West"
+      }
+    ]
+  },
+  "advertisedPrices": [],
+  "warnings": [],
+  "extractor": "rules"
+}

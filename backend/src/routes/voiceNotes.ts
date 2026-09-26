@@ -178,6 +178,20 @@ voiceNotesRouter.post("/", upload.single("audio"), async (req, res) => {
 });
 
 /** Typed/dictated note — the fallback when recording or speech-to-text isn't available. */
+/**
+ * Reads a requirement from spoken (already transcribed on the phone) or typed words, for
+ * filling the requirement form. Nothing is stored: the agent reviews the form and saves it.
+ * Only what was said is returned; everything else stays empty.
+ */
+voiceNotesRouter.post("/extract", async (req, res) => {
+  currentUser(req);
+  const body = z.object({
+    text: z.string().trim().min(1).max(MAX_TRANSCRIPT),
+    language: z.nativeEnum(VoiceLanguage).default("AUTO"),
+  }).parse(req.body);
+  res.json(await extractRequirement(body.text.normalize("NFC"), body.language));
+});
+
 voiceNotesRouter.post("/text", async (req, res) => {
   const me = currentUser(req);
   const body = textNoteSchema.parse(req.body);

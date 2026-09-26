@@ -279,3 +279,32 @@ describe("AI extraction", () => {
     expect(res.body.voiceNote.extraction.draft.category.value).toBe("BHK_2");
   });
 });
+
+describe("voice fill for the requirement form", () => {
+  it("returns only what was said and stores nothing", async () => {
+    const { api } = await registerBroker();
+    const res = await api.post("/voice-notes/extract", { text: HINGLISH, language: "AUTO" });
+    expect(res.status).toBe(200);
+    const d = res.body.draft;
+    expect(d.transactionType.value).toBe("RENT");
+    expect(d.category.value).toBe("BHK_2");
+    expect(d.budgetMin.value).toBe(60000);
+    expect(d.budgetMax.value).toBe(70000);
+    expect(d.locations.map((l: { value: string }) => l.value)).toEqual(["Andheri West", "Jogeshwari"]);
+    expect(d.minParking.value).toBe(1);
+    // Not said → not returned.
+    expect(d.floorMin).toBeUndefined();
+    expect(d.possession).toBeUndefined();
+
+    const partial = (await api.post("/voice-notes/extract", { text: "3 BHK chahiye Powai mein" })).body.draft;
+    expect(Object.keys(partial).sort()).toEqual(["category", "locations"]);
+
+    const hindi = (await api.post("/voice-notes/extract", { text: HINDI, language: "HINDI" })).body.draft;
+    expect(hindi).toMatchObject({ transactionType: { value: "BUY" }, category: { value: "BHK_3" } });
+
+    const { prisma } = await import("../src/db.js");
+    expect(await prisma.voiceNote.count()).toBe(0);
+    expect((await request(app).post("/api/v1/voice-notes/extract").send({ text: "2 BHK" })).status).toBe(401);
+    expect((await api.post("/voice-notes/extract", { text: "" })).status).toBe(400);
+  });
+});

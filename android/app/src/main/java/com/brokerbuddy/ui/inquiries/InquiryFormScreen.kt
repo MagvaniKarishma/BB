@@ -41,6 +41,8 @@ fun InquiryFormScreen(clientId: String?, inquiryId: String?, onBack: () -> Unit,
     var loaded by rememberSaveable { mutableStateOf(inquiryId == null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    // Words each voice-filled field came from (shown under the field).
+    var evidence by remember { mutableStateOf<Map<FormField, String>>(emptyMap()) }
 
     LaunchedEffect(inquiryId) {
         if (inquiryId == null || loaded) return@LaunchedEffect
@@ -82,12 +84,19 @@ fun InquiryFormScreen(clientId: String?, inquiryId: String?, onBack: () -> Unit,
             Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            if (loaded) {
+                VoiceFillCard(
+                    form = form,
+                    onFilled = { filled, words -> form = filled; evidence = evidence + words },
+                    onUndo = { form = it; evidence = emptyMap() },
+                )
+            }
             Text(
-                "Leave anything the client hasn't said blank — BrokerBuddy never fills in guesses.",
+                "Or fill it in by hand. Leave anything the client hasn't said blank — BrokerBuddy never fills in guesses.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            RequirementEditor(form, { form = it }, shownErrors, showStatus = inquiryId != null)
+            RequirementEditor(form, { form = it }, shownErrors, showStatus = inquiryId != null, evidence = evidence)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(onClick = ::save, enabled = loaded && !busy, modifier = Modifier.fillMaxWidth()) {
                 Text(if (busy) "Saving…" else "Save requirement")

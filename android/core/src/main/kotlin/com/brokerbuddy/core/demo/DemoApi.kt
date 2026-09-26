@@ -34,8 +34,8 @@ class DemoApi(snapshotJson: String, today: LocalDate) {
 
     /** [path] is the request's URL path (anything before "api/v1/" is ignored). */
     fun handle(method: String, path: String, params: List<Pair<String, String?>>): Reply {
-        if (method != "GET") return error(403, "DEMO_MODE", READ_ONLY)
         val p = path.substringAfter("api/v1/").trim('/')
+        if (method != "GET") return error(403, "DEMO_MODE", if (p == "voice-notes/extract") NO_VOICE_FILL else READ_ONLY)
         responses[key(p, params)]?.let { return ok(it) }
         // Searches: the unfiltered list, narrowed to entries that mention the search text.
         val q = params.firstOrNull { it.first == "q" }?.second?.trim().orEmpty()
@@ -49,6 +49,7 @@ class DemoApi(snapshotJson: String, today: LocalDate) {
         Reply(status, JsonObject(mapOf("error" to JsonObject(mapOf("code" to JsonPrimitive(code), "message" to JsonPrimitive(message))))).toString())
 
     companion object {
+        const val NO_VOICE_FILL = "Voice fill reads your words on the BrokerBuddy server, so it isn't available in the demo. Fill the form by hand, or connect to a server."
         const val READ_ONLY = "This is the demo, so changes aren't saved. Connect to a BrokerBuddy server to add or edit data."
 
         /** Query parameters that don't change which answer is shown. */

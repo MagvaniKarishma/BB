@@ -1,14 +1,14 @@
 {
   "user": {
-    "id": "cmuinoala00057d0g6bju5xel",
+    "id": "cmuiz74tm00057duheln773h2",
     "name": "Rahul Sharma",
-    "email": "owner-1790443235754@example.com",
+    "email": "owner-1790462590519@example.com",
     "phone": "+919820000002",
     "role": "OWNER",
-    "brokerageId": "cmuinoal800037d0ggixipq3t"
+    "brokerageId": "cmuiz74tl00037duhudcesm45"
   },
   "brokerage": {
-    "id": "cmuinoal800037d0ggixipq3t",
+    "id": "cmuiz74tl00037duhudcesm45",
     "name": "Sharma Realty"
   }
 }

@@ -399,4 +399,8 @@ interface ApiService {
     // Voice / typed commands
     @POST("assistant/command")
     suspend fun assistantCommand(@Body body: com.brokerbuddy.core.model.AssistantCommandRequest): com.brokerbuddy.core.model.AssistantCommandResult
+
+    // Voice fill for the requirement form (reads only; nothing saved)
+    @POST("voice-notes/extract")
+    suspend fun extractRequirement(@Body body: com.brokerbuddy.core.model.ExtractRequest): com.brokerbuddy.core.model.Extraction
 }

@@ -1,20 +1,20 @@
 {
   "message": {
-    "id": "cmuinobkf001h7d0gg20zfnrw",
-    "brokerageId": "cmuinoal800037d0ggixipq3t",
+    "id": "cmuiz75rn001h7duhgpv7740w",
+    "brokerageId": "cmuiz74tl00037duhudcesm45",
     "accountId": null,
     "contactId": null,
-    "clientId": "cmuinoax2000d7d0gglv3cm39",
+    "clientId": "cmuiz754q000d7duhv8m60a1h",
     "inquiryId": null,
     "channel": "MANUAL",
     "direction": "INBOUND",
-    "externalId": "manual:d9df28d70906eb32093ce3522b040891efe4d808",
+    "externalId": "manual:496f1fb238a6aaf64a065ceba2a579d7d9c88aa3",
     "type": "text",
     "text": "Hi, 3 BHK chahiye Powai mein 1.5 cr tak",
     "mediaId": null,
     "mediaMimeType": null,
     "senderName": null,
-    "sentAt": "2026-09-26T17:20:37.262Z",
+    "sentAt": "2026-09-26T22:43:11.985Z",
     "status": "RECEIVED",
     "errorReason": null,
     "leadPhone": null,
@@ -43,21 +43,21 @@
       "advertisedPrices": []
     },
     "review": "DISMISSED",
-    "processedAt": "2026-09-26T17:20:37.286Z",
+    "processedAt": "2026-09-26T22:43:12.010Z",
     "processError": null,
-    "createdAt": "2026-09-26T17:20:37.264Z",
+    "createdAt": "2026-09-26T22:43:11.987Z",
     "contact": null,
     "client": {
-      "id": "cmuinoax2000d7d0gglv3cm39",
+      "id": "cmuiz754q000d7duhv8m60a1h",
       "name": "Amit Patil",
       "primaryPhone": "+919876543210"
     }
   },
   "inquiries": [
     {
-      "id": "cmuinoaxm000h7d0gqeqcmfgo",
-      "brokerageId": "cmuinoal800037d0ggixipq3t",
-      "clientId": "cmuinoax2000d7d0gglv3cm39",
+      "id": "cmuiz755a000h7duhxlsa24xb",
+      "brokerageId": "cmuiz74tl00037duhudcesm45",
+      "clientId": "cmuiz754q000d7duhv8m60a1h",
       "transactionType": "RENT",
       "category": "BHK_2",
       "status": "ACTIVE",
@@ -80,8 +80,8 @@
       "notes": "Gated society",
       "source": "VOICE_NOTE",
       "version": 3,
-      "createdAt": "2026-09-26T17:20:36.442Z",
-      "updatedAt": "2026-09-26T17:20:37.051Z"
+      "createdAt": "2026-09-26T22:43:11.182Z",
+      "updatedAt": "2026-09-26T22:43:11.777Z"
     }
   ],
   "suggestedInquiryId": null,

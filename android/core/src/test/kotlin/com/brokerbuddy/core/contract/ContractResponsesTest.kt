@@ -1,6 +1,7 @@
 package com.brokerbuddy.core.contract
 
 import com.brokerbuddy.core.model.AiCallList
+import com.brokerbuddy.core.model.Extraction
 import com.brokerbuddy.core.model.AssistantCommandResult
 import com.brokerbuddy.core.model.InboundKeyResponse
 import com.brokerbuddy.core.model.PortalCsvImportResult
@@ -150,6 +151,7 @@ class ContractResponsesTest {
         "portal-inbound-key" to InboundKeyResponse.serializer(),
         "client-with-portal-leads" to ClientEnvelope.serializer(),
         "assistant-command" to AssistantCommandResult.serializer(),
+        "voice-extract" to Extraction.serializer(),
     )
 
     @Test

@@ -2,6 +2,7 @@ package com.brokerbuddy.core.contract
 
 import com.brokerbuddy.core.model.AddNoteRequest
 import com.brokerbuddy.core.model.AssistantCommandRequest
+import com.brokerbuddy.core.model.ExtractRequest
 import com.brokerbuddy.core.model.Portal
 import com.brokerbuddy.core.model.PortalCsvImportRequest
 import com.brokerbuddy.core.model.PortalLeadStatus
@@ -128,6 +129,7 @@ class ContractRequestsTest {
             Portal.HOUSING_COM,
         )),
         entry("portal-lead-status", UpdatePortalLeadRequest.serializer(), UpdatePortalLeadRequest(PortalLeadStatus.CONTACTED)),
+        entry("voice-extract", ExtractRequest.serializer(), ExtractRequest("2 BHK rent pe chahiye Andheri West mein, budget 60 se 70 hazaar", VoiceLanguage.AUTO)),
         entry("assistant-command", AssistantCommandRequest.serializer(), AssistantCommandRequest("Show today's 99acres leads", 330)),
     )
 

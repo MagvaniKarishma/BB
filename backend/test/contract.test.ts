@@ -194,6 +194,7 @@ describe("API contract with the Android app", () => {
     await save("portal-inbound-key", await send("post", "/portal-leads/integrations/HOUSING_COM/key", {}));
     await save("portal-integrations", await get("/portal-leads/integrations"));
     await save("client-with-portal-leads", await get(`/clients/${vars.clientId}`));
+    await save("voice-extract", await send("post", "/voice-notes/extract", await body("voice-extract")));
     await save("assistant-command", await send("post", "/assistant/command", await body("assistant-command")));
 
     // Every request file the app produced was used.

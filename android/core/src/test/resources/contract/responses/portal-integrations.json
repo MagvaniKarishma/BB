@@ -9,19 +9,19 @@
       "leadsByChannel": {
         "CSV": 1
       },
-      "lastLeadAt": "2026-09-26T17:20:37.458Z"
+      "lastLeadAt": "2026-09-26T22:43:12.185Z"
     },
     {
       "portal": "HOUSING_COM",
       "status": "NOT_CONNECTED",
-      "inboundKeyPrefix": "bbpl_TTfUV",
-      "keyCreatedAt": "2026-09-26T17:20:37.520Z",
+      "inboundKeyPrefix": "bbpl_4FYYH",
+      "keyCreatedAt": "2026-09-26T22:43:12.249Z",
       "lastReceivedAt": null,
       "leadsByChannel": {
         "WHATSAPP": 1,
         "EMAIL": 1
       },
-      "lastLeadAt": "2026-09-26T17:20:37.480Z"
+      "lastLeadAt": "2026-09-26T22:43:12.206Z"
     }
   ]
 }

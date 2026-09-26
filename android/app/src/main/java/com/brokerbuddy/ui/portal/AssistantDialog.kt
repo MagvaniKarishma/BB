@@ -43,7 +43,7 @@ import java.time.Instant
 import java.time.ZoneId
 
 /** Speech languages offered; Hinglish works with English (India). */
-private enum class SpeechLang(val label: String, val tag: String) {
+internal enum class SpeechLang(val label: String, val tag: String) {
     ENGLISH("English", "en-IN"),
     HINDI("हिंदी", "hi-IN"),
     MARATHI("मराठी", "mr-IN"),

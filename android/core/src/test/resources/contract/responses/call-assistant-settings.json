@@ -1,6 +1,6 @@
 {
   "settings": {
-    "brokerageId": "cmuinoal800037d0ggixipq3t",
+    "brokerageId": "cmuiz74tl00037duhudcesm45",
     "enabled": true,
     "mode": "AI_RECEPTIONIST",
     "voice": "RECORDED_STANDARD",
@@ -29,6 +29,6 @@
     "businessNumbers": [
       "+912240001234"
     ],
-    "updatedAt": "2026-09-26T17:20:37.328Z"
+    "updatedAt": "2026-09-26T22:43:12.053Z"
   }
 }

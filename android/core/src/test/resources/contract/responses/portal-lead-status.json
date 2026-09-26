@@ -1,12 +1,12 @@
 {
   "lead": {
-    "id": "cmuinobpt00227d0gfx5kiw9e",
-    "brokerageId": "cmuinoal800037d0ggixipq3t",
+    "id": "cmuiz75x500227duhcps2jvck",
+    "brokerageId": "cmuiz74tl00037duhudcesm45",
     "portal": "ACRES_99",
-    "listingId": "cmuinobp600207d0gdrpdowhm",
-    "clientId": "cmuinoax2000d7d0gglv3cm39",
+    "listingId": "cmuiz75wr00207duhidi6bn69",
+    "clientId": "cmuiz754q000d7duhv8m60a1h",
     "externalLeadId": "L-1",
-    "enquiredAt": "2026-09-26T17:20:00.000Z",
+    "enquiredAt": "2026-09-26T22:43:00.000Z",
     "name": "Amit Patil",
     "phone": "+919876543210",
     "email": null,
@@ -16,7 +16,7 @@
     "requirement": null,
     "status": "CONTACTED",
     "channel": "CSV",
-    "sourceRef": "csv:2026-09-26T17:20:37.430Z:leads.csv",
+    "sourceRef": "csv:2026-09-26T22:43:12.167Z:leads.csv",
     "raw": {
       "Name": "Amit Patil",
       "Email": "",
@@ -26,20 +26,20 @@
       "Message": "Is it available?",
       "Locality": "Andheri West",
       "Property ID": "A12345678",
-      "Enquiry Date": "26/09/2026 22:50",
+      "Enquiry Date": "27/09/2026 04:13",
       "Property Title": "2 BHK Apartment for Rent"
     },
     "dedupeKey": "ext:L-1",
-    "createdAt": "2026-09-26T17:20:37.458Z",
-    "updatedAt": "2026-09-26T17:20:37.512Z",
+    "createdAt": "2026-09-26T22:43:12.185Z",
+    "updatedAt": "2026-09-26T22:43:12.241Z",
     "client": {
-      "id": "cmuinoax2000d7d0gglv3cm39",
+      "id": "cmuiz754q000d7duhv8m60a1h",
       "name": "Amit Patil",
       "primaryPhone": "+919876543210",
       "status": "CONTACTED"
     },
     "listing": {
-      "id": "cmuinobp600207d0gdrpdowhm",
+      "id": "cmuiz75wr00207duhidi6bn69",
       "title": "2 BHK Apartment for Rent",
       "locality": "Andheri West",
       "portal": "ACRES_99"

@@ -82,3 +82,7 @@ data class ApplyVoiceNoteResponse(val inquiry: Inquiry, val changed: Boolean, va
 
 @Serializable
 data class VoiceNoteEnvelope(val voiceNote: VoiceNote)
+
+/** Words to read a requirement from (voice fill on the requirement form). Nothing is stored. */
+@Serializable
+data class ExtractRequest(val text: String, val language: VoiceLanguage = VoiceLanguage.AUTO)
