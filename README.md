@@ -18,7 +18,8 @@ A real estate CRM for Mumbai brokers. It manages clients, remembers each client'
 | 4 | WhatsApp Business Cloud API; 99acres / Housing.com / Magicbricks lead recognition | **Done** (backend tested; Android compiles, passes lint and builds in CI; not tested against Meta's live API — see `docs/WHATSAPP.md`) |
 | 5 | Security hardening, deployment, signed APK and download site | Signing config and CI are in place |
 | — | AI Call Assistant: AI receptionist with the broker's recorded greeting, requirement capture into the CRM | **Backend built and tested** (typed conversations and simulated provider calls); app compiles, passes lint and builds in CI; needs a telephony number to take real calls — see `docs/AI_CALL_ASSISTANT.md` |
-| — | Property photos (encrypted file storage) | Backend done; app upload/gallery pending |
+| — | Property photos (encrypted file storage) | Backend and app done (gallery, add/remove photos) |
+| — | Sign in with an SMS code (MSG91) | Backend tested with a simulated MSG91; app sign-in and "Your mobile number" screens built. Needs your MSG91 account and DLT template — see `docs/OTP_LOGIN.md` |
 
 ## Phase 1: what works
 

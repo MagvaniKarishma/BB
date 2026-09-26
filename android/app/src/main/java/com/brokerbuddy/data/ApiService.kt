@@ -25,6 +25,11 @@ import com.brokerbuddy.core.model.InquiryMatches
 import com.brokerbuddy.core.model.InquiryStatus
 import com.brokerbuddy.core.model.InquiryUpdateResponse
 import com.brokerbuddy.core.model.LoginRequest
+import com.brokerbuddy.core.model.OtpRequest
+import com.brokerbuddy.core.model.OtpSent
+import com.brokerbuddy.core.model.OtpStatus
+import com.brokerbuddy.core.model.OtpVerifyRequest
+import com.brokerbuddy.core.model.UserEnvelope
 import com.brokerbuddy.core.model.MeResponse
 import com.brokerbuddy.core.model.MemberEnvelope
 import com.brokerbuddy.core.model.NullableClientEnvelope
@@ -93,6 +98,21 @@ interface ApiService {
 
     @POST("auth/register")
     suspend fun register(@Body body: RegisterRequest): AuthResponse
+
+    @GET("auth/otp")
+    suspend fun otpStatus(): OtpStatus
+
+    @POST("auth/otp/request")
+    suspend fun requestOtp(@Body body: OtpRequest): OtpSent
+
+    @POST("auth/otp/verify")
+    suspend fun verifyOtp(@Body body: OtpVerifyRequest): AuthResponse
+
+    @POST("auth/phone/request")
+    suspend fun requestPhoneOtp(@Body body: OtpRequest): OtpSent
+
+    @POST("auth/phone/verify")
+    suspend fun verifyPhoneOtp(@Body body: OtpVerifyRequest): UserEnvelope
 
     @GET("auth/me")
     suspend fun me(): MeResponse

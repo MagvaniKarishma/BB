@@ -58,6 +58,7 @@ fun SettingsScreen(onBack: () -> Unit, onCallAssistant: () -> Unit) {
                 Column {
                     Text(info.brokerage.name, style = MaterialTheme.typography.titleLarge)
                     Text("${info.user.name} · ${info.user.email} · ${info.user.role.name.lowercase()}")
+                    MyMobileSection(info.user.phone, onChanged = me.reload)
                     val manager = info.user.role == Role.OWNER || info.user.role == Role.ADMIN
 
                     SectionTitle("Team")

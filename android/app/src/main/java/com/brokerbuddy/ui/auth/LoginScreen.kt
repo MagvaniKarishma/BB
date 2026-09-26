@@ -46,6 +46,15 @@ import com.brokerbuddy.R
 import com.brokerbuddy.ui.design.BrandWordmark
 import com.brokerbuddy.ui.theme.Brand
 import com.brokerbuddy.ui.theme.brand
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.text.style.TextAlign
+import com.brokerbuddy.core.model.OtpRequest
+import com.brokerbuddy.core.model.OtpStatus
+import com.brokerbuddy.core.model.OtpVerifyRequest
+import com.brokerbuddy.core.phone.PhoneNumbers
+import com.brokerbuddy.ui.design.FilterTabs
+import com.brokerbuddy.ui.design.TabItem
+import kotlinx.coroutines.delay
 
 @Composable
 fun LoginScreen() {
@@ -57,12 +66,29 @@ fun LoginScreen() {
     var name by rememberText()
     var email by rememberText()
     var password by rememberText()
+    var regMobile by rememberText()
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var info by remember { mutableStateOf<String?>(null) }
+
+    // Mobile-number sign-in, offered when the server has SMS set up.
+    var otp by remember { mutableStateOf<OtpStatus?>(null) }
+    var useMobile by rememberSaveable { mutableStateOf(true) }
+    var mobile by rememberText()
+    var code by rememberText()
+    var sentAt by rememberSaveable { mutableStateOf<Long?>(null) }
+    var resendAfter by rememberSaveable { mutableIntStateOf(30) }
 
     LaunchedEffect(Unit) {
         if (server.isEmpty()) server = container.sessionStore.current().serverUrl
     }
+    LaunchedEffect(server) {
+        if (server.isBlank()) return@LaunchedEffect
+        delay(500) // while typing
+        container.sessionStore.setServerUrl(server)
+        otp = container.api.call { otpStatus() }.getOrNull()
+    }
+    val mobileMode = !registering && otp?.enabled == true && useMobile
 
     fun submit() {
         error = null
@@ -71,7 +97,7 @@ fun LoginScreen() {
             container.sessionStore.setServerUrl(server)
             val result = container.api.call {
                 if (registering) {
-                    register(RegisterRequest(brokerage.trim(), name.trim(), email.trim(), password))
+                    register(RegisterRequest(brokerage.trim(), name.trim(), email.trim(), password, indianMobile(regMobile)))
                 } else {
                     login(LoginRequest(email.trim(), password))
                 }
@@ -80,6 +106,36 @@ fun LoginScreen() {
                 onSuccess = { container.sessionStore.signIn(it.token, it.user) },
                 onFailure = { error = it.message },
             )
+            busy = false
+        }
+    }
+
+    fun sendCode() {
+        val phone = indianMobile(mobile) ?: run { error = "Enter a 10-digit mobile number"; return }
+        error = null
+        busy = true
+        scope.launch {
+            container.sessionStore.setServerUrl(server)
+            container.api.call { requestOtp(OtpRequest(phone)) }
+                .onSuccess { sent ->
+                    resendAfter = sent.retryAfterSec
+                    sentAt = System.currentTimeMillis()
+                    code = ""
+                    info = sent.message
+                }
+                .onFailure { error = it.message }
+            busy = false
+        }
+    }
+
+    fun verifyCode() {
+        val phone = indianMobile(mobile) ?: return
+        error = null
+        busy = true
+        scope.launch {
+            container.api.call { verifyOtp(OtpVerifyRequest(phone, code)) }
+                .onSuccess { container.sessionStore.signIn(it.token, it.user) }
+                .onFailure { error = it.message; code = "" }
             busy = false
         }
     }
@@ -99,24 +155,72 @@ fun LoginScreen() {
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(24.dp)),
         )
-        Text(
-            if (registering) "Create your brokerage account" else "Sign in to your brokerage",
-            style = MaterialTheme.typography.titleMedium, color = MaterialTheme.brand.navy,
-        )
-        if (registering) {
-            OutlinedTextField(brokerage, { brokerage = it }, label = { Text("Brokerage name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(name, { name = it }, label = { Text("Your name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        if (!registering && otp?.enabled == true) {
+            FilterTabs(
+                listOf(TabItem(true, "Mobile number"), TabItem(false, "Email")),
+                selected = useMobile,
+                onSelect = { useMobile = it; error = null },
+            )
         }
-        OutlinedTextField(
-            email, { email = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-        )
-        OutlinedTextField(
-            password, { password = it }, label = { Text("Password") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            supportingText = if (registering) ({ Text("At least 8 characters") }) else null,
-        )
+        when {
+            mobileMode && sentAt == null -> {
+                Text("Login with your mobile number", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.brand.navy)
+                Text("We'll send you an OTP", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.brand.muted)
+                MobileNumberField(mobile, { mobile = it }, enabled = !busy)
+                Button(
+                    onClick = ::sendCode, enabled = indianMobile(mobile) != null && !busy,
+                    colors = ButtonDefaults.buttonColors(containerColor = Brand.Navy),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) { Text(if (busy) "Please wait…" else "Send OTP") }
+            }
+            mobileMode -> {
+                info?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.brand.muted, textAlign = TextAlign.Center) }
+                OtpCodeStep(
+                    shownNumber = indianMobile(mobile)?.let(PhoneNumbers::display) ?: mobile,
+                    code = code, onCode = { code = it }, digits = otp?.digits ?: 6,
+                    resendAfterSec = resendAfter, sentAt = sentAt ?: 0L, busy = busy,
+                    onVerify = ::verifyCode, onResend = ::sendCode,
+                    onChangeNumber = { sentAt = null; code = ""; error = null; info = null },
+                )
+            }
+            else -> {
+                Text(
+                    if (registering) "Create your brokerage account" else "Sign in to your brokerage",
+                    style = MaterialTheme.typography.titleMedium, color = MaterialTheme.brand.navy,
+                )
+                if (registering) {
+                    OutlinedTextField(brokerage, { brokerage = it }, label = { Text("Brokerage name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(name, { name = it }, label = { Text("Your name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+                OutlinedTextField(
+                    email, { email = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                )
+                OutlinedTextField(
+                    password, { password = it }, label = { Text("Password") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    supportingText = if (registering) ({ Text("At least 8 characters") }) else null,
+                )
+                if (registering) {
+                    MobileNumberField(regMobile, { regMobile = it }, enabled = !busy)
+                    Text("Optional — lets you sign in with an SMS code later.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.brand.muted)
+                }
+                val valid = server.isNotBlank() && email.isNotBlank() && password.length >= (if (registering) 8 else 1) &&
+                    (!registering || (brokerage.isNotBlank() && name.isNotBlank())) &&
+                    (!registering || regMobile.isBlank() || indianMobile(regMobile) != null)
+                Button(
+                    onClick = ::submit, enabled = valid && !busy,
+                    colors = ButtonDefaults.buttonColors(containerColor = Brand.Navy),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) {
+                    Text(if (busy) "Please wait…" else if (registering) "Create account" else "Sign in")
+                }
+            }
+        }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }
         if (showServer || server.isBlank()) {
             OutlinedTextField(
                 server, { server = it }, label = { Text("Server address") },
@@ -124,17 +228,6 @@ fun LoginScreen() {
                 singleLine = true, modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             )
-        }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        val valid = server.isNotBlank() && email.isNotBlank() && password.length >= (if (registering) 8 else 1) &&
-            (!registering || (brokerage.isNotBlank() && name.isNotBlank()))
-        Button(
-            onClick = ::submit, enabled = valid && !busy,
-            colors = ButtonDefaults.buttonColors(containerColor = Brand.Navy),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) {
-            Text(if (busy) "Please wait…" else if (registering) "Create account" else "Sign in")
         }
         TextButton(onClick = { registering = !registering; error = null }, modifier = Modifier.fillMaxWidth()) {
             Text(if (registering) "Already have an account? Sign in" else "New brokerage? Create an account")

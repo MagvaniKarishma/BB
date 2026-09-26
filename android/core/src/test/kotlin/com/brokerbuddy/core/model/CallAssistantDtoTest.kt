@@ -81,3 +81,16 @@ class PropertyDtoTest {
         assertEquals("2027-03-01", req.possessionDate)
     }
 }
+
+class IndianMobileTest {
+    @Test
+    fun `accepts the ways people type a mobile number and rejects the rest`() {
+        val p = com.brokerbuddy.core.phone.PhoneNumbers
+        assertEquals("+919820012345", p.indianMobile("98200 12345"))
+        assertEquals("+919820012345", p.indianMobile("098200 12345"))
+        assertEquals("+919820012345", p.indianMobile("919820012345"))
+        assertEquals(null, p.indianMobile("2240001234")) // landline
+        assertEquals(null, p.indianMobile("98200"))
+        assertEquals(null, p.indianMobile("9199999"))
+    }
+}

@@ -24,12 +24,30 @@ data class AuthResponse(val token: String, val user: User)
 @Serializable
 data class LoginRequest(val email: String, val password: String)
 
+/** Whether this server offers sign-in with an SMS code. */
+@Serializable
+data class OtpStatus(val enabled: Boolean = false, val digits: Int = 6, val resendAfterSec: Int = 30)
+
+@Serializable
+data class OtpRequest(val phone: String)
+
+@Serializable
+data class OtpSent(val retryAfterSec: Int = 30, val expiresInSec: Int = 300, val message: String? = null)
+
+@Serializable
+data class OtpVerifyRequest(val phone: String, val code: String)
+
+@Serializable
+data class UserEnvelope(val user: User)
+
 @Serializable
 data class RegisterRequest(
     val brokerageName: String,
     val name: String,
     val email: String,
     val password: String,
+    /** Optional mobile number, for signing in with an SMS code later. */
+    val phone: String? = null,
 )
 
 @Serializable
