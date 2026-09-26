@@ -1,0 +1,20 @@
+# Temporary: records what real portal links return, to build the rent/buy lookup. Removed after use.
+name: listing-probe
+on:
+  push:
+    paths: [.github/workflows/listing-probe.yml]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          UA="Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Mobile Safari/537.36"
+          for u in https://dzfki.app.link/XTXUr0PoI6b https://dzfki.app.link/WswPAG2oI6b https://www.99acres.com/I94007278; do
+            echo "=================== $u"
+            curl -sS -m 25 -A "$UA" -L --max-redirs 8 -D - -o body.html -w "FINAL %{http_code} %{url_effective}\n" "$u" | grep -iE "^(HTTP|location|FINAL)" || true
+            echo "--- size $(wc -c < body.html)"
+            grep -oiE '<title>[^<]{0,300}|og:(title|url|description)"[^>]{0,400}|rel="canonical"[^>]{0,300}|\$(desktop|fallback|canonical)_url[^,]{0,300}|window\.location[^;]{0,300}|"@type"\s*:\s*"[A-Za-z]+"|for[ -](rent|sale)[^"<]{0,80}' body.html | head -40
+            echo "--- curl default UA"
+            curl -sS -m 25 -L --max-redirs 8 -o body2.html -w "FINAL %{http_code} %{url_effective}\n" "$u" || true
+            grep -oiE '<title>[^<]{0,300}|og:url"[^>]{0,300}' body2.html | head -5
+          done
