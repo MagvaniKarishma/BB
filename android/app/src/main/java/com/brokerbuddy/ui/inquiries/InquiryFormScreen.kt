@@ -21,6 +21,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.brokerbuddy.ui.theme.brand
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.unit.dp
 import com.brokerbuddy.core.form.FormField
 import com.brokerbuddy.core.form.RequirementForm
@@ -68,7 +70,14 @@ fun InquiryFormScreen(clientId: String?, inquiryId: String?, onBack: () -> Unit,
         }
     }
 
-    Scaffold(topBar = { BackTopBar(if (inquiryId == null) "New requirement" else "Edit requirement", onBack) }) { padding ->
+    Scaffold(
+        containerColor = MaterialTheme.brand.background,
+        topBar = {
+            BackTopBar(if (inquiryId == null) "Add Requirement" else "Edit Requirement", onBack) {
+                TextButton(onClick = ::save, enabled = loaded && !busy) { Text("Save") }
+            }
+        },
+    ) { padding ->
         Column(
             Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
