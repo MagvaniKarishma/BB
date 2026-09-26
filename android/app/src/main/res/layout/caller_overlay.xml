@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Floating caller card (see CallerOverlay). Plain views: overlays have no Compose lifecycle owner. -->
+<!-- Floating caller card (see CallerOverlay). Plain views: overlays have no Compose lifecycle owner.
+     Inflated by the framework (not AppCompat), so android:tint is the attribute that works here. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginStart="12dp"
@@ -49,7 +51,8 @@
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/close"
             android:src="@drawable/ic_close"
-            android:tint="@color/caller_text" />
+            android:tint="@color/caller_text"
+            tools:ignore="UseAppTint" />
     </LinearLayout>
 
     <TextView
