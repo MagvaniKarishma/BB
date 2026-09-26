@@ -71,6 +71,13 @@ import com.brokerbuddy.ui.common.toast
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.height
+import com.brokerbuddy.ui.design.Avatar as DesignAvatar
 
 /** Full caller card: opened from the call notification or the floating card. */
 @Composable
@@ -132,27 +139,48 @@ private fun KnownCaller(
     val now = Instant.now()
     val zone = ZoneId.systemDefault()
 
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Avatar(c.name.trim().take(1).uppercase())
-            Column(Modifier.padding(start = 12.dp)) {
-                Text(c.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(PhoneNumbers.display(c.primaryPhone))
-                Text(
-                    listOfNotNull(c.status.label, c.leadSource.label, c.assignedTo?.name?.let { "Agent: $it" }).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+    // Caller card in the incoming-call style: who it is and what they're looking for.
+    val looking = c.inquiries.firstOrNull()
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xFF0B1F4B), Color(0xFF13306E))))
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        DesignAvatar(c.name, size = 88.dp)
+        Spacer(Modifier.height(10.dp))
+        Text(c.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(PhoneNumbers.display(c.primaryPhone), style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.8f))
+        Spacer(Modifier.height(8.dp))
+        Text(
+            (if (c.inquiries.isNotEmpty()) "Active Client" else c.status.label) + (c.assignedTo?.name?.let { " · $it" } ?: ""),
+            modifier = Modifier.background(Color(0xFF16A34A), RoundedCornerShape(50)).padding(horizontal = 14.dp, vertical = 4.dp),
+            color = Color.White, style = MaterialTheme.typography.labelMedium,
+        )
+        if (looking != null) {
+            Spacer(Modifier.height(14.dp))
+            Column(
+                Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp)).padding(14.dp),
+            ) {
+                Text("Looking for", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.7f))
+                Text("${looking.category.label} • ${looking.transactionType.label}", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                if (looking.locations.isNotEmpty()) Text(looking.locations.joinToString(", "), color = Color.White.copy(alpha = 0.9f))
+                Money.range(looking.budgetMin, looking.budgetMax)?.let { Text(it, color = Color.White, fontWeight = FontWeight.SemiBold) }
+                val details = listOfNotNull(
+                    looking.furnishing.takeIf { it.isNotEmpty() }?.joinToString("/") { it.label },
+                    looking.minParking?.takeIf { it > 0 }?.let { "Parking" },
+                    looking.possession?.label,
+                ).joinToString(" • ")
+                if (details.isNotEmpty()) Text(details, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.75f))
             }
         }
+        Spacer(Modifier.height(14.dp))
+        Button(
+            onClick = { onClient(c.id) },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("View Full Profile") }
     }
-    FlowRow(Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        ActionButton(Icons.Filled.Person, "Profile") { onClient(c.id) }
-        ActionButton(Icons.Filled.Call, "Call") { dial(context, c.primaryPhone) }
-        ActionButton(Icons.AutoMirrored.Filled.Chat, "WhatsApp") { openWhatsApp(context, c.primaryPhone) }
-        ActionButton(Icons.Filled.EditNote, "Add note") { addingNote = true }
-        ActionButton(Icons.Filled.Mic, "Voice note") { onVoiceNote(c.id) }
-    }
-
     SectionTitle(if (c.inquiries.size == 1) "Requirement" else "Requirements (${c.inquiries.size})")
     if (c.inquiries.isEmpty()) {
         EmptyMessage("No open requirements" + if (c.closedInquiries > 0) " · ${c.closedInquiries} closed" else "")
