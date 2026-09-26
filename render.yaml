@@ -1,0 +1,37 @@
+# One-click TEST server on Render's free plan (see docs/FREE_TEST_SERVER.md).
+# Free web services sleep after ~15 minutes without requests (the next request wakes them in
+# about a minute) and their disk is wiped when they restart, so uploaded photos and voice
+# recordings don't last; everything in the database does. Test data only.
+services:
+  - type: web
+    name: brokerbuddy-test
+    runtime: node
+    plan: free
+    region: singapore
+    branch: claude/brokerbuddy-android-crm-57xhqa
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: brokerbuddy-test-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATA_ENCRYPTION_KEY
+        generateValue: true
+      - key: TRUST_PROXY
+        value: "1"
+      - key: LISTING_LOOKUP
+        value: "on"
+
+databases:
+  - name: brokerbuddy-test-db
+    plan: free
+    region: singapore
+    databaseName: brokerbuddy
+    user: brokerbuddy

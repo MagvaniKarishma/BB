@@ -73,6 +73,18 @@ describe("security helpers", () => {
     bytes[0] ^= 0x01;
     expect(() => decrypt([v, iv, tag, bytes.toString("base64")].join("."))).toThrow();
   });
+
+  it("accepts a hosting service's generated key (any long random value), refuses short ones", () => {
+    const original = process.env.DATA_ENCRYPTION_KEY;
+    try {
+      process.env.DATA_ENCRYPTION_KEY = "Zx9-generated_by_host.value-with-no-fixed-format-1234";
+      expect(decrypt(encrypt("secret"))).toBe("secret");
+      process.env.DATA_ENCRYPTION_KEY = "too-short";
+      expect(() => encrypt("secret")).toThrow(/at least 32 characters/);
+    } finally {
+      process.env.DATA_ENCRYPTION_KEY = original;
+    }
+  });
 });
 
 describe("chat export (manual alternative)", () => {

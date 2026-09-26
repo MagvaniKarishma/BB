@@ -1,15 +1,17 @@
-import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 /**
  * AES-256-GCM for secrets stored in the database (WhatsApp access tokens, app secrets).
- * DATA_ENCRYPTION_KEY: 32 bytes as base64 or hex. Never logged, never returned by the API.
+ * DATA_ENCRYPTION_KEY: 32 bytes as base64 or hex (or any random value of 32+ characters, hashed to 32 bytes). Never logged, never returned by the API.
  */
 function key(): Buffer {
   const raw = process.env.DATA_ENCRYPTION_KEY;
   if (!raw) throw new Error("DATA_ENCRYPTION_KEY is not configured");
   const buf = /^[0-9a-f]{64}$/i.test(raw) ? Buffer.from(raw, "hex") : Buffer.from(raw, "base64");
-  if (buf.length !== 32) throw new Error("DATA_ENCRYPTION_KEY must be 32 bytes (base64 or hex)");
-  return buf;
+  if (buf.length === 32) return buf;
+  // Any other long random value (e.g. one a hosting service generated): derive the key from it.
+  if (raw.length >= 32) return createHash("sha256").update(raw, "utf8").digest();
+  throw new Error("DATA_ENCRYPTION_KEY must be 32 bytes (base64 or hex) or a random value of at least 32 characters");
 }
 
 export const encryptionConfigured = () => {
