@@ -14,7 +14,12 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: |
           cat > probe.mts <<'TS'
-          import { lookupListing } from "./src/whatsapp/listingLookup.ts";
+          import { fetchPage, lookupListing } from "./src/whatsapp/listingLookup.ts";
+          const r = await fetchPage("https://dzfki.app.link/XTXUr0PoI6b");
+          console.log("STATUS", r.status, r.location, "LEN", r.body?.length);
+          const b = r.body ?? "";
+          for (const m of b.matchAll(/.{0,160}(?:housing\.com|location|redirect|fallback|url).{0,200}/gi)) console.log("SNIP", m[0].replace(/\s+/g, " "));
+          console.log("HEAD", b.slice(0, 1500).replace(/\s+/g, " "));
           for (const u of ["https://dzfki.app.link/XTXUr0PoI6b", "https://dzfki.app.link/WswPAG2oI6b", "https://www.99acres.com/I94007278"]) {
             console.log(u, JSON.stringify(await lookupListing(u)));
           }

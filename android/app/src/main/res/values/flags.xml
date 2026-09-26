@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- CallScreeningService with the call-screening role exists from Android 10 (API 29). -->
+    <bool name="call_screening_supported">false</bool>
+</resources>

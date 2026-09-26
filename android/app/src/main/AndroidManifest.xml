@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Reminder notifications (runtime permission on Android 13+). -->
@@ -45,10 +46,12 @@
             android:exported="false" />
 
         <!-- Incoming-call detection via the call-screening role (Android 10+). Only the
-             system (holding BIND_SCREENING_SERVICE) can bind to it. -->
+             system (holding BIND_SCREENING_SERVICE) can bind to it; disabled below Android 10. -->
         <service
             android:name=".calls.BrokerCallScreeningService"
+            android:enabled="@bool/call_screening_supported"
             android:exported="true"
+            tools:targetApi="29"
             android:permission="android.permission.BIND_SCREENING_SERVICE">
             <intent-filter>
                 <action android:name="android.telecom.CallScreeningService" />
