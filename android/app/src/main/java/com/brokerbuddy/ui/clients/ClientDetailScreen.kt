@@ -80,6 +80,26 @@ import com.brokerbuddy.ui.theme.Tint
 import com.brokerbuddy.ui.theme.brand
 import androidx.compose.foundation.layout.height
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import com.brokerbuddy.core.format.Money
+import com.brokerbuddy.core.model.ClientStatus
+import com.brokerbuddy.core.model.TransactionType
+import com.brokerbuddy.ui.design.FilterTabs
+import com.brokerbuddy.ui.design.TabItem
 
 @Composable
 fun ClientDetailScreen(
@@ -91,6 +111,8 @@ fun ClientDetailScreen(
     /** null = record a new note; otherwise resume that note. */
     onVoiceNote: (noteId: String?) -> Unit,
     onWhatsAppHistory: () -> Unit,
+    /** Matching properties for a requirement (to share with the client). */
+    onMatches: (inquiryId: String) -> Unit,
 ) {
     val container = appContainer()
     val context = LocalContext.current
@@ -101,13 +123,15 @@ fun ClientDetailScreen(
     var addingNote by remember { mutableStateOf(false) }
     var notesVersion by remember { mutableIntStateOf(0) }
     var canDelete by remember { mutableStateOf(false) }
+    var tab by rememberSaveable { mutableStateOf("overview") }
     LaunchedEffect(Unit) {
         canDelete = container.sessionStore.current().user?.role.let { it == Role.OWNER || it == Role.ADMIN }
     }
 
     Scaffold(
+        containerColor = MaterialTheme.brand.background,
         topBar = {
-            BackTopBar("Client", onBack) {
+            BackTopBar("", onBack) {
                 IconButton(onClick = { onVoiceNote(null) }) { Icon(Icons.Filled.Mic, contentDescription = "Record voice note") }
                 IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit") }
                 if (canDelete) {
@@ -115,48 +139,73 @@ fun ClientDetailScreen(
                 }
             }
         },
+        bottomBar = {
+            val client = (loader.state as? Load.Ready)?.value
+            if (client != null) {
+                val b = MaterialTheme.brand
+                Row(
+                    Modifier.fillMaxWidth().background(b.card).navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ActionChip(Icons.Filled.EditNote, "Add Note", Modifier.weight(1f)) { addingNote = true }
+                    ActionChip(Icons.Filled.AddAlarm, "Add Follow Up", Modifier.weight(1f)) { addingReminder = true }
+                    ActionChip(Icons.Filled.Share, "Share Properties", Modifier.weight(1f)) {
+                        val active = client.inquiries.firstOrNull { it.status == InquiryStatus.ACTIVE }
+                        if (active != null) onMatches(active.id) else toast(context, "Add a requirement first to find properties to share")
+                    }
+                }
+            }
+        },
     ) { padding ->
         LoadContent(loader) { client ->
-            Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                 Header(
                     client,
                     onCall = { dial(context, client.primaryPhone) },
                     onWhatsApp = { openWhatsApp(context, client.primaryPhone) },
                     onSms = { sendSms(context, client.primaryPhone) },
+                    onAddRequirement = onAddInquiry,
+                )
+                Spacer(Modifier.height(12.dp))
+                FilterTabs(
+                    listOf(
+                        TabItem("overview", "Overview"),
+                        TabItem("requirements", "Requirements", client.inquiries.size),
+                        TabItem("activity", "Activity"),
+                    ),
+                    selected = tab,
+                    onSelect = { tab = it },
                 )
                 Spacer(Modifier.height(8.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionTitle("Inquiries", Modifier.weight(1f))
-                    TextButton(onClick = onAddInquiry) { Icon(Icons.Filled.Add, null); Text("Add") }
+                when (tab) {
+                    "overview" -> {
+                        BasicDetails(client)
+                        if (client.inquiries.isNotEmpty()) {
+                            SectionTitle("Requirements")
+                            client.inquiries.filter { it.status == InquiryStatus.ACTIVE }.ifEmpty { client.inquiries }.take(2)
+                                .forEach { InquiryCard(it) { onInquiry(it.id) } }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SectionTitle("Follow-ups", Modifier.weight(1f))
+                            TextButton(onClick = { addingReminder = true }) { Icon(Icons.Filled.AddAlarm, null); Text(" Add") }
+                        }
+                        if (client.reminders.isEmpty()) EmptyMessage("No pending follow-ups")
+                        client.reminders.forEach { r -> LabeledValue(formatDateTime(r.dueAt), r.title) }
+                    }
+                    "requirements" -> {
+                        if (client.inquiries.isEmpty()) EmptyMessage("No requirements recorded yet")
+                        client.inquiries.forEach { InquiryCard(it) { onInquiry(it.id) } }
+                        OutlinedButton(onClick = onAddInquiry, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            Icon(Icons.Filled.Add, null); Text(" Add Requirement")
+                        }
+                    }
+                    else -> {
+                        VoiceNotesSection(clientId, onVoiceNote)
+                        ClientNotesSection(clientId, refreshKey = notesVersion, onAdd = { addingNote = true })
+                        TextButton(onClick = onWhatsAppHistory) { Text("WhatsApp conversation history") }
+                    }
                 }
-                if (client.inquiries.isEmpty()) EmptyMessage("No requirements recorded yet")
-                client.inquiries.forEach { InquiryCard(it) { onInquiry(it.id) } }
-
-                TextButton(onClick = onWhatsAppHistory) { Text("WhatsApp conversation history") }
-
-                VoiceNotesSection(clientId, onVoiceNote)
-
-                ClientNotesSection(clientId, refreshKey = notesVersion, onAdd = { addingNote = true })
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionTitle("Follow-ups", Modifier.weight(1f))
-                    TextButton(onClick = { addingReminder = true }) { Icon(Icons.Filled.AddAlarm, null); Text("Add") }
-                }
-                if (client.reminders.isEmpty()) EmptyMessage("No pending follow-ups")
-                client.reminders.forEach { r ->
-                    LabeledValue(formatDateTime(r.dueAt), r.title)
-                }
-
-                SectionTitle("Details")
-                client.phones.filter { it.e164 != client.primaryPhone }.forEach {
-                    LabeledValue("Alt. phone", PhoneNumbers.display(it.e164))
-                }
-                LabeledValue("Email", client.email)
-                LabeledValue("Lead source", client.leadSource.label)
-                LabeledValue("Assigned to", client.assignedTo?.name)
-                LabeledValue("Added", formatDate(client.createdAt))
-                LabeledValue("Notes", client.notes)
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -199,23 +248,18 @@ fun ClientDetailScreen(
 }
 
 @Composable
-private fun Header(client: Client, onCall: () -> Unit, onWhatsApp: () -> Unit, onSms: () -> Unit) {
+private fun Header(client: Client, onCall: () -> Unit, onWhatsApp: () -> Unit, onSms: () -> Unit, onAddRequirement: () -> Unit) {
     val b = MaterialTheme.brand
-    BrandCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Avatar(client.name, size = 64.dp)
-            Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                Text(client.name, style = MaterialTheme.typography.titleLarge, color = b.navy)
-                Text(PhoneNumbers.display(client.primaryPhone), style = MaterialTheme.typography.bodyMedium, color = b.muted)
-                Spacer(Modifier.height(6.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Pill(client.status.label, statusTint(client.status))
-                    Pill(client.leadSource.label, b.neutral)
-                }
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Avatar(client.name, size = 84.dp)
+        Spacer(Modifier.height(8.dp))
+        Text(client.name, style = MaterialTheme.typography.headlineSmall, color = b.navy)
+        Spacer(Modifier.height(4.dp))
+        Pill(if (client.status == ClientStatus.NEW) "New Lead" else client.status.label, statusTint(client.status))
+        Spacer(Modifier.height(10.dp))
+        OutlinedButton(onClick = onAddRequirement) { Icon(Icons.Filled.Add, null); Text(" Add Requirement") }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundIconButton(Icons.Filled.Call, "Call", b.info, onCall)
             RoundIconButton(whatsAppIcon(), "WhatsApp", Tint(b.success.container, Brand.WhatsApp), onWhatsApp)
             RoundIconButton(Icons.AutoMirrored.Filled.Message, "SMS", b.purple, onSms)
@@ -224,20 +268,81 @@ private fun Header(client: Client, onCall: () -> Unit, onWhatsApp: () -> Unit, o
 }
 
 @Composable
+private fun BasicDetails(client: Client) {
+    val b = MaterialTheme.brand
+    val context = LocalContext.current
+    SectionTitle("Basic Details")
+    BrandCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Phone", style = MaterialTheme.typography.bodySmall, color = b.muted, modifier = Modifier.width(110.dp))
+            Text(PhoneNumbers.display(client.primaryPhone), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            RoundIconButton(Icons.Filled.Call, "Call", b.info, { dial(context, client.primaryPhone) }, size = 32.dp)
+            Spacer(Modifier.width(6.dp))
+            RoundIconButton(whatsAppIcon(), "WhatsApp", Tint(b.success.container, Brand.WhatsApp), { openWhatsApp(context, client.primaryPhone) }, size = 32.dp)
+        }
+        client.phones.filter { it.e164 != client.primaryPhone }.forEach { DetailLine("Alt. phone", PhoneNumbers.display(it.e164)) }
+        DetailLine("Email", client.email)
+        DetailLine("Source", client.leadSource.label)
+        DetailLine("Assigned to", client.assignedTo?.name)
+        DetailLine("Added", formatDate(client.createdAt))
+        DetailLine("Notes", client.notes)
+    }
+}
+
+@Composable
+private fun DetailLine(label: String, value: String?) {
+    if (value.isNullOrBlank()) return
+    Row(Modifier.padding(top = 10.dp)) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.brand.muted, modifier = Modifier.width(110.dp))
+        Text(value, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun ActionChip(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
+    val b = MaterialTheme.brand
+    Row(
+        modifier.clip(RoundedCornerShape(12.dp)).background(b.info.container).clickable(onClick = onClick).padding(vertical = 10.dp, horizontal = 6.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = b.link, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium, color = b.link, maxLines = 1)
+    }
+}
+
+/** A requirement on the client profile: type, area, budget, details and its status. */
+@Composable
 fun InquiryCard(inquiry: Inquiry, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Column(Modifier.padding(12.dp)) {
-            Row {
-                Text(
-                    "${inquiry.transactionType.label} · ${inquiry.category.label}",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                if (inquiry.status != InquiryStatus.ACTIVE) {
-                    Text(inquiry.status.label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val b = MaterialTheme.brand
+    val tint = when (inquiry.status) {
+        InquiryStatus.ACTIVE -> b.success
+        InquiryStatus.PAUSED -> b.amber
+        else -> b.neutral
+    }
+    BrandCard(Modifier.fillMaxWidth().padding(vertical = 4.dp), onClick = onClick, contentPadding = 0.dp) {
+        Row(Modifier.height(IntrinsicSize.Min)) {
+            Box(Modifier.width(4.dp).fillMaxHeight().background(tint.content))
+            Column(Modifier.weight(1f).padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "${inquiry.category.label} • ${inquiry.transactionType.label}",
+                        style = MaterialTheme.typography.titleSmall, color = b.navy, modifier = Modifier.weight(1f),
+                    )
+                    Pill(inquiry.status.label, tint)
                 }
+                if (inquiry.locations.isNotEmpty()) Text(inquiry.locations.joinToString(", "), style = MaterialTheme.typography.bodyMedium, color = b.muted)
+                Money.range(inquiry.budgetMin, inquiry.budgetMax)?.let {
+                    Text(it + if (inquiry.transactionType == TransactionType.RENT) " / month" else "", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                }
+                val details = listOfNotNull(
+                    inquiry.furnishing.takeIf { it.isNotEmpty() }?.joinToString("/") { it.label },
+                    inquiry.minParking?.let { if (it > 0) "Parking" else "No parking" },
+                    inquiry.possession?.label,
+                ).joinToString(" • ")
+                if (details.isNotEmpty()) Text(details, style = MaterialTheme.typography.bodySmall, color = b.muted)
             }
-            Text(requirementSummary(inquiry), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

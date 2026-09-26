@@ -254,6 +254,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                     onInquiry = { nav.navigate(Routes.inquiry(it)) },
                     onVoiceNote = { noteId -> nav.navigate(Routes.voice(id, noteId = noteId)) },
                     onWhatsAppHistory = { nav.navigate("whatsapp/client/$id") },
+                    onMatches = { inquiryId -> nav.navigate("inquiry/$inquiryId?tab=1") },
                 )
             }
             composable("client/{id}/edit") { entry ->
