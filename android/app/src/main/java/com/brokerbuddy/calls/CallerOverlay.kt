@@ -34,16 +34,20 @@ object CallerOverlay {
     private var view: View? = null
     private var windowManager: WindowManager? = null
     private var params: WindowManager.LayoutParams? = null
-    private val autoHide = Runnable { hide() }
+    private val autoHide: Runnable = Runnable { hide() }
 
-    fun show(context: Context, card: CallerCard) = main.post { showOnMain(context.applicationContext, card) }
+    fun show(context: Context, card: CallerCard) {
+        main.post { showOnMain(context.applicationContext, card) }
+    }
 
-    fun hide() = main.post {
-        val v = view ?: return@post
-        runCatching { windowManager?.removeViewImmediate(v) }
-        view = null
-        windowManager = null
-        main.removeCallbacks(autoHide)
+    fun hide() {
+        main.post {
+            val v = view ?: return@post
+            runCatching { windowManager?.removeViewImmediate(v) }
+            view = null
+            windowManager = null
+            main.removeCallbacks(autoHide)
+        }
     }
 
     private fun showOnMain(app: Context, card: CallerCard) {
