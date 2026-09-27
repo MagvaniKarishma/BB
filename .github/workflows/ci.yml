@@ -54,7 +54,7 @@ jobs:
       - name: Unit tests
         run: ./gradlew --no-daemon :core:test :app:testDebugUnitTest
       - name: Build debug APK
-        run: ./gradlew --no-daemon :app:assembleDebug
+        run: ./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
       - uses: actions/upload-artifact@v6
         with:
           name: brokerbuddy-debug-apk

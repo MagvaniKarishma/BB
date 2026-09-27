@@ -25,6 +25,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Default API endpoint; can be changed on the login screen.
         buildConfigField("String", "DEFAULT_API_URL", "\"http://10.0.2.2:4000/\"")
     }
@@ -87,6 +88,12 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.extended)
     debugImplementation(libs.compose.ui.tooling)
+    // Emulator smoke test (.github/workflows/smoke.yml)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    debugImplementation(libs.compose.ui.test.manifest)
 
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)

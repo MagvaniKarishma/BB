@@ -16,17 +16,36 @@ production.
 
 On the sign-in screen, tap **Try the demo (no server needed)**.
 
-- **Sample data:** a fictional brokerage with 11 clients, 12 listings, follow-ups, WhatsApp and portal leads and voice notes. These are real answers from the BrokerBuddy server, bundled with the app.
-- **You can add and edit:** clients, requirements, properties, follow-ups (including done and snooze) and notes. Changes are **saved on this phone only**, in the app's private storage, and stay after you close and reopen the app.
+- **Sample data:** a fictional brokerage with clients, 13 listings, follow-ups, 99acres and Housing.com enquiries, WhatsApp leads and voice notes. These are real answers from the BrokerBuddy server, bundled with the app. The names and numbers are made up — but a made-up Indian mobile number can still belong to someone, so Call, WhatsApp and SMS ask before opening one.
+- **Works in the demo, saved on this phone only** (the app's private storage; kept after closing the app or restarting the phone):
+  - Clients, requirements (Lower / Middle / Higher floor, property types), properties (type, built-up area, amenities, photos), follow-ups and callbacks, notes.
+  - Matching: Exact / Partial matches with reasons, worked out on the phone with the server's rules, so edits change the matches straight away.
+  - 99acres / Housing.com leads with Today / Yesterday / Last 7 Days / Custom, lead status, notes and follow-ups from a lead.
+  - Home: Today's Work counts and lists, in your phone's time zone.
+  - Voice: the mic on Home (“Ask”), voice fill on the requirement form, typed voice notes, and recorded voice notes (saved and playable — you type what was said, because turning a recording into text needs a server).
+  - WhatsApp (opens WhatsApp with a message typed in — you send it), calls (opens the dialer), and the caller screen.
 - **Safe to experiment:**
   - The demo never contacts any server or client database.
   - Its changes are kept apart from real accounts.
-  - The original sample data can't be changed or deleted. You can delete records you created yourself.
-- **Reset** on the yellow bar removes your demo changes and brings back the original sample data. **Exit** returns to sign-in, and your demo changes stay for next time.
-- **Needs a server, so not in the demo:** photos, voice notes and voice fill, WhatsApp, portal imports, Ask commands, SMS and AI calls. The app says so when you try them.
-- **Other limits:**
-  - Matches and requirement history for records you create in the demo are empty.
-  - Home counts include your changes. The Home lists and caller ID use the sample data.
+  - The original sample data can't be deleted. You can delete records you created yourself.
+  - If something can't be saved (e.g. the phone is full) the app says so and nothing changes; if the saved demo file is ever unreadable, it's kept as a backup and the app tells you.
+- **Reset** on the yellow bar (asks first) removes your demo changes, photos and recordings and brings back the original sample data. **Exit** returns to sign-in, and your demo changes stay for next time.
+- **Needs a server, so not in the demo:** turning recordings into text, importing portal files, the WhatsApp Business API, SMS sending and AI calls. The app says so when you try them.
+
+### A 10-minute demo walk-through
+
+1. **Try the demo** → Home shows Today's Work: New Leads, Callbacks, Follow-ups, 99acres Leads, Housing.com Leads.
+2. Clients → **+** → add a client (a made-up name and number) → Save.
+3. On their profile → **Add Requirement** → tap the big mic or type: “2 BHK on rent in Andheri West, 60 to 70 thousand, higher floor” → check the fields → Save.
+4. Properties → **+** → add a property with photos → Save → edit its price → mark it **Rented**, then **Available** again.
+5. Filter the property list (BHK, price, type…), then **Clear filters**.
+6. Open the client's requirement → **Matches**: Exact or Partial, with the reasons. The client's profile shows **Matched properties**.
+7. Home → 99acres Leads → a listing → change an enquiry's status → add a note and a follow-up.
+8. Home → **Ask** → “Schedule a follow-up with Rahul tomorrow” → Save follow-up.
+9. The client's profile → WhatsApp → pick a message → WhatsApp opens with it typed in (not sent).
+10. Mic in the bottom bar → pick a client → record a short note → type what was said → Read requirements → Save.
+11. Close the app completely and open it again: everything is still there.
+12. **Reset** → confirm: the original sample data is back.
 
 ## 1. Start the server on your computer
 
