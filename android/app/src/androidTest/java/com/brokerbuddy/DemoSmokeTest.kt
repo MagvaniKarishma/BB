@@ -81,6 +81,7 @@ class DemoSmokeTest {
         waitFor("Rahul Sharma")
 
         // Back to Home (the new-leads list has no bottom tabs), then whichever "Properties" is on screen.
+        androidx.test.espresso.Espresso.closeSoftKeyboard()
         androidx.test.espresso.Espresso.pressBack()
         waitFor("Today's Work")
         clickVisible("Properties")
