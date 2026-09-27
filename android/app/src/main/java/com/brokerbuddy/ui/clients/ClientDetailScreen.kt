@@ -187,6 +187,8 @@ fun ClientDetailScreen(
                 when (tab) {
                     "overview" -> {
                         BasicDetails(client)
+                        // What they enquired about on 99acres / Housing.com (most recent first).
+                        PortalEnquiriesSection(client.portalLeads.take(3), onPortalListing)
                         if (client.inquiries.isNotEmpty()) {
                             SectionTitle("Requirements")
                             client.inquiries.filter { it.status == InquiryStatus.ACTIVE }.ifEmpty { client.inquiries }.take(2)
@@ -359,7 +361,7 @@ fun InquiryCard(inquiry: Inquiry, onClick: () -> Unit) {
 @Composable
 private fun PortalEnquiriesSection(leads: List<ClientPortalLead>, onListing: (Portal, String, LocalDate) -> Unit) {
     if (leads.isEmpty()) return
-    SectionTitle("Portal enquiries")
+    SectionTitle(if (leads.size == 1) "Enquired about" else "Enquired about (${leads.size})")
     val zone = ZoneId.systemDefault()
     leads.forEach { l ->
         val listing = l.listing

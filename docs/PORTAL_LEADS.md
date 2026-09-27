@@ -89,6 +89,19 @@ It uses what was already read from each message and links a lead only to a clien
 - The same enquiry can arrive by two routes, e.g. the WhatsApp notification and later the CSV export. It is recognised when it's the same portal and the same phone or email, the listing matches (or one source didn't name it), and the times are within 10 minutes. The second copy only fills in missing details.
 - Two different portal lead IDs are never merged. A shared WhatsApp message's time is when it was sent or shared, which can differ from the portal's time by more than 10 minutes; those copies are then kept as two leads.
 
+## Requirement from the enquired listing
+
+Someone who enquired about "1 BHK Apartment for Rent, Mulund West" is looking for that. When the lead is linked to a client, BrokerBuddy adds that requirement:
+- **Filled in:** rent/buy, property type and area, as the listing states them.
+- **Price:**
+  - The listing's price goes into the notes as *the listing's price, not a budget the client stated*.
+  - The budget field is filled only from the client's own words (a CSV Budget column, or their message).
+- **Source:** the requirement's source is *Portal lead*, and its history starts there.
+- **Skipped when:**
+  - the listing doesn't say rent/sale and the property type, since nothing is guessed. The enquiry still shows on the client's Overview.
+  - the client already has an active requirement of the same kind. Existing requirements are never changed.
+- **After upgrading:** the backfill command below also adds these requirements for enquiries already saved.
+
 ## Listings and your own properties
 
 - A portal listing is recognised by its portal listing ID, else its link, else (only when neither is known) by rent/sale, type, area and price together.

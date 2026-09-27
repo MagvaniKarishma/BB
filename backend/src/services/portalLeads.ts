@@ -239,6 +239,7 @@ export async function recordLead(me: AuthUser, input: LeadInput): Promise<Record
     if (!existing.phone && phone) patch.phone = phone;
     if (!existing.message && message) patch.message = message;
     const lead = Object.keys(patch).length ? await prisma.portalLead.update({ where: { id: existing.id }, data: patch }) : existing;
+    if (patch.clientId || patch.listingId) await requirementFromLead(me, lead.id);
     return { lead, created: false, clientCreated: false };
   }
 
@@ -285,6 +286,7 @@ export async function recordLead(me: AuthUser, input: LeadInput): Promise<Record
         dedupeKey,
       },
     });
+    if (lead.clientId) await requirementFromLead(me, lead.id);
     return { lead, created: true, clientCreated };
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -326,9 +328,47 @@ async function sameEnquiryFromAnotherSource(
   });
 }
 
-/** A WhatsApp message was linked to a client: its portal leads follow. */
-export async function linkLeadsOfMessage(brokerageId: string, messageId: string, clientId: string) {
-  await prisma.portalLead.updateMany({ where: { brokerageId, sourceRef: messageId, clientId: null }, data: { clientId } });
+/** A WhatsApp message was linked to a client: its portal leads follow (and give a requirement if they state one). */
+export async function linkLeadsOfMessage(me: AuthUser, messageId: string, clientId: string) {
+  const leads = await prisma.portalLead.findMany({ where: { brokerageId: me.brokerageId, sourceRef: messageId, clientId: null }, select: { id: true } });
+  if (!leads.length) return;
+  await prisma.portalLead.updateMany({ where: { id: { in: leads.map((l) => l.id) } }, data: { clientId } });
+  for (const l of leads) await requirementFromLead(me, l.id);
+}
+
+const inr = (n: bigint | number) => `₹${Number(n).toLocaleString("en-IN")}`;
+
+/**
+ * The requirement a portal enquiry states: someone who enquired about a "1 BHK for rent in
+ * Mulund West" is looking for that. Created only when the listing says rent/sale and the
+ * property type, and the client has no active requirement of that kind already (existing
+ * requirements are never changed). The listing's price is noted as the advertised price —
+ * it is not a budget the client stated; a budget from the client's own words is used.
+ */
+export async function requirementFromLead(me: AuthUser, leadId: string) {
+  const lead = await prisma.portalLead.findFirst({ where: { id: leadId, brokerageId: me.brokerageId }, include: { listing: true } });
+  const l = lead?.listing;
+  if (!lead?.clientId || !l?.transactionType || !l.category) return null;
+  const existing = await prisma.inquiry.findFirst({
+    where: { clientId: lead.clientId, status: "ACTIVE", transactionType: l.transactionType, category: l.category },
+  });
+  if (existing) return null;
+  const portal = PORTAL_NAME[lead.portal as PortalSource] ?? lead.portal;
+  const about = [l.title, l.locality].filter(Boolean).join(", ") || "a listing";
+  const priced = l.price != null ? ` listed at ${inr(l.price)}${l.transactionType === "RENT" ? "/month" : ""} (the listing's price, not a budget the client stated)` : "";
+  const { createInquiry } = await import("../routes/inquiries.js");
+  return createInquiry(me, lead.clientId, {
+    transactionType: l.transactionType,
+    category: l.category,
+    status: "ACTIVE",
+    locations: l.locality ? [l.locality] : [],
+    furnishing: [],
+    mandatory: [],
+    budgetMin: lead.budgetMin != null ? Number(lead.budgetMin) : null,
+    budgetMax: lead.budgetMax != null ? Number(lead.budgetMax) : null,
+    notes: `From a ${portal} enquiry about ${about}${priced}.${lead.message ? ` Their message: “${lead.message.slice(0, 500)}”` : ""}`,
+    source: "PORTAL_LEAD",
+  });
 }
 
 // ---------- reading ----------

@@ -197,9 +197,9 @@ whatsappRouter.get("/messages/:id", async (req, res) => {
 // ---------- linking to clients (duplicate-safe) ----------
 
 /** Attaches a client to this message and to other unlinked messages about the same person. */
-async function attachClient(msg: WhatsAppMessage, clientId: string) {
+async function attachClient(me: AuthUser, msg: WhatsAppMessage, clientId: string) {
   await prisma.whatsAppMessage.update({ where: { id: msg.id }, data: { clientId, inquiryId: null } });
-  await linkLeadsOfMessage(msg.brokerageId, msg.id, clientId);
+  await linkLeadsOfMessage(me, msg.id, clientId);
   if (msg.leadPhone) {
     await prisma.whatsAppMessage.updateMany({
       where: { brokerageId: msg.brokerageId, clientId: null, leadPhone: msg.leadPhone },
@@ -252,7 +252,7 @@ whatsappRouter.post("/messages/:id/create-client", async (req, res) => {
     client = existing;
     linkedExisting = true;
   }
-  await attachClient(msg, client.id);
+  await attachClient(me, msg, client.id);
   res.status(linkedExisting ? 200 : 201).json({ client, linkedExisting, ...(await detail(me, msg.id)) });
 });
 
@@ -271,7 +271,7 @@ whatsappRouter.post("/messages/:id/link-client", async (req, res) => {
     }
     if (!owner && body.addNumber) await addPhoneChecked(me.brokerageId, client.id, msg.leadPhone, "whatsapp");
   }
-  await attachClient(msg, client.id);
+  await attachClient(me, msg, client.id);
   res.json(await detail(me, msg.id));
 });
 

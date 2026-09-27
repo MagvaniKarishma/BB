@@ -452,3 +452,54 @@ describe("quality review: upgrade backfill", () => {
     expect(await prisma.client.count()).toBe(0);
   });
 });
+
+describe("requirement from the enquired listing", () => {
+  it("a portal enquiry gives the client a requirement from the listing (not the listing price as budget)", async () => {
+    const { api } = await registerBroker();
+    await api.post("/portal-leads/import", {
+      portal: "HOUSING_COM",
+      csv: `Name,Mobile,Enquiry Date,Message,Property ID,Property Title,Locality,Price\nPooja Iyer,9820033002,${exportDate(0, 9)},Is it available?,H88001,1 BHK Apartment for Rent,Mulund West,"27,000"`,
+    });
+    const client = await prisma.client.findFirstOrThrow({ include: { inquiries: true } });
+    expect(client.inquiries).toHaveLength(1);
+    const req = client.inquiries[0];
+    expect(req).toMatchObject({ transactionType: "RENT", category: "BHK_1", locations: ["Mulund West"], source: "PORTAL_LEAD", status: "ACTIVE", budgetMin: null, budgetMax: null });
+    expect(req.notes).toContain("Housing.com enquiry about 1 BHK Apartment for Rent, Mulund West");
+    expect(req.notes).toContain("₹27,000/month (the listing's price, not a budget the client stated)");
+    expect(req.notes).toContain("Is it available?");
+    // History starts with the portal lead as its source.
+    expect((await api.get(`/inquiries/${req.id}/history`)).body.revisions[0].source).toBe("PORTAL_LEAD");
+
+    // Another enquiry of the same kind doesn't add a second requirement or change the first.
+    await api.post("/portal-leads/import", {
+      portal: "HOUSING_COM",
+      csv: `Name,Mobile,Enquiry Date,Property ID,Property Title,Locality,Price\nPooja Iyer,9820033002,${exportDate(0, 13)},H88009,1 BHK Flat for Rent,Thane West,"25,000"`,
+    });
+    const after = await prisma.inquiry.findMany();
+    expect(after).toHaveLength(1);
+    expect(after[0].locations).toEqual(["Mulund West"]);
+  });
+
+  it("uses a budget the client stated, and skips listings that don't say rent/sale and type", async () => {
+    const { api } = await registerBroker();
+    await api.post("/portal-leads/import", {
+      portal: "ACRES_99",
+      csv: `Name,Mobile,Enquiry Date,Budget,Property ID,Property Title,Locality,Price\nA,9820044001,${exportDate(0, 9)},"1.8 Cr",A1,2 BHK Apartment for Sale,Powai,"1.95 Cr"\nB,9820044002,${exportDate(0, 9)},,A2,Apartment,Powai,"1.95 Cr"`,
+    });
+    const a = await prisma.client.findFirstOrThrow({ where: { name: "A" }, include: { inquiries: true } });
+    expect(a.inquiries[0]).toMatchObject({ transactionType: "BUY", category: "BHK_2" });
+    expect(Number(a.inquiries[0].budgetMax)).toBe(18000000);
+    const b = await prisma.client.findFirstOrThrow({ where: { name: "B" }, include: { inquiries: true } });
+    expect(b.inquiries).toHaveLength(0); // "Apartment" with no rent/sale or BHK: nothing guessed
+  });
+
+  it("a WhatsApp enquiry linked to a client later also gives the requirement", async () => {
+    const { api } = await registerBroker();
+    const text = "Hi, I came across your 1 BHK Apartment for rent listed at Housing.com for ₹ 27,000 in Mulund West, Mumbai. Please let me know if it is available.";
+    const msg = (await api.post("/whatsapp/import", { text })).body.message;
+    expect(await prisma.inquiry.count()).toBe(0); // no phone yet → no client, no requirement
+    await api.post(`/whatsapp/messages/${msg.id}/create-client`, { name: "Sameer", phone: "9820033001" });
+    const client = await prisma.client.findFirstOrThrow({ include: { inquiries: true } });
+    expect(client.inquiries.map((i) => [i.category, i.locations])).toEqual([["BHK_1", ["Mulund West"]]]);
+  });
+});

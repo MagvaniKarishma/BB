@@ -1,10 +1,10 @@
 {
   "revisions": [
     {
-      "id": "cmuiz755q000l7duh3mu12b86",
-      "inquiryId": "cmuiz755a000h7duhxlsa24xb",
+      "id": "cmujfl81i000l7dacxt5j1n53",
+      "inquiryId": "cmujfl813000h7dacr57vykye",
       "version": 2,
-      "changedById": "cmuiz74tm00057duheln773h2",
+      "changedById": "cmujfl7rd00057dacj3805w21",
       "source": "MANUAL",
       "changes": {
         "budgetMax": {
@@ -36,18 +36,18 @@
       },
       "voiceNoteId": null,
       "whatsappMessageId": null,
-      "createdAt": "2026-09-26T22:43:11.198Z",
+      "createdAt": "2026-09-27T06:22:01.974Z",
       "changedBy": {
-        "id": "cmuiz74tm00057duheln773h2",
+        "id": "cmujfl7rd00057dacj3805w21",
         "name": "Rahul Sharma"
       },
       "voiceNote": null
     },
     {
-      "id": "cmuiz755d000j7duh0beapvhf",
-      "inquiryId": "cmuiz755a000h7duhxlsa24xb",
+      "id": "cmujfl815000j7dac498ocdvu",
+      "inquiryId": "cmujfl813000h7dacr57vykye",
       "version": 1,
-      "changedById": "cmuiz74tm00057duheln773h2",
+      "changedById": "cmujfl7rd00057dacj3805w21",
       "source": "MANUAL",
       "changes": {
         "notes": "Gated society",
@@ -95,9 +95,9 @@
       },
       "voiceNoteId": null,
       "whatsappMessageId": null,
-      "createdAt": "2026-09-26T22:43:11.186Z",
+      "createdAt": "2026-09-27T06:22:01.962Z",
       "changedBy": {
-        "id": "cmuiz74tm00057duheln773h2",
+        "id": "cmujfl7rd00057dacj3805w21",
         "name": "Rahul Sharma"
       },
       "voiceNote": null

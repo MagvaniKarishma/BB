@@ -1,20 +1,20 @@
 {
   "message": {
-    "id": "cmuiz75nj00137duhq339stvj",
-    "brokerageId": "cmuiz74tl00037duhudcesm45",
+    "id": "cmujfl8g400137dacs4cwjpoh",
+    "brokerageId": "cmujfl7rc00037dacqq57826b",
     "accountId": null,
     "contactId": null,
-    "clientId": "cmuiz75oz00197duh2a38pm34",
+    "clientId": "cmujfl8hc00197dacg4evtoeo",
     "inquiryId": null,
     "channel": "MANUAL",
     "direction": "INBOUND",
-    "externalId": "manual:13816c35aff4b182e371da15dc714920109223f2",
+    "externalId": "manual:3846bf2f1ca8f9cca107e1e2b74e0c538f217cbc",
     "type": "text",
     "text": "Hi, I came across your 1 BHK Apartment listed at Housing.com for ₹ 27,000 in Mulund West, Mumbai. Please let me know if it is available.",
     "mediaId": null,
     "mediaMimeType": null,
     "senderName": null,
-    "sentAt": "2026-09-26T22:43:11.837Z",
+    "sentAt": "2026-09-27T06:22:02.498Z",
     "status": "RECEIVED",
     "errorReason": null,
     "leadPhone": null,
@@ -70,12 +70,12 @@
       ]
     },
     "review": "PENDING",
-    "processedAt": "2026-09-26T22:43:11.934Z",
+    "processedAt": "2026-09-27T06:22:02.585Z",
     "processError": null,
-    "createdAt": "2026-09-26T22:43:11.839Z",
+    "createdAt": "2026-09-27T06:22:02.500Z",
     "contact": null,
     "client": {
-      "id": "cmuiz75oz00197duh2a38pm34",
+      "id": "cmujfl8hc00197dacg4evtoeo",
       "name": "Sneha Kulkarni",
       "primaryPhone": "+919820055555"
     }

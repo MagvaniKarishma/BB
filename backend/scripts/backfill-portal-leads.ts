@@ -12,7 +12,7 @@
  */
 import type { PropertyCategory } from "@prisma/client";
 import { prisma } from "../src/db.js";
-import { brokerageActor, isPortal, recordLead } from "../src/services/portalLeads.js";
+import { brokerageActor, isPortal, recordLead, requirementFromLead } from "../src/services/portalLeads.js";
 import type { Extraction } from "../src/voice/draft.js";
 import type { PortalLead } from "../src/whatsapp/portalLeads.js";
 
@@ -58,13 +58,21 @@ export async function backfillPortalLeads(apply: boolean) {
     });
     if (out.created) added++; else existing++;
   }
-  return { messages: messages.length, added, existing };
+  // Leads linked to a client whose listing states rent/sale and type: add that requirement
+  // where the client has none of that kind (existing requirements are never changed).
+  let requirements = 0;
+  const linked = await prisma.portalLead.findMany({ where: { clientId: { not: null }, listingId: { not: null } }, select: { id: true, brokerageId: true } });
+  for (const l of linked) {
+    if (!apply) continue;
+    if (await requirementFromLead(await brokerageActor(l.brokerageId), l.id)) requirements++;
+  }
+  return { messages: messages.length, added, existing, requirements };
 }
 
 const isMain = process.argv[1]?.endsWith("backfill-portal-leads.ts");
 if (isMain) {
   const apply = process.argv.includes("--apply");
   backfillPortalLeads(apply)
-    .then((r) => console.log(`${apply ? "Backfilled" : "Dry run —"} ${r.added} lead(s) to add, ${r.existing} already present, from ${r.messages} portal message(s).`))
+    .then((r) => console.log(`${apply ? "Backfilled" : "Dry run —"} ${r.added} lead(s) to add, ${r.existing} already present, from ${r.messages} portal message(s); ${apply ? `${r.requirements} requirement(s) added from enquired listings` : "requirements are added with --apply"}.`))
     .finally(() => prisma.$disconnect());
 }
