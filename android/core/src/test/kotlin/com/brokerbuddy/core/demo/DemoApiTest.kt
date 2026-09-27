@@ -42,7 +42,7 @@ class DemoApiTest {
     private val snapshot = """
         {"capturedOn":"2026-09-26","responses":{
           "clients?group=all":{"clients":[{"id":"a","name":"Rahul Sharma","phone":"+919820011001"},{"id":"b","name":"Priya Mehta","phone":"+919820011002"}],"total":2},
-          "reminders?status=PENDING":{"reminders":[{"id":"r","dueAt":"2026-09-26T09:30:00.000Z"}]}
+          "reminders":{"reminders":[{"id":"r","status":"PENDING","dueAt":"2026-09-26T09:30:00.000Z"}]}
         }}
     """.trimIndent()
 
@@ -72,9 +72,9 @@ class DemoApiTest {
     }
 
     @Test
-    fun changesAreRefusedAndUnknownReadsAre404() {
+    fun serverOnlyFeaturesAreRefusedAndUnknownReadsAre404() {
         val api = DemoApi(snapshot, LocalDate.parse("2026-09-26"))
-        val post = api.handle("POST", "/api/v1/clients", emptyList())
+        val post = api.handle("POST", "/api/v1/whatsapp/import", emptyList(), "{}")
         assertEquals(403, post.status)
         assertTrue("DEMO_MODE" in post.body)
         assertEquals(404, api.handle("GET", "/api/v1/properties/x/photos/y", emptyList()).status)

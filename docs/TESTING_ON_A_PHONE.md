@@ -14,14 +14,19 @@ production.
 
 ## Quickest look: the demo (no server)
 
-On the sign-in screen, tap **Try the demo (no server needed)**. The app opens with a sample brokerage: 11 clients, 12 listings, follow-ups, WhatsApp leads and voice notes. These are real answers from the BrokerBuddy server, saved into the app and served on the phone.
-- **What works:** every screen, lists, tabs, search, client and property details, matches and requirement history. Dates move forward so today's follow-ups stay "today".
-- **What doesn't:** nothing you add or change is saved; the app says so. Photos, recordings, SMS, WhatsApp sending, AI calls and caller ID are off. Follow-up notifications don't fire.
-- **Leaving:** tap **Exit demo** on the yellow bar to return to sign-in.
+On the sign-in screen, tap **Try the demo (no server needed)**.
 
-To test saving data, use your own server (below).
-
-To refresh the sample data after server changes, run `backend/scripts/demo-snapshot.ts` against an empty scratch database. The script's header has the command.
+- **Sample data:** a fictional brokerage with 11 clients, 12 listings, follow-ups, WhatsApp and portal leads and voice notes. These are real answers from the BrokerBuddy server, bundled with the app.
+- **You can add and edit:** clients, requirements, properties, follow-ups (including done and snooze) and notes. Changes are **saved on this phone only**, in the app's private storage, and stay after you close and reopen the app.
+- **Safe to experiment:**
+  - The demo never contacts any server or client database.
+  - Its changes are kept apart from real accounts.
+  - The original sample data can't be changed or deleted. You can delete records you created yourself.
+- **Reset** on the yellow bar removes your demo changes and brings back the original sample data. **Exit** returns to sign-in, and your demo changes stay for next time.
+- **Needs a server, so not in the demo:** photos, voice notes and voice fill, WhatsApp, portal imports, Ask commands, SMS and AI calls. The app says so when you try them.
+- **Other limits:**
+  - Matches and requirement history for records you create in the demo are empty.
+  - Home counts include your changes. The Home lists and caller ID use the sample data.
 
 ## 1. Start the server on your computer
 

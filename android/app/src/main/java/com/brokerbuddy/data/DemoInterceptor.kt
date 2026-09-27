@@ -2,6 +2,7 @@ package com.brokerbuddy.data
 
 import android.content.Context
 import com.brokerbuddy.core.demo.DemoApi
+import com.brokerbuddy.core.demo.DemoChanges
 import com.brokerbuddy.core.model.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -11,33 +12,68 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
+import java.io.File
 import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * While the offline demo is on, answers every API request on the phone from the bundled sample
- * data (assets/demo/responses.json) instead of the network. Otherwise passes requests through.
+ * While the offline demo is on, answers every API request on the phone — nothing reaches the
+ * network. Reads come from the bundled sample data (assets/demo/responses.json, never modified);
+ * what the broker adds or edits in the demo is saved in the app's private storage
+ * (files/demo/changes.json), separate from any real account, and survives restarts until
+ * [reset]. Outside the demo, requests pass through untouched.
  */
 class DemoInterceptor(private val context: Context, private val sessionStore: SessionStore) : Interceptor {
+    private val file: File get() = File(context.filesDir, "demo/changes.json")
+
     private val api: DemoApi by lazy {
         val snapshot = context.assets.open("demo/responses.json").bufferedReader().use { it.readText() }
-        DemoApi(snapshot, LocalDate.now(ZoneId.of("Asia/Kolkata")))
+        val saved = runCatching { file.takeIf { it.exists() }?.readText() }.getOrNull()
+        DemoApi(snapshot, LocalDate.now(ZoneId.of("Asia/Kolkata")), DemoChanges.fromJson(saved), onChange = ::save)
     }
 
     /** The demo broker to sign in as. */
     suspend fun user(): User = withContext(Dispatchers.IO) { api.user() }
+
+    /** How many demo changes are saved on this phone. */
+    suspend fun changeCount(): Int = withContext(Dispatchers.IO) { api.changes.count }
+
+    /** Back to the original sample data: forgets every demo change (the sample data itself is untouched). */
+    suspend fun reset() = withContext(Dispatchers.IO) { api.reset() }
+
+    @Synchronized
+    private fun save(changes: DemoChanges) {
+        val f = file
+        f.parentFile?.mkdirs()
+        if (changes.count == 0) {
+            f.delete()
+            return
+        }
+        // Write then rename, so a crash mid-write never leaves a half-written file.
+        val tmp = File(f.parentFile, "changes.json.tmp")
+        tmp.writeText(changes.toJson())
+        if (!tmp.renameTo(f)) {
+            f.delete()
+            tmp.renameTo(f)
+        }
+    }
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         if (runBlocking { sessionStore.current().token } != DEMO_TOKEN) return chain.proceed(request)
         val url = request.url
         val params = (0 until url.querySize).map { url.queryParameterName(it) to url.queryParameterValue(it) }
-        val reply = api.handle(request.method, url.pathSegments.joinToString("/"), params)
+        // JSON bodies only; uploads (photos, recordings) aren't kept in the demo.
+        val body = request.body?.takeIf { it.contentType()?.subtype == "json" }?.let { b ->
+            Buffer().also { b.writeTo(it) }.readUtf8()
+        }
+        val reply = api.handle(request.method, url.pathSegments.joinToString("/"), params, body)
         return Response.Builder()
             .request(request)
             .protocol(Protocol.HTTP_1_1)
             .code(reply.status)
-            .message(if (reply.status == 200) "OK" else "Demo")
+            .message(if (reply.status in 200..299) "OK" else "Demo")
             .body(reply.body.toResponseBody("application/json".toMediaType()))
             .build()
     }

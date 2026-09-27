@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import android.Manifest
+import com.brokerbuddy.data.DEMO_TOKEN
 import com.brokerbuddy.core.model.Portal
 import com.brokerbuddy.core.model.ReminderKind
 import com.brokerbuddy.core.portal.DateFilter
@@ -200,7 +201,21 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
         bottomBar = {
             val onTab = tabs.any { it.route == currentRoute }
             Column {
-                if (isDemo) DemoBanner(onExit = { scope.launch { container.sessionStore.signOut() } }, aboveTabs = onTab)
+                if (isDemo) {
+                    DemoBanner(
+                        onExit = { scope.launch { container.sessionStore.signOut() } },
+                        onReset = {
+                            scope.launch {
+                                container.demo.reset()
+                                // Sign in again so every screen reloads the original sample data.
+                                val user = container.demo.user()
+                                container.sessionStore.signOut()
+                                container.sessionStore.signIn(DEMO_TOKEN, user)
+                            }
+                        },
+                        aboveTabs = onTab,
+                    )
+                }
                 if (onTab) {
                     BrandBottomBar(
                         items = tabs,
@@ -550,10 +565,11 @@ private fun RequestNotificationPermissionOnce() {
     LaunchedEffect(Unit) { launcher.launch(Manifest.permission.POST_NOTIFICATIONS) }
 }
 
-/** Shown on every screen while the offline demo is on. */
+/** Shown on every screen while the offline demo is on: it's sample data, with Reset and Exit. */
 @Composable
-private fun DemoBanner(onExit: () -> Unit, aboveTabs: Boolean) {
+private fun DemoBanner(onExit: () -> Unit, onReset: () -> Unit, aboveTabs: Boolean) {
     val tint = MaterialTheme.brand.amber
+    var confirmReset by remember { mutableStateOf(false) }
     androidx.compose.foundation.layout.Row(
         Modifier.fillMaxWidth().background(tint.container)
             .then(if (aboveTabs) Modifier else Modifier.navigationBarsPadding())
@@ -561,9 +577,19 @@ private fun DemoBanner(onExit: () -> Unit, aboveTabs: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "Demo · sample data, changes aren't saved",
+            "Demo · sample data, saved on this phone only",
             style = MaterialTheme.typography.bodySmall, color = tint.content, modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = onExit) { Text("Exit demo", color = tint.content) }
+        TextButton(onClick = { confirmReset = true }) { Text("Reset", color = tint.content) }
+        TextButton(onClick = onExit) { Text("Exit", color = tint.content) }
+    }
+    if (confirmReset) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text("Reset the demo?") },
+            text = { Text("Everything you added or changed in the demo is removed and the original sample data comes back. Real accounts aren't affected.") },
+            confirmButton = { TextButton(onClick = { confirmReset = false; onReset() }) { Text("Reset") } },
+            dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } },
+        )
     }
 }

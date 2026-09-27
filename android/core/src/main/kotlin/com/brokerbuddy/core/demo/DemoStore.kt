@@ -1,0 +1,369 @@
+package com.brokerbuddy.core.demo
+
+import com.brokerbuddy.core.model.ApiJson
+import com.brokerbuddy.core.phone.PhoneNumbers
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+
+/**
+ * What the broker changed in the demo, kept on the phone. The original sample data (bundled
+ * with the app) is never modified: records created or edited in the demo live here and are
+ * laid over the sample data on every read. Clearing this restores the original demo.
+ */
+@Serializable
+class DemoChanges(
+    val clients: MutableMap<String, JsonObject> = mutableMapOf(),
+    val properties: MutableMap<String, JsonObject> = mutableMapOf(),
+    val inquiries: MutableMap<String, JsonObject> = mutableMapOf(),
+    val reminders: MutableMap<String, JsonObject> = mutableMapOf(),
+    val notes: MutableMap<String, JsonObject> = mutableMapOf(),
+    /** Ids of records created in the demo (only these can be deleted). */
+    val created: MutableSet<String> = mutableSetOf(),
+    val deleted: MutableSet<String> = mutableSetOf(),
+    var seq: Long = 0,
+) {
+    val count: Int get() = clients.size + properties.size + inquiries.size + reminders.size + notes.size + deleted.size
+
+    fun clear() {
+        clients.clear(); properties.clear(); inquiries.clear(); reminders.clear(); notes.clear()
+        created.clear(); deleted.clear(); seq = 0
+    }
+
+    fun toJson(): String = ApiJson.encodeToString(serializer(), this)
+
+    companion object {
+        fun fromJson(json: String?): DemoChanges =
+            json?.let { runCatching { ApiJson.decodeFromString(serializer(), it) }.getOrNull() } ?: DemoChanges()
+    }
+}
+
+// ---------- small JSON helpers ----------
+
+internal fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
+internal fun JsonObject.obj(key: String): JsonObject? = this[key] as? JsonObject
+internal fun JsonObject.arr(key: String): List<JsonObject> = (this[key] as? JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
+internal fun JsonObject.plus(vararg pairs: Pair<String, JsonElement?>): JsonObject =
+    JsonObject(this + pairs.associate { (k, v) -> k to (v ?: JsonNull) })
+internal fun JsonObject.merge(patch: JsonObject): JsonObject = JsonObject(this + patch)
+internal fun jsonOf(vararg pairs: Pair<String, JsonElement?>): JsonObject = JsonObject(pairs.associate { (k, v) -> k to (v ?: JsonNull) })
+internal fun s(v: String?): JsonElement = v?.let(::JsonPrimitive) ?: JsonNull
+internal fun list(items: List<JsonElement>) = JsonArray(items)
+
+/**
+ * The writable part of the demo: creates and edits of clients, requirements, properties,
+ * follow-ups and notes, answered the way the server would answer them, and merged into
+ * what the screens read. Photos, voice notes, WhatsApp, portal imports and other
+ * server-side features stay read-only in the demo.
+ */
+internal class DemoStore(
+    private val changes: DemoChanges,
+    private val base: (String) -> JsonElement?,
+    private val me: JsonObject,
+    private val brokerageId: String,
+    private val now: () -> Instant,
+    private val zone: ZoneId = ZoneId.of("Asia/Kolkata"),
+) {
+    private fun nowIso() = now().toString()
+    private fun newId(kind: String): String {
+        changes.seq += 1
+        return "demo-$kind-${changes.seq}"
+    }
+    private fun meRef() = jsonOf("id" to me["id"], "name" to me["name"])
+
+    // ---------- merged reads ----------
+
+    /** Every client list item (sample + created), with edits applied. */
+    fun allClientItems(): List<JsonObject> {
+        val sample = base("clients?group=all")?.jsonObject?.arr("clients").orEmpty()
+        val sampleIds = sample.map { it.str("id") }.toSet()
+        val items = sample.filter { it.str("id") !in changes.deleted }.map { item ->
+            val id = item.str("id")!!
+            changes.clients[id]?.let { edited -> item.merge(clientFields(edited)) } ?: item
+        }
+        val created = changes.clients.values
+            .filter { it.str("id") !in sampleIds && it.str("id") !in changes.deleted }
+            .sortedByDescending { it.str("createdAt") }
+            .map { c -> c.plus("assignedTo" to meRef()) }
+        return (created + items).map { withFollowUpAndRequirement(it) }
+    }
+
+    private fun clientFields(c: JsonObject) = JsonObject(c.filterKeys { it in CLIENT_FIELDS })
+
+    private fun withFollowUpAndRequirement(item: JsonObject): JsonObject {
+        val id = item.str("id")!!
+        val pending = remindersAll().filter { it.str("clientId") == id && it.str("status") == "PENDING" }
+        val endOfToday = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant()
+        val next = pending.mapNotNull { it.str("dueAt") }.minOrNull()
+        val due = pending.any { r -> r.str("dueAt")?.let { runCatching { Instant.parse(it) < endOfToday }.getOrDefault(false) } == true }
+        val active = inquiriesOf(id).filter { it.str("status") == "ACTIVE" }
+        val latest = active.maxByOrNull { it.str("updatedAt") ?: "" }
+        val touched = id in changes.created || changes.inquiries.values.any { it.str("clientId") == id }
+        return item.plus(
+            "nextFollowUpAt" to s(next),
+            "followUpDue" to JsonPrimitive(due),
+        ).let { i ->
+            if (!touched) i else i.plus(
+                "activeInquiries" to JsonPrimitive(active.size),
+                "requirement" to latest?.let {
+                    jsonOf(
+                        "id" to it["id"], "transactionType" to it["transactionType"], "category" to it["category"],
+                        "locations" to it["locations"], "budgetMin" to it["budgetMin"], "budgetMax" to it["budgetMax"],
+                    )
+                },
+            )
+        }
+    }
+
+    fun clientDetail(id: String): JsonObject? {
+        if (id in changes.deleted) return null
+        val sample = base("clients/$id")?.jsonObject?.obj("client")
+        val edited = changes.clients[id]
+        val client = when {
+            sample != null && edited != null -> sample.merge(clientFields(edited))
+            sample != null -> sample
+            edited != null -> edited.plus("assignedTo" to meRef(), "portalLeads" to list(emptyList()))
+            else -> return null
+        }
+        val inquiries = inquiriesOf(id).map { JsonObject(it.filterKeys { k -> k != "client" && k != "matchCount" }) }
+            .sortedWith(compareBy<JsonObject>({ if (it.str("status") == "ACTIVE") 0 else 1 }).thenByDescending { it.str("updatedAt") })
+        val reminders = remindersAll().filter { it.str("clientId") == id && it.str("status") == "PENDING" }
+            .map { JsonObject(it.filterKeys { k -> k != "client" && k != "assignedTo" }) }
+            .sortedBy { it.str("dueAt") }
+        return client.plus("inquiries" to list(inquiries), "reminders" to list(reminders))
+    }
+
+    fun clientRef(id: String): JsonObject? {
+        val c = changes.clients[id] ?: base("clients/$id")?.jsonObject?.obj("client")
+            ?: allClientItems().firstOrNull { it.str("id") == id } ?: return null
+        return jsonOf("id" to c["id"], "name" to c["name"], "primaryPhone" to c["primaryPhone"], "status" to c["status"])
+    }
+
+    /** Requirements of one client: the sample ones (with edits) plus ones created in the demo. */
+    fun inquiriesOf(clientId: String): List<JsonObject> =
+        inquiriesAll().filter { it.str("clientId") == clientId }
+
+    fun inquiriesAll(): List<JsonObject> {
+        val sample = base("inquiries")?.jsonObject?.arr("inquiries").orEmpty()
+        // Sample requirements of clients the list doesn't cover (e.g. fulfilled ones) come from client details.
+        val byId = LinkedHashMap<String, JsonObject>()
+        for (i in sample) byId[i.str("id")!!] = i
+        for (c in base("clients?group=all")?.jsonObject?.arr("clients").orEmpty()) {
+            val cid = c.str("id") ?: continue
+            for (i in base("clients/$cid")?.jsonObject?.obj("client")?.arr("inquiries").orEmpty()) byId.putIfAbsent(i.str("id")!!, i)
+        }
+        for ((id, i) in changes.inquiries) byId[id] = byId[id]?.merge(i) ?: i
+        return byId.values.filter { it.str("id") !in changes.deleted && it.str("clientId") !in changes.deleted }
+    }
+
+    fun inquiryItem(i: JsonObject): JsonObject =
+        i.plus("client" to (i.str("clientId")?.let(::clientRef)), "matchCount" to (i["matchCount"] ?: JsonPrimitive(0)))
+
+    fun propertiesAll(): List<JsonObject> {
+        val sample = base("properties")?.jsonObject?.arr("properties").orEmpty()
+        val byId = LinkedHashMap<String, JsonObject>()
+        changes.properties.values.filter { it.str("id") in changes.created }.sortedByDescending { it.str("createdAt") }
+            .forEach { byId[it.str("id")!!] = it }
+        for (p in sample) byId[p.str("id")!!] = changes.properties[p.str("id")]?.let { p.merge(it) } ?: p
+        return byId.values.filter { it.str("id") !in changes.deleted }
+    }
+
+    fun remindersAll(): List<JsonObject> {
+        val sample = base("reminders")?.jsonObject?.arr("reminders").orEmpty()
+        val byId = LinkedHashMap<String, JsonObject>()
+        for (r in sample) byId[r.str("id")!!] = r
+        for ((id, r) in changes.reminders) byId[id] = byId[id]?.merge(r) ?: r
+        return byId.values.filter { it.str("id") !in changes.deleted && it.str("clientId") !in changes.deleted }
+            .sortedBy { it.str("dueAt") }
+    }
+
+    fun notesOf(clientId: String): List<JsonObject> {
+        val sample = base("clients/$clientId/notes")?.jsonObject?.arr("notes").orEmpty()
+        val mine = changes.notes.values.filter { it.str("clientId") == clientId }
+        return (sample + mine).sortedByDescending { it.str("createdAt") }
+    }
+
+    // ---------- writes ----------
+
+    sealed interface Out {
+        data class Ok(val status: Int, val body: JsonElement) : Out
+        data class Err(val status: Int, val code: String, val message: String, val details: JsonElement? = null) : Out
+    }
+
+    private fun badRequest(message: String) = Out.Err(400, "VALIDATION_ERROR", message)
+    private fun notFound(what: String) = Out.Err(404, "NOT_FOUND", "$what not found")
+
+    private fun existingClientWithPhone(e164: String, exceptId: String? = null): JsonObject? =
+        allClientItems().firstOrNull { it.str("primaryPhone") == e164 && it.str("id") != exceptId }
+
+    fun createClient(body: JsonObject): Out {
+        val name = body.str("name")?.trim().orEmpty()
+        val raw = body.str("phone")?.trim().orEmpty()
+        if (name.isEmpty() || raw.isEmpty()) return badRequest("Name and phone are required")
+        val phone = PhoneNumbers.normalize(raw) ?: return Out.Err(400, "INVALID_PHONE", "\"$raw\" is not a valid phone number")
+        existingClientWithPhone(phone)?.let { c ->
+            return Out.Err(
+                409, "DUPLICATE_CLIENT", "A client with this phone number already exists: ${c.str("name")}",
+                jsonOf("existingClient" to jsonOf("id" to c["id"], "name" to c["name"], "primaryPhone" to c["primaryPhone"]), "matchedOn" to s("phone number")),
+            )
+        }
+        val id = newId("client")
+        val t = nowIso()
+        val client = jsonOf(
+            "id" to s(id), "brokerageId" to s(brokerageId), "name" to s(name), "primaryPhone" to s(phone),
+            "email" to body["email"], "leadSource" to (body["leadSource"] ?: s("OTHER")), "status" to (body["status"] ?: s("NEW")),
+            "notes" to body["notes"], "assignedToId" to me["id"], "createdAt" to s(t), "updatedAt" to s(t),
+            "phones" to list(listOf(jsonOf("id" to s("$id-phone"), "brokerageId" to s(brokerageId), "clientId" to s(id), "e164" to s(phone), "label" to s("primary")))),
+        )
+        changes.clients[id] = client
+        changes.created += id
+        return Out.Ok(201, jsonOf("client" to client))
+    }
+
+    fun updateClient(id: String, body: JsonObject): Out {
+        val current = clientDetail(id) ?: return notFound("Client")
+        val patch = JsonObject(body.filterKeys { it in setOf("name", "email", "leadSource", "status", "notes") })
+        if (patch.str("name")?.isBlank() == true) return badRequest("Name can't be empty")
+        val updated = JsonObject(clientFields(current) + patch).plus("updatedAt" to s(nowIso()))
+        changes.clients[id] = (changes.clients[id] ?: JsonObject(emptyMap())).merge(updated)
+        return Out.Ok(200, jsonOf("client" to JsonObject(updated.filterKeys { it in CLIENT_FIELDS })))
+    }
+
+    fun deleteClient(id: String): Out {
+        if (id !in changes.created) return Out.Err(403, "DEMO_SAMPLE", SAMPLE_NOT_DELETABLE)
+        changes.deleted += id
+        return Out.Ok(204, JsonNull)
+    }
+
+    private val requirementKeys = setOf(
+        "transactionType", "category", "status", "budgetMin", "budgetMax", "locations", "furnishing", "minParking",
+        "floorMin", "floorMax", "possession", "possessionBy", "mandatory", "notes", "source",
+    )
+
+    fun createInquiry(clientId: String, body: JsonObject): Out {
+        clientDetail(clientId) ?: return notFound("Client")
+        if (body.str("transactionType") == null || body.str("category") == null) return badRequest("Rent/Buy and property type are required")
+        val id = newId("requirement")
+        val t = nowIso()
+        val inquiry = JsonObject(body.filterKeys { it in requirementKeys }).plus(
+            "id" to s(id), "brokerageId" to s(brokerageId), "clientId" to s(clientId),
+            "status" to (body["status"] ?: s("ACTIVE")), "source" to (body["source"] ?: s("MANUAL")),
+            "version" to JsonPrimitive(1), "createdAt" to s(t), "updatedAt" to s(t),
+        )
+        changes.inquiries[id] = inquiry
+        changes.created += id
+        return Out.Ok(201, jsonOf("inquiry" to inquiry))
+    }
+
+    fun updateInquiry(id: String, body: JsonObject): Out {
+        val current = inquiriesAll().firstOrNull { it.str("id") == id } ?: return notFound("Requirement")
+        val version = (current["version"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: 1
+        val updated = JsonObject(current.filterKeys { it != "client" && it != "matchCount" })
+            .merge(JsonObject(body.filterKeys { it in requirementKeys }))
+            .plus("version" to JsonPrimitive(version + 1), "updatedAt" to s(nowIso()))
+        changes.inquiries[id] = updated
+        return Out.Ok(200, jsonOf("inquiry" to updated, "changed" to JsonPrimitive(true)))
+    }
+
+    private val propertyKeys = setOf(
+        "title", "transactionType", "category", "price", "deposit", "locality", "building", "address", "carpetAreaSqft",
+        "bathrooms", "furnishing", "parkingSpots", "floor", "totalFloors", "possession", "possessionDate", "availability",
+        "ownerName", "ownerPhone", "notes",
+    )
+
+    fun createProperty(body: JsonObject): Out {
+        if (body.str("title").isNullOrBlank() || body.str("locality").isNullOrBlank() || body.str("price") == null) {
+            return badRequest("Title, area and price are required")
+        }
+        val id = newId("property")
+        val t = nowIso()
+        val property = JsonObject(body.filterKeys { it in propertyKeys }).plus(
+            "id" to s(id), "brokerageId" to s(brokerageId), "availability" to (body["availability"] ?: s("AVAILABLE")),
+            "listedById" to me["id"], "createdAt" to s(t), "updatedAt" to s(t), "photoIds" to list(emptyList()),
+        )
+        changes.properties[id] = property
+        changes.created += id
+        return Out.Ok(201, jsonOf("property" to property))
+    }
+
+    fun updateProperty(id: String, body: JsonObject): Out {
+        val current = propertiesAll().firstOrNull { it.str("id") == id } ?: return notFound("Property")
+        val updated = current.merge(JsonObject(body.filterKeys { it in propertyKeys })).plus("updatedAt" to s(nowIso()))
+        changes.properties[id] = updated
+        return Out.Ok(200, jsonOf("property" to updated))
+    }
+
+    fun deleteProperty(id: String): Out {
+        if (id !in changes.created) return Out.Err(403, "DEMO_SAMPLE", SAMPLE_NOT_DELETABLE)
+        changes.deleted += id
+        return Out.Ok(204, JsonNull)
+    }
+
+    fun createReminder(body: JsonObject): Out {
+        val title = body.str("title")?.trim().orEmpty()
+        val due = body.str("dueAt")
+        if (title.isEmpty() || due == null || runCatching { Instant.parse(due) }.isFailure) return badRequest("Title and a valid due time are required")
+        val clientId = body.str("clientId")
+        val client = clientId?.let { clientRef(it) ?: return notFound("Client") }
+        val id = newId("followup")
+        val reminder = jsonOf(
+            "id" to s(id), "brokerageId" to s(brokerageId), "clientId" to s(clientId), "inquiryId" to body["inquiryId"],
+            "assignedToId" to me["id"], "createdById" to me["id"], "dueAt" to s(due), "title" to s(title), "note" to body["note"],
+            "kind" to (body["kind"]?.takeIf { it != JsonNull } ?: s("FOLLOW_UP")), "status" to s("PENDING"), "completedAt" to JsonNull,
+            "createdAt" to s(nowIso()),
+            "client" to client?.let { jsonOf("id" to it["id"], "name" to it["name"], "primaryPhone" to it["primaryPhone"]) },
+            "assignedTo" to meRef(),
+        )
+        changes.reminders[id] = reminder
+        changes.created += id
+        return Out.Ok(201, jsonOf("reminder" to reminder))
+    }
+
+    fun updateReminder(id: String, body: JsonObject): Out {
+        val current = remindersAll().firstOrNull { it.str("id") == id } ?: return notFound("Reminder")
+        var updated = current
+        body.str("title")?.let { updated = updated.plus("title" to s(it)) }
+        body.str("dueAt")?.let { if (runCatching { Instant.parse(it) }.isSuccess) updated = updated.plus("dueAt" to s(it)) }
+        if (body.containsKey("note")) updated = updated.plus("note" to body["note"])
+        body.str("status")?.let { st ->
+            updated = updated.plus("status" to s(st), "completedAt" to if (st == "DONE") s(nowIso()) else JsonNull)
+        }
+        changes.reminders[id] = updated
+        return Out.Ok(200, jsonOf("reminder" to updated))
+    }
+
+    fun addNote(clientId: String, body: JsonObject): Out {
+        clientDetail(clientId) ?: return notFound("Client")
+        val text = body.str("body")?.trim().orEmpty()
+        if (text.isEmpty()) return badRequest("Note can't be empty")
+        val id = newId("note")
+        val note = jsonOf(
+            "id" to s(id), "brokerageId" to s(brokerageId), "clientId" to s(clientId), "authorId" to me["id"], "body" to s(text),
+            "source" to (body["source"] ?: s("MANUAL")), "createdAt" to s(nowIso()), "author" to meRef(),
+        )
+        changes.notes[id] = note
+        changes.created += id
+        return Out.Ok(201, jsonOf("note" to note))
+    }
+
+    companion object {
+        val CLIENT_FIELDS = setOf("id", "brokerageId", "name", "primaryPhone", "email", "leadSource", "status", "notes", "assignedToId", "createdAt", "updatedAt")
+        const val SAMPLE_NOT_DELETABLE = "Sample records can't be deleted in the demo. Use Reset demo to undo your own changes."
+
+        fun parseBody(body: String?): JsonObject? = body?.let { runCatching { ApiJson.parseToJsonElement(it).jsonObject }.getOrNull() }
+
+        fun arrayOf(o: JsonElement?, key: String): List<JsonObject> = (o as? JsonObject)?.get(key)?.jsonArray?.mapNotNull { it as? JsonObject }.orEmpty()
+    }
+}
+
+internal fun JsonElement.primitiveOrNull() = (this as? JsonPrimitive)?.jsonPrimitive
