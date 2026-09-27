@@ -39,6 +39,18 @@ class DemoSmokeTest {
         .flatMap { it.config.getOrElse(androidx.compose.ui.semantics.SemanticsProperties.Text) { emptyList() }.map { t -> t.text } }
         .distinct().take(60).joinToString(" | ")
 
+    /** Taps the first clickable node with [text] that is actually on screen. */
+    private fun clickVisible(text: String) {
+        val root = rule.onAllNodes(androidx.compose.ui.test.isRoot()).fetchSemanticsNodes().first().boundsInRoot
+        val nodes = rule.onAllNodes(hasText(text) and hasClickAction())
+        val index = nodes.fetchSemanticsNodes().indexOfFirst { n ->
+            val b = n.boundsInRoot
+            b.width > 0 && b.height > 0 && b.top >= root.top && b.bottom <= root.bottom
+        }
+        if (index < 0) throw AssertionError("No visible \"$text\" to tap. On screen: ${onScreen()}")
+        nodes[index].performClick()
+    }
+
     private fun waitForTextField() {
         try {
             rule.waitUntil(30_000) { rule.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
@@ -68,7 +80,10 @@ class DemoSmokeTest {
         rule.onAllNodesWithText("All").onFirst().performClick()
         waitFor("Rahul Sharma")
 
-        rule.onAllNodes(hasText("Properties") and hasClickAction()).onFirst().performClick()
+        // Back to Home (the new-leads list has no bottom tabs), then whichever "Properties" is on screen.
+        androidx.test.espresso.Espresso.pressBack()
+        waitFor("Today's Work")
+        clickVisible("Properties")
         waitForTextField()
         rule.onAllNodes(hasSetTextAction()).onFirst().performTextInput("Oberoi")
         waitFor("2 BHK in Oberoi Splendor")
