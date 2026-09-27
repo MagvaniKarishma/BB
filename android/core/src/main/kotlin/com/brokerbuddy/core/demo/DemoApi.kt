@@ -103,6 +103,8 @@ class DemoApi(
         val q = params.firstOrNull { it.first == "q" }?.second?.trim().orEmpty()
         fun param(name: String) = params.firstOrNull { it.first == name }?.second?.takeIf { it.isNotEmpty() }
 
+        // "Today" is the phone's today: screens that care send their UTC offset (minutes).
+        param("tz")?.toIntOrNull()?.takeIf { it in -720..840 }?.let { store.zone = java.time.ZoneOffset.ofTotalSeconds(it * 60) }
         if (method != "GET") return write(method, p, seg, DemoStore.parseBody(body))
 
         val merged: JsonElement? = when {
@@ -133,7 +135,7 @@ class DemoApi(
                 (param("clientId") == null || it.str("clientId") == param("clientId")) && (param("inquiryId") == null || it.str("inquiryId") == param("inquiryId"))
             }))
             seg.size == 2 && seg[0] == "voice-notes" -> presentNote(seg[1])
-            p == "dashboard" -> dashboard()
+            p == "dashboard" -> dashboard(param("tz")?.toIntOrNull() ?: IST_MINUTES)
             else -> null
         }
         if (merged != null) return ok(if (q.isEmpty()) merged else narrow(merged, q))
@@ -344,13 +346,6 @@ class DemoApi(
             .sortedByDescending { it.str("lastEnquiryAt") }
     }
 
-    private fun leadsToday(portal: String, zone: ZoneId): Int {
-        val today = LocalDate.now(zone)
-        val from = today.atStartOfDay(zone).toInstant()
-        val to = today.plusDays(1).atStartOfDay(zone).toInstant()
-        return store.portalLeadsAll().count { it.str("portal") == portal && inRange(it, from, to) }
-    }
-
     private fun portalListings(portal: String, range: Pair<Instant?, Instant?>) =
         jsonOf("listings" to list(summaries(portal, range.first, range.second)))
 
@@ -428,31 +423,99 @@ class DemoApi(
             ),
         )
 
-    /** The home screen with counts that include demo changes. */
-    private fun dashboard(): JsonElement? {
+    /**
+     * The home screen, worked out from the current demo data the way the server does it, in the
+     * phone's time zone ([tzMinutes] east of UTC): Today's Work counts, totals, the Rent/Buy
+     * boards, today's follow-ups, new leads and top matches.
+     */
+    private fun dashboard(tzMinutes: Int): JsonElement? {
         val d = base("dashboard")?.jsonObject ?: return null
-        val zone = ZoneId.of("Asia/Kolkata")
-        val endOfToday = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant()
+        val nowI = now()
+        val zone = java.time.ZoneOffset.ofTotalSeconds(tzMinutes.coerceIn(-720, 840) * 60)
+        val startOfToday = nowI.atZone(zone).toLocalDate().atStartOfDay(zone).toInstant()
+        val endOfToday = startOfToday.plus(Duration.ofDays(1)).minusMillis(1)
+        val weekAgo = nowI.minus(Duration.ofDays(7))
+        fun instant(o: JsonObject, key: String) = o.str(key)?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        fun summary(i: JsonObject?) = i?.let {
+            jsonOf("transactionType" to it["transactionType"], "category" to it["category"],
+                "location" to ((it["locations"] as? JsonArray)?.firstOrNull() ?: JsonNull))
+        }
+
         val clients = store.allClientItems()
-        val pending = store.remindersAll().filter { it.str("status") == "PENDING" }
-        fun dueToday(r: JsonObject) = r.str("dueAt")?.let { runCatching { Instant.parse(it) < endOfToday }.getOrDefault(false) } == true
-        val available = store.propertiesAll().count { it.str("availability") == "AVAILABLE" }
-        val totals = d.obj("totals")?.plus(
+        val inquiries = store.inquiriesAll()
+        val active = inquiries.filter { it.str("status") == "ACTIVE" }
+        val properties = store.propertiesAll()
+        val available = properties.filter { it.str("availability") == "AVAILABLE" }
+        // Follow-ups assigned to the signed-in broker (as on the server).
+        val me = store.meId()
+        val pending = store.remindersAll().filter { it.str("status") == "PENDING" && (it.str("assignedToId") ?: me) == me }
+        val overdue = pending.count { r -> instant(r, "dueAt")?.let { it < nowI } == true }
+        val dueToday = pending.count { r -> instant(r, "dueAt")?.let { it >= nowI && it <= endOfToday } == true }
+        val dueByToday = pending.filter { r -> instant(r, "dueAt")?.let { it <= endOfToday } == true }
+
+        fun board(type: String): JsonObject {
+            val tiles = CATEGORIES.map { cat ->
+                val rows = active.filter { it.str("transactionType") == type && it.str("category") == cat }
+                jsonOf("category" to s(cat), "inquiries" to JsonPrimitive(rows.size), "clients" to JsonPrimitive(rows.mapNotNull { it.str("clientId") }.toSet().size))
+            }
+            return jsonOf("total" to JsonPrimitive(tiles.sumOf { (it["inquiries"] as JsonPrimitive).content.toInt() }), "tiles" to list(tiles))
+        }
+        fun createdSince(o: JsonObject) = instant(o, "createdAt")?.let { it >= weekAgo } == true
+
+        val totals = jsonOf(
             "clients" to JsonPrimitive(clients.size),
+            "newClientsThisWeek" to JsonPrimitive(clients.count(::createdSince)),
+            "activeRequirements" to JsonPrimitive(active.size),
+            "newRequirementsThisWeek" to JsonPrimitive(active.count(::createdSince)),
+            "availableProperties" to JsonPrimitive(available.size),
+            "newPropertiesThisWeek" to JsonPrimitive(available.count(::createdSince)),
             "pendingFollowUps" to JsonPrimitive(pending.size),
-            "followUpsDueToday" to JsonPrimitive(pending.count(::dueToday)),
-            "availableProperties" to JsonPrimitive(available),
-            "activeRequirements" to JsonPrimitive(store.inquiriesAll().count { it.str("status") == "ACTIVE" }),
+            "followUpsDueToday" to JsonPrimitive(overdue + dueToday),
         )
-        val work = d.obj("todayWork")?.plus(
+        val leads = store.portalLeadsAll()
+        fun portalToday(portal: String) = leads.count { l -> l.str("portal") == portal && instant(l, "enquiredAt")?.let { it >= startOfToday && it <= endOfToday } == true }
+        val work = jsonOf(
             "newLeads" to JsonPrimitive(clients.count { it.str("status") == "NEW" }),
-            "followUps" to JsonPrimitive(pending.count { dueToday(it) && (it.str("kind") ?: "FOLLOW_UP") == "FOLLOW_UP" }),
-            "callbacks" to JsonPrimitive(pending.count { dueToday(it) && it.str("kind") == "CALLBACK" }),
-            // Enquiries received today, per portal (the portal screens open on Today).
-            "acres99Leads" to JsonPrimitive(leadsToday("ACRES_99", zone)),
-            "housingLeads" to JsonPrimitive(leadsToday("HOUSING_COM", zone)),
+            "callbacks" to JsonPrimitive(dueByToday.count { it.str("kind") == "CALLBACK" }),
+            "followUps" to JsonPrimitive(dueByToday.count { (it.str("kind") ?: "FOLLOW_UP") == "FOLLOW_UP" }),
+            "acres99Leads" to JsonPrimitive(portalToday("ACRES_99")),
+            "housingLeads" to JsonPrimitive(portalToday("HOUSING_COM")),
         )
-        return d.plus("totals" to totals, "todayWork" to work, "availableProperties" to JsonPrimitive(available))
+        val latestActive = { clientId: String? -> active.filter { it.str("clientId") == clientId }.maxByOrNull { it.str("updatedAt") ?: "" } }
+        val todayFollowUps = dueByToday.sortedBy { it.str("dueAt") }.take(10).map { r ->
+            val client = r.str("clientId")?.let(store::clientRef)
+            jsonOf(
+                "id" to r["id"], "title" to r["title"], "dueAt" to r["dueAt"],
+                "overdue" to JsonPrimitive(instant(r, "dueAt")?.let { it < nowI } == true),
+                "client" to client?.let { jsonOf("id" to it["id"], "name" to it["name"], "primaryPhone" to it["primaryPhone"]) },
+                "requirement" to summary(r.str("inquiryId")?.let { id -> inquiries.firstOrNull { it.str("id") == id } } ?: latestActive(r.str("clientId"))),
+            )
+        }
+        // New leads: clients added this week still marked New, plus the sample's WhatsApp/portal leads not yet linked.
+        val freshClients = clients.filter { it.str("status") == "NEW" && createdSince(it) }.map { c ->
+            jsonOf(
+                "kind" to s("CLIENT"), "id" to c["id"], "clientId" to c["id"], "messageId" to JsonNull, "name" to c["name"],
+                "phone" to c["primaryPhone"], "source" to c["leadSource"], "at" to c["createdAt"], "requirement" to summary(latestActive(c.str("id"))),
+            )
+        }
+        val unlinked = d.arr("newLeads").filter { it.str("kind") == "WHATSAPP" }
+        val newLeads = (freshClients + unlinked).sortedByDescending { it.str("at") }.take(5)
+
+        val typed = available.mapNotNull { o -> typed(o, Property.serializer())?.let { o to it } }
+        val requirements = active.mapNotNull { typed(JsonObject(it - "client" - "matchCount"), Inquiry.serializer()) }
+        val topMatches = typed.map { (o, p) -> o to requirements.count { r -> r.transactionType == p.transactionType && r.category == p.category && Matching.evaluate(r, p).eligible } }
+            .filter { it.second > 0 }.sortedByDescending { it.second }.take(6)
+            .map { (o, n) -> jsonOf("property" to o, "matchingRequirements" to JsonPrimitive(n)) }
+
+        return d.plus(
+            "generatedAt" to s(nowI.toString()),
+            "rent" to board("RENT"), "buy" to board("BUY"),
+            "clientsByStatus" to JsonObject(clients.groupingBy { it.str("status") ?: "NEW" }.eachCount().mapValues { JsonPrimitive(it.value) }),
+            "reminders" to jsonOf("overdue" to JsonPrimitive(overdue), "dueToday" to JsonPrimitive(dueToday)),
+            "availableProperties" to JsonPrimitive(available.size),
+            "totals" to totals, "todayWork" to work, "todayFollowUps" to list(todayFollowUps),
+            "newLeads" to list(newLeads), "topMatches" to list(topMatches),
+        )
     }
 
     // ---------- writes ----------
@@ -498,6 +561,8 @@ class DemoApi(
         const val READ_ONLY = NEEDS_SERVER
 
         private const val UNIDENTIFIED = "unidentified"
+        private const val IST_MINUTES = 330
+        private val CATEGORIES = listOf("STUDIO", "BHK_1", "BHK_2", "BHK_3", "BHK_4", "BHK_5_PLUS", "COMMERCIAL", "OTHER")
         private val DEVANAGARI = Regex("[\\u0900-\\u097F]")
 
         /** Query parameters that don't change which answer is shown. */

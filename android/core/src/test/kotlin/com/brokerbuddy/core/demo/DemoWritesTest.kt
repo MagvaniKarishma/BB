@@ -69,6 +69,8 @@ class DemoWritesTest {
         return ApiJson.decodeFromString(serializer, r.body)
     }
 
+    private fun withoutTime(dashboard: String) = dashboard.replace(Regex("\"generatedAt\":\"[^\"]*\""), "")
+
     private fun <T> decode(r: DemoApi.Reply, serializer: KSerializer<T>, status: Int = 200): T {
         assertEquals(status, r.status, r.body)
         return ApiJson.decodeFromString(serializer, r.body)
@@ -308,7 +310,8 @@ class DemoWritesTest {
         api.reset()
         assertEquals(0, api.changes.count)
         assertEquals(original.clients.map { it.id to it.name }, api.get("clients", ClientList.serializer(), "group" to "all").clients.map { it.id to it.name })
-        assertEquals(originalHome, api.handle("GET", "/api/v1/dashboard", listOf("tz" to "330")).body)
+        // Everything but the time it was worked out.
+        assertEquals(withoutTime(originalHome), withoutTime(api.handle("GET", "/api/v1/dashboard", listOf("tz" to "330")).body))
         // The saved changes are cleared too, so reopening shows the original sample data.
         assertEquals(original.clients.size, Phone(snapshot, today, phone.saved).api.get("clients", ClientList.serializer(), "group" to "all").clients.size)
     }

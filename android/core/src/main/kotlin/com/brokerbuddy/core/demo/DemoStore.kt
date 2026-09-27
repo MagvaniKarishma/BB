@@ -76,7 +76,8 @@ internal class DemoStore(
     private val me: JsonObject,
     private val brokerageId: String,
     private val now: () -> Instant,
-    private val zone: ZoneId = ZoneId.of("Asia/Kolkata"),
+    /** The phone's time zone, for "due today" (updated from each request's tz). */
+    var zone: ZoneId = ZoneId.of("Asia/Kolkata"),
 ) {
     private fun nowIso() = now().toString()
     private fun newId(kind: String): String {
@@ -84,6 +85,7 @@ internal class DemoStore(
         return "demo-$kind-${changes.seq}"
     }
     private fun meRef() = jsonOf("id" to me["id"], "name" to me["name"])
+    fun meId(): String? = me.str("id")
 
     // ---------- merged reads ----------
 
