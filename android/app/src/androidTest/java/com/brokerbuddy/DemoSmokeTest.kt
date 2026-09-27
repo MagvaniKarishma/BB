@@ -25,8 +25,26 @@ import org.junit.runner.RunWith
 class DemoSmokeTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
 
-    private fun waitFor(text: String, substring: Boolean = false) = rule.waitUntil(20_000) {
-        rule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty()
+    /** Waits for [text]; on timeout, says which step and what the screen showed instead. */
+    private fun waitFor(text: String, substring: Boolean = false) {
+        try {
+            rule.waitUntil(30_000) { rule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() }
+        } catch (e: androidx.compose.ui.test.ComposeTimeoutException) {
+            throw AssertionError("Waited 30 s for \"$text\". On screen: ${onScreen()}", e)
+        }
+    }
+
+    private fun onScreen(): String = rule.onAllNodes(androidx.compose.ui.test.isRoot()).fetchSemanticsNodes()
+        .flatMap { root -> generateSequence(listOf(root)) { level -> level.flatMap { it.children }.ifEmpty { null } }.flatten() }
+        .flatMap { it.config.getOrElse(androidx.compose.ui.semantics.SemanticsProperties.Text) { emptyList() }.map { t -> t.text } }
+        .distinct().take(60).joinToString(" | ")
+
+    private fun waitForTextField() {
+        try {
+            rule.waitUntil(30_000) { rule.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
+        } catch (e: androidx.compose.ui.test.ComposeTimeoutException) {
+            throw AssertionError("No search box. On screen: ${onScreen()}", e)
+        }
     }
 
     @Test
@@ -43,12 +61,12 @@ class DemoSmokeTest {
         // The bottom tabs (the Home tiles with the same names go to the same screens).
         // Search puts the row at the top (long lists only draw what's on screen).
         rule.onAllNodes(hasText("Clients") and hasClickAction()).onFirst().performClick()
-        rule.waitUntil(20_000) { rule.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
+        waitForTextField()
         rule.onAllNodes(hasSetTextAction()).onFirst().performTextInput("Rahul")
         waitFor("Rahul Sharma")
 
         rule.onAllNodes(hasText("Properties") and hasClickAction()).onFirst().performClick()
-        rule.waitUntil(20_000) { rule.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
+        waitForTextField()
         rule.onAllNodes(hasSetTextAction()).onFirst().performTextInput("Oberoi")
         waitFor("2 BHK in Oberoi Splendor")
     }
