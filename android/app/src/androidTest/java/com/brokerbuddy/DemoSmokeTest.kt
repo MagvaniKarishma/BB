@@ -36,7 +36,9 @@ class DemoSmokeTest {
 
         waitFor("Today's Work")
         rule.onNodeWithText("Demo · sample data, saved on this phone only").assertIsDisplayed()
-        rule.onNodeWithText("99acres Leads").assertIsDisplayed()
+        // Further down Home: scroll to it, then check it's shown.
+        rule.onNodeWithText("99acres Leads").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Housing.com Leads").performScrollTo().assertIsDisplayed()
 
         // The bottom tabs (the Home tiles with the same names go to the same screens).
         // Search puts the row at the top (long lists only draw what's on screen).
