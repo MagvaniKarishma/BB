@@ -197,6 +197,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
     var showAssistant by remember { mutableStateOf(false) }
     val isDemo = container.sessionStore.session.collectAsState(initial = null).value?.isDemo == true
     LaunchedEffect(isDemo) { DemoMode.active = isDemo }
+    val appContext = LocalContext.current
 
     LaunchedEffect(openRoute) {
         if (openRoute != null) {
@@ -224,7 +225,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                                         container.sessionStore.signOut()
                                         container.sessionStore.signIn(DEMO_TOKEN, user)
                                     }
-                                    .onFailure { toast(context, "Couldn't reset the demo on this phone. Try again.") }
+                                    .onFailure { toast(appContext, "Couldn't reset the demo on this phone. Try again.") }
                             }
                         },
                         notice = container.demo.notice.collectAsState().value,

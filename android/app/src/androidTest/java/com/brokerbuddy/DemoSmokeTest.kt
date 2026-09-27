@@ -2,6 +2,8 @@ package com.brokerbuddy
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -37,10 +39,15 @@ class DemoSmokeTest {
         rule.onNodeWithText("99acres Leads").assertIsDisplayed()
 
         // The bottom tabs (the Home tiles with the same names go to the same screens).
+        // Search puts the row at the top (long lists only draw what's on screen).
         rule.onAllNodes(hasText("Clients") and hasClickAction()).onFirst().performClick()
+        rule.waitUntil(20_000) { rule.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
+        rule.onAllNodes(hasSetTextAction()).onFirst().performTextInput("Rahul")
         waitFor("Rahul Sharma")
 
         rule.onAllNodes(hasText("Properties") and hasClickAction()).onFirst().performClick()
+        rule.waitUntil(20_000) { rule.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
+        rule.onAllNodes(hasSetTextAction()).onFirst().performTextInput("Oberoi")
         waitFor("2 BHK in Oberoi Splendor")
     }
 }
