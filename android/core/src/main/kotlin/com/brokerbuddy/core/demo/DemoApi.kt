@@ -135,6 +135,8 @@ class DemoApi(
                 (param("clientId") == null || it.str("clientId") == param("clientId")) && (param("inquiryId") == null || it.str("inquiryId") == param("inquiryId"))
             }))
             seg.size == 2 && seg[0] == "voice-notes" -> presentNote(seg[1])
+            p == "caller/directory" -> callerDirectory()
+            p == "caller/lookup" -> callerLookup(param("phone").orEmpty())
             p == "dashboard" -> dashboard(param("tz")?.toIntOrNull() ?: IST_MINUTES)
             else -> null
         }
@@ -198,6 +200,50 @@ class DemoApi(
             store.inquiryItem(i).plus("matchCount" to JsonPrimitive(count))
         }
         return jsonOf("total" to JsonPrimitive(shown.size), "inquiries" to list(shown))
+    }
+
+    // ---------- caller screen: who is calling (demo clients included) ----------
+
+    private fun phonesOf(clientId: String, primary: String?): List<String> =
+        (store.clientDetail(clientId)?.arr("phones").orEmpty().mapNotNull { it.str("e164") } + listOfNotNull(primary)).distinct()
+
+    private fun callerDirectory(): JsonElement = jsonOf(
+        "generatedAt" to s(now().toString()),
+        "entries" to list(store.allClientItems().flatMap { c ->
+            val id = c.str("id")!!
+            phonesOf(id, c.str("primaryPhone")).map { e164 -> jsonOf("e164" to s(e164), "clientId" to s(id), "name" to c["name"]) }
+        }),
+    )
+
+    private fun callerLookup(raw: String): JsonElement {
+        val number = com.brokerbuddy.core.phone.PhoneNumbers.normalize(raw) ?: return jsonOf("number" to JsonNull, "client" to JsonNull)
+        val item = store.allClientItems().firstOrNull { number in phonesOf(it.str("id")!!, it.str("primaryPhone")) }
+            ?: return jsonOf("number" to s(number), "client" to JsonNull)
+        val id = item.str("id")!!
+        val detail = store.clientDetail(id) ?: item
+        val properties = typedProperties().filter { it.second.availability.name == "AVAILABLE" }
+        val all = store.inquiriesOf(id).map { JsonObject(it - "client" - "matchCount") }.sortedByDescending { it.str("updatedAt") }
+        val open = all.filter { it.str("status") == "ACTIVE" || it.str("status") == "PAUSED" }.map { i ->
+            val count = if (i.str("status") != "ACTIVE") null else typed(i, Inquiry.serializer())?.let { r -> properties.count { (_, p) -> Matching.evaluate(r, p).eligible } }
+            i.plus("matchCount" to (count?.let(::JsonPrimitive) ?: JsonNull))
+        }
+        val reminders = store.remindersAll().filter { it.str("clientId") == id && it.str("status") == "PENDING" }.sortedBy { it.str("dueAt") }.take(5)
+        val note = store.notesOf(id).maxByOrNull { it.str("createdAt") ?: "" }
+        val voice = store.voiceNotesAll().filter { it.str("clientId") == id && it.str("transcript") != null && it.str("status") != "DISCARDED" }
+            .maxByOrNull { it.str("createdAt") ?: "" }
+        val last = listOfNotNull(
+            note?.let { jsonOf("kind" to s("NOTE"), "text" to it["body"], "at" to it["createdAt"], "by" to (it.obj("author")?.get("name") ?: JsonNull)) },
+            voice?.let { jsonOf("kind" to s("VOICE_NOTE"), "text" to it["transcript"], "at" to it["createdAt"], "by" to (it.obj("createdBy")?.get("name") ?: JsonNull)) },
+        ).maxByOrNull { it.str("at") ?: "" }
+        return jsonOf(
+            "number" to s(number),
+            "client" to jsonOf(
+                "id" to s(id), "name" to detail["name"], "primaryPhone" to detail["primaryPhone"], "status" to detail["status"],
+                "leadSource" to detail["leadSource"], "assignedTo" to (detail["assignedTo"] ?: JsonNull),
+                "inquiries" to list(open), "closedInquiries" to JsonPrimitive(all.size - open.size),
+                "reminders" to list(reminders), "lastInteraction" to last,
+            ),
+        )
     }
 
     // ---------- voice notes: typed or recorded, read on the phone ----------

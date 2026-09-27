@@ -45,6 +45,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
@@ -75,6 +76,7 @@ import com.brokerbuddy.ui.common.dial
 import com.brokerbuddy.ui.common.formatDate
 import com.brokerbuddy.ui.common.formatDateTime
 import com.brokerbuddy.ui.common.openWhatsApp
+import com.brokerbuddy.ui.common.WhatsAppMessageDialog
 import com.brokerbuddy.ui.common.rememberLoad
 import com.brokerbuddy.ui.common.sendSms
 import com.brokerbuddy.ui.common.toast
@@ -134,6 +136,7 @@ fun ClientDetailScreen(
     val scope = rememberCoroutineScope()
     val loader = rememberLoad(clientId) { container.api.call { client(clientId).client } }
     var addingReminder by remember { mutableStateOf(false) }
+    var whatsApp by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var addingNote by remember { mutableStateOf(false) }
     var notesVersion by remember { mutableIntStateOf(0) }
@@ -177,10 +180,17 @@ fun ClientDetailScreen(
                 Header(
                     client,
                     onCall = { dial(context, client.primaryPhone) },
-                    onWhatsApp = { openWhatsApp(context, client.primaryPhone) },
+                    onWhatsApp = { whatsApp = true },
                     onSms = { sendSms(context, client.primaryPhone) },
                     onAddRequirement = onAddInquiry,
                 )
+                if (whatsApp) {
+                    val broker = container.sessionStore.session.collectAsState(initial = null).value?.user?.name
+                    WhatsAppMessageDialog(
+                        client.name, client.primaryPhone, client.inquiries.firstOrNull { it.status == InquiryStatus.ACTIVE }, broker,
+                        onDismiss = { whatsApp = false },
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
                 FilterTabs(
                     listOf(

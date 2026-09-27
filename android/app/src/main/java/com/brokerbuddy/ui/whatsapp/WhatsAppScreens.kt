@@ -382,7 +382,8 @@ fun WhatsAppConversationScreen(clientId: String, onBack: () -> Unit, onMessage: 
                                 .onFailure { e ->
                                     // Fallback: open WhatsApp with the text ready to send.
                                     toast(context, e.message ?: "Couldn't send")
-                                    if ((e as? ApiException)?.code in setOf<String?>("WHATSAPP_NOT_CONNECTED", "OUTSIDE_SERVICE_WINDOW") && phone != null) openWhatsApp(context, phone, draft)
+                                    // (The demo can't send either: same hand-off; nothing is claimed as sent.)
+                                    if ((e as? ApiException)?.code in setOf<String?>("WHATSAPP_NOT_CONNECTED", "OUTSIDE_SERVICE_WINDOW", "DEMO_MODE") && phone != null) openWhatsApp(context, phone, draft)
                                 }
                         }
                     }) { Text("Send") }

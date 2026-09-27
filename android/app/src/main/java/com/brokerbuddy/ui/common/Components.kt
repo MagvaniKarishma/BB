@@ -270,15 +270,31 @@ fun formatDate(iso: String): String =
     runCatching { dateFormat.format(Instant.parse(iso).atZone(ZoneId.systemDefault())) }.getOrDefault(iso)
 
 /** Opens the dialer — no CALL_PHONE permission needed; the broker taps call themselves. */
-fun dial(context: Context, e164: String) {
+/** Opens the phone's dialer with the number filled in; the broker taps Call (nothing is dialled automatically). */
+fun dial(context: Context, e164: String?) {
+    if (e164.isNullOrBlank() || e164.count(Char::isDigit) < 8) {
+        toast(context, "No phone number saved")
+        return
+    }
     launch(context, Intent(Intent.ACTION_DIAL, Uri.parse("tel:$e164")), "No phone app found")
+}
+
+/** WhatsApp or WhatsApp Business is on this phone. */
+fun isWhatsAppInstalled(context: Context): Boolean = listOf("com.whatsapp", "com.whatsapp.w4b").any { pkg ->
+    runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
 }
 
 /**
  * Opens a WhatsApp chat via the official click-to-chat link. Works with WhatsApp or
  * WhatsApp Business; falls back to the browser (web.whatsapp / install page) otherwise.
  */
-fun openWhatsApp(context: Context, e164: String, message: String? = null) {
+fun openWhatsApp(context: Context, e164: String?, message: String? = null) {
+    if (e164.isNullOrBlank() || PhoneNumbers.whatsAppDigits(e164).length < 8) {
+        toast(context, "No phone number saved for WhatsApp")
+        return
+    }
+    // The message (if any) is only typed into the chat — the broker sends it in WhatsApp.
+    if (!isWhatsAppInstalled(context)) toast(context, "WhatsApp isn't installed — opening WhatsApp's website instead")
     val uri = Uri.parse("https://wa.me/${PhoneNumbers.whatsAppDigits(e164)}").buildUpon().apply {
         if (!message.isNullOrBlank()) appendQueryParameter("text", message)
     }.build()
