@@ -63,6 +63,9 @@ class DemoSmokeTest {
         rule.onAllNodes(hasText("Clients") and hasClickAction()).onFirst().performClick()
         waitForTextField()
         rule.onAllNodes(hasSetTextAction()).onFirst().performTextInput("Rahul")
+        // Whichever "Clients" was tapped, look in the All tab.
+        waitFor("All")
+        rule.onAllNodesWithText("All").onFirst().performClick()
         waitFor("Rahul Sharma")
 
         rule.onAllNodes(hasText("Properties") and hasClickAction()).onFirst().performClick()
