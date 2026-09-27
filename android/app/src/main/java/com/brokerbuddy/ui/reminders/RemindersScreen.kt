@@ -127,6 +127,9 @@ fun RemindersScreen(onClient: (String) -> Unit, kind: ReminderKind? = null, onBa
     }
     val counts = pending?.groupingBy { bucket(it) }?.eachCount()
 
+    var rescheduling by remember { mutableStateOf<Reminder?>(null) }
+    rescheduling?.let { r -> RescheduleDialog(r, onDismiss = { rescheduling = null }, onSaved = { rescheduling = null; loader.reload() }) }
+
     fun update(r: Reminder, body: UpdateReminderRequest) {
         scope.launch {
             api.call { updateReminder(r.id, body) }
@@ -204,6 +207,7 @@ fun RemindersScreen(onClient: (String) -> Unit, kind: ReminderKind? = null, onBa
                                     val next = Instant.now().plus(1, ChronoUnit.DAYS).toString()
                                     update(r, UpdateReminderRequest(dueAt = next))
                                 },
+                                onReschedule = { rescheduling = r },
                             )
                         }
                     }
@@ -217,7 +221,14 @@ private val TIME_FMT = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
 private val DAY_FMT = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
 
 @Composable
-private fun ReminderRow(r: Reminder, showDay: Boolean, onClient: (String) -> Unit, onDone: () -> Unit, onSnooze: () -> Unit) {
+private fun ReminderRow(
+    r: Reminder,
+    showDay: Boolean,
+    onClient: (String) -> Unit,
+    onDone: () -> Unit,
+    onSnooze: () -> Unit,
+    onReschedule: () -> Unit = {},
+) {
     val b = MaterialTheme.brand
     val context = LocalContext.current
     val client = r.client
@@ -237,7 +248,8 @@ private fun ReminderRow(r: Reminder, showDay: Boolean, onClient: (String) -> Uni
                 }
                 if (due != null) {
                     Text(
-                        (if (showDay) due.format(DAY_FMT) + " · " else "") + due.format(TIME_FMT),
+                        (if (r.kind == ReminderKind.CALLBACK) "Callback · " else "") +
+                            (if (showDay) due.format(DAY_FMT) + " · " else "") + due.format(TIME_FMT),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (overdue) MaterialTheme.colorScheme.error else b.muted,
                     )
@@ -252,6 +264,7 @@ private fun ReminderRow(r: Reminder, showDay: Boolean, onClient: (String) -> Uni
                         }
                         DropdownMenuItem(text = { Text("Mark done") }, onClick = { menu = false; onDone() })
                         DropdownMenuItem(text = { Text("Snooze 1 day") }, onClick = { menu = false; onSnooze() })
+                        DropdownMenuItem(text = { Text("Change date & time") }, onClick = { menu = false; onReschedule() })
                     }
                 }
             }
@@ -362,6 +375,59 @@ fun AddReminderDialog(
                 }) { Text("OK") }
             },
             dismissButton = { TextButton(onClick = { pickedDate = null }) { Text("Cancel") } },
+        )
+    }
+}
+
+/**
+ * Pick a new date, then a new time, for a follow-up (starting from its current due time) and
+ * save it. The phone's reminder alarm is moved too.
+ */
+@Composable
+fun RescheduleDialog(reminder: Reminder, onDismiss: () -> Unit, onSaved: () -> Unit) {
+    val api = appContainer().api
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val zone = ZoneId.systemDefault()
+    val current = runCatching { Instant.parse(reminder.dueAt).atZone(zone) }.getOrNull()
+    var date by remember { mutableStateOf<LocalDate?>(null) }
+    if (date == null) {
+        val state = rememberDatePickerState(
+            initialSelectedDateMillis = (current?.toLocalDate() ?: LocalDate.now(zone)).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = onDismiss,
+            confirmButton = {
+                TextButton(onClick = {
+                    date = state.selectedDateMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
+                }) { Text("Next") }
+            },
+            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        ) { DatePicker(state) }
+    } else {
+        val time = rememberTimePickerState(initialHour = current?.hour ?: 10, initialMinute = current?.minute ?: 0)
+        var busy by remember { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("New time · ${reminder.client?.name ?: reminder.title}") },
+            text = { TimePicker(time) },
+            confirmButton = {
+                TextButton(enabled = !busy, onClick = {
+                    busy = true
+                    val due = date!!.atTime(LocalTime.of(time.hour, time.minute)).atZone(zone).toInstant()
+                    scope.launch {
+                        api.call { updateReminder(reminder.id, UpdateReminderRequest(dueAt = due.toString())) }
+                            .onSuccess {
+                                ReminderScheduler.cancel(context, reminder)
+                                ReminderScheduler.schedule(context, it.reminder)
+                                toast(context, "Moved to ${formatDateTime(it.reminder.dueAt)}")
+                                onSaved()
+                            }
+                            .onFailure { toast(context, it.message ?: "Couldn't change the time"); busy = false }
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         )
     }
 }

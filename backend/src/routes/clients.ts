@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { Prisma } from "@prisma/client";
+import { Prisma, type PropertyCategory } from "@prisma/client";
 import { prisma } from "../db.js";
 import { currentUser, requireRole } from "../lib/auth.js";
 import { HttpError, badRequest, notFound } from "../lib/errors.js";
@@ -32,6 +32,28 @@ const endOfToday = (tzMinutes: number) => {
   return new Date(local.getTime() - tzMinutes * 60_000);
 };
 
+/** Search terms that name a property type. */
+function categoryIn(text: string): PropertyCategory | null {
+  const bhk = /\b(\d)\s?bhk\b/i.exec(text);
+  if (bhk) return (Number(bhk[1]) >= 5 ? "BHK_5_PLUS" : `BHK_${bhk[1]}`) as PropertyCategory;
+  if (/\b(studio|1\s?rk)\b/i.test(text)) return "STUDIO";
+  if (/\b(commercial|shop|office)\b/i.test(text)) return "COMMERCIAL";
+  return null;
+}
+
+/** Clients whose active requirement is in an area containing [q], or of the type [q] names. */
+async function clientsWithRequirement(brokerageId: string, q: string): Promise<Prisma.ClientWhereInput[]> {
+  const category = categoryIn(q);
+  const term = q.replace(/\b(\d)\s?bhk\b|\b(studio|1\s?rk)\b/gi, "").trim();
+  const rows = await prisma.$queryRaw<{ clientId: string }[]>(Prisma.sql`
+    SELECT DISTINCT "clientId" FROM "Inquiry"
+    WHERE "brokerageId" = ${brokerageId} AND "status" = 'ACTIVE'
+      AND (${category}::text IS NULL OR "category"::text = ${category})
+      AND (${term} = '' OR EXISTS (SELECT 1 FROM unnest("locations") AS loc WHERE loc ILIKE ${"%" + term + "%"}))
+      AND (${category}::text IS NOT NULL OR ${term} <> '')`);
+  return rows.length ? [{ id: { in: rows.map((r) => r.clientId) } }] : [];
+}
+
 clientsRouter.get("/", async (req, res) => {
   const me = currentUser(req);
   const q = listClientsSchema.parse(req.query);
@@ -47,7 +69,10 @@ clientsRouter.get("/", async (req, res) => {
     const digits = q.q.replace(/\D/g, "");
     base.OR = [
       { name: { contains: q.q, mode: "insensitive" } },
+      { email: { contains: q.q, mode: "insensitive" } },
       ...(digits.length >= 3 ? [{ phones: { some: { e164: { contains: digits } } } }] : []),
+      // By requirement: an area ("Andheri") or a type ("2 BHK", "studio") of an active requirement.
+      ...(await clientsWithRequirement(b, q.q)),
     ];
   }
   const groupWhere = (g: typeof q.group): Prisma.ClientWhereInput =>
@@ -178,7 +203,34 @@ clientsRouter.patch("/:id", async (req, res) => {
     });
     if (byEmail) throw duplicateError(byEmail, "email");
   }
-  const updated = await prisma.client.update({ where: { id: client.id }, data: body });
+  const { phone: rawPhone, ...fields } = body;
+  let newPhone: string | null = null;
+  if (rawPhone !== undefined) {
+    const e164 = normalizePhone(rawPhone);
+    if (!e164) throw invalidPhone(rawPhone);
+    if (e164 !== client.primaryPhone) {
+      const owner = await findByPhones(me.brokerageId, [e164]);
+      if (owner && owner.id !== client.id) throw duplicateError(owner, "phone number");
+      newPhone = e164;
+    }
+  }
+  const updated = await prisma.$transaction(async (tx) => {
+    if (newPhone) {
+      // The new number replaces the old main number (it was wrong or changed); other numbers stay.
+      await tx.clientPhone.deleteMany({ where: { clientId: client.id, e164: client.primaryPhone } });
+      const already = await tx.clientPhone.findFirst({ where: { clientId: client.id, e164: newPhone } });
+      if (already) await tx.clientPhone.update({ where: { id: already.id }, data: { label: "primary" } });
+      else await tx.clientPhone.create({ data: { brokerageId: me.brokerageId, clientId: client.id, e164: newPhone, label: "primary" } });
+    }
+    return tx.client.update({ where: { id: client.id }, data: { ...fields, ...(newPhone ? { primaryPhone: newPhone } : {}) } });
+  }).catch(async (err) => {
+    // Taken by another client at the same moment: the unique index decides.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && newPhone) {
+      const owner = await findByPhones(me.brokerageId, [newPhone]);
+      if (owner) throw duplicateError(owner, "phone number");
+    }
+    throw err;
+  });
   res.json({ client: updated });
 });
 

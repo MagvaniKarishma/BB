@@ -1,34 +1,34 @@
 {
   "client": {
-    "id": "cmujfl80o000d7daclfit980o",
-    "brokerageId": "cmujfl7rc00037dacqq57826b",
+    "id": "cmujg8tsw000d7dl37h7w6j4r",
+    "brokerageId": "cmujg8tj000037dl3isndguzo",
     "name": "Amit Patil",
     "primaryPhone": "+919876543210",
     "email": null,
     "leadSource": "ACRES_99",
     "status": "CONTACTED",
     "notes": null,
-    "assignedToId": "cmujfl7rd00057dacj3805w21",
-    "createdAt": "2026-09-27T06:22:01.944Z",
-    "updatedAt": "2026-09-27T06:22:02.144Z",
+    "assignedToId": "cmujg8tj200057dl3glhra2qr",
+    "createdAt": "2026-09-27T06:40:23.264Z",
+    "updatedAt": "2026-09-27T06:40:23.486Z",
     "phones": [
       {
-        "id": "cmujfl80o000f7dac57nvslh5",
-        "brokerageId": "cmujfl7rc00037dacqq57826b",
-        "clientId": "cmujfl80o000d7daclfit980o",
+        "id": "cmujg8tsw000f7dl3at808pc7",
+        "brokerageId": "cmujg8tj000037dl3isndguzo",
+        "clientId": "cmujg8tsw000d7dl37h7w6j4r",
         "e164": "+919876543210",
         "label": "primary"
       }
     ],
     "assignedTo": {
-      "id": "cmujfl7rd00057dacj3805w21",
+      "id": "cmujg8tj200057dl3glhra2qr",
       "name": "Rahul Sharma"
     },
     "inquiries": [
       {
-        "id": "cmujfl813000h7dacr57vykye",
-        "brokerageId": "cmujfl7rc00037dacqq57826b",
-        "clientId": "cmujfl80o000d7daclfit980o",
+        "id": "cmujg8tte000h7dl31y4kp2ra",
+        "brokerageId": "cmujg8tj000037dl3isndguzo",
+        "clientId": "cmujg8tsw000d7dl37h7w6j4r",
         "transactionType": "RENT",
         "category": "BHK_2",
         "status": "ACTIVE",
@@ -51,36 +51,36 @@
         "notes": "Gated society",
         "source": "VOICE_NOTE",
         "version": 3,
-        "createdAt": "2026-09-27T06:22:01.959Z",
-        "updatedAt": "2026-09-27T06:22:02.452Z"
+        "createdAt": "2026-09-27T06:40:23.283Z",
+        "updatedAt": "2026-09-27T06:40:23.822Z"
       }
     ],
     "reminders": [
       {
-        "id": "cmujfl8o0001y7dacp5yfcl8x",
-        "brokerageId": "cmujfl7rc00037dacqq57826b",
-        "clientId": "cmujfl80o000d7daclfit980o",
+        "id": "cmujg8ui1001y7dl3bajz7njh",
+        "brokerageId": "cmujg8tj000037dl3isndguzo",
+        "clientId": "cmujg8tsw000d7dl37h7w6j4r",
         "inquiryId": null,
-        "assignedToId": "cmujfl7rd00057dacj3805w21",
-        "createdById": "cmujfl7rd00057dacj3805w21",
-        "dueAt": "2026-09-27T07:22:01.407Z",
+        "assignedToId": "cmujg8tj200057dl3glhra2qr",
+        "createdById": "cmujg8tj200057dl3glhra2qr",
+        "dueAt": "2026-09-27T07:40:22.699Z",
         "title": "Call back Amit",
         "note": null,
         "kind": "CALLBACK",
         "status": "PENDING",
         "completedAt": null,
-        "createdAt": "2026-09-27T06:22:02.784Z"
+        "createdAt": "2026-09-27T06:40:24.169Z"
       }
     ],
     "portalLeads": [
       {
-        "id": "cmujfl8p700227dac83mpfp3u",
-        "brokerageId": "cmujfl7rc00037dacqq57826b",
+        "id": "cmujg8uir00227dl3w983f92v",
+        "brokerageId": "cmujg8tj000037dl3isndguzo",
         "portal": "ACRES_99",
-        "listingId": "cmujfl8oq00207dacqctltkcy",
-        "clientId": "cmujfl80o000d7daclfit980o",
+        "listingId": "cmujg8uig00207dl3r3mxcrdg",
+        "clientId": "cmujg8tsw000d7dl37h7w6j4r",
         "externalLeadId": "L-1",
-        "enquiredAt": "2026-09-27T06:22:00.000Z",
+        "enquiredAt": "2026-09-27T06:40:00.000Z",
         "name": "Amit Patil",
         "phone": "+919876543210",
         "email": null,
@@ -90,7 +90,7 @@
         "requirement": null,
         "status": "CONTACTED",
         "channel": "CSV",
-        "sourceRef": "csv:2026-09-27T06:22:02.797Z:leads.csv",
+        "sourceRef": "csv:2026-09-27T06:40:24.180Z:leads.csv",
         "raw": {
           "Name": "Amit Patil",
           "Email": "",
@@ -100,14 +100,14 @@
           "Message": "Is it available?",
           "Locality": "Andheri West",
           "Property ID": "A12345678",
-          "Enquiry Date": "27/09/2026 11:52",
+          "Enquiry Date": "27/09/2026 12:10",
           "Property Title": "2 BHK Apartment for Rent"
         },
         "dedupeKey": "ext:L-1",
-        "createdAt": "2026-09-27T06:22:02.827Z",
-        "updatedAt": "2026-09-27T06:22:02.894Z",
+        "createdAt": "2026-09-27T06:40:24.196Z",
+        "updatedAt": "2026-09-27T06:40:24.251Z",
         "listing": {
-          "id": "cmujfl8oq00207dacqctltkcy",
+          "id": "cmujg8uig00207dl3r3mxcrdg",
           "title": "2 BHK Apartment for Rent",
           "locality": "Andheri West",
           "portal": "ACRES_99",

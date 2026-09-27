@@ -41,7 +41,7 @@ import kotlin.test.assertTrue
 class DemoApiTest {
     private val snapshot = """
         {"capturedOn":"2026-09-26","responses":{
-          "clients?group=all":{"clients":[{"id":"a","name":"Rahul Sharma","phone":"+919820011001"},{"id":"b","name":"Priya Mehta","phone":"+919820011002"}],"total":2},
+          "clients?group=all":{"clients":[{"id":"a","name":"Rahul Sharma","primaryPhone":"+919820011001"},{"id":"b","name":"Priya Mehta","primaryPhone":"+919820011002"}],"total":2},
           "reminders":{"reminders":[{"id":"r","status":"PENDING","dueAt":"2026-09-26T09:30:00.000Z"}]}
         }}
     """.trimIndent()

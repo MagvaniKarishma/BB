@@ -208,4 +208,85 @@ class DemoWritesTest {
         assertEquals(0, api.changes.count)
         assertNull(api.get("clients", ClientList.serializer(), "group" to "all").clients.firstOrNull { it.id.startsWith("demo-") })
     }
+
+    /** Phase 2: the full client workflow in the demo, as the phone would run it. */
+    @Test
+    fun clientWorkflow_createProfileEditNoteFollowUpSearchRestart() {
+        val phone = Phone(snapshot, today)
+        var api = phone.api
+
+        // 1. Create (with email), then a double submit and an email match are refused as duplicates.
+        val c = decode(api.send("POST", "clients", CreateClientRequest.serializer(),
+            CreateClientRequest("Zara Demo", "98765 00011", email = "Zara.Demo@Example.com", leadSource = LeadSource.WALK_IN, notes = "Referred by a friend")),
+            ClientEnvelope.serializer(), 201).client
+        assertEquals("zara.demo@example.com", c.email)
+        assertEquals(409, api.send("POST", "clients", CreateClientRequest.serializer(), CreateClientRequest("Zara Demo", "9876500011", leadSource = LeadSource.WALK_IN)).status)
+        val byEmail = api.send("POST", "clients", CreateClientRequest.serializer(), CreateClientRequest("Z D", "98765 00019", email = "zara.demo@example.com", leadSource = LeadSource.WALK_IN))
+        assertEquals(409, byEmail.status)
+        assertTrue("\"matchedOn\":\"email\"" in byEmail.body)
+        // Same name, different number: a different person.
+        assertEquals(201, api.send("POST", "clients", CreateClientRequest.serializer(), CreateClientRequest("Zara Demo", "98765 00012", leadSource = LeadSource.OTHER)).status)
+        assertEquals(400, api.send("POST", "clients", CreateClientRequest.serializer(), CreateClientRequest("Bad email", "98765 00013", email = "not-an-email", leadSource = LeadSource.OTHER)).status)
+
+        // Live duplicate check on the form.
+        assertTrue(c.id in api.handle("GET", "/api/v1/clients/check-duplicate", listOf("phone" to "+919876500011")).body)
+        assertTrue("\"duplicate\":null" in api.handle("GET", "/api/v1/clients/check-duplicate", listOf("phone" to "+919876500099")).body)
+
+        // 2. Requirement with budget, area and BHK.
+        api.send("POST", "clients/${c.id}/inquiries", RequirementRequest.serializer(),
+            RequirementRequest(TransactionType.RENT, PropertyCategory.BHK_2, budgetMin = 60_000, budgetMax = 75_000, locations = listOf("Bandra West")))
+
+        // 3. Edit: new phone and email, status.
+        val edited = decode(api.send("PATCH", "clients/${c.id}", UpdateClientRequest.serializer(),
+            UpdateClientRequest("Zara Demo", "zara@example.com", LeadSource.WALK_IN, ClientStatus.SITE_VISIT, "Referred by a friend", phone = "98765 00021")),
+            ClientEnvelope.serializer()).client
+        assertEquals("+919876500021", edited.primaryPhone)
+        assertEquals(ClientStatus.SITE_VISIT, edited.status)
+        // Someone else's number is refused.
+        val other = api.get("clients", ClientList.serializer(), "group" to "all").clients.first { it.id != c.id && !it.id.startsWith("demo-") }
+        assertEquals(409, api.send("PATCH", "clients/${c.id}", UpdateClientRequest.serializer(),
+            UpdateClientRequest("Zara Demo", null, LeadSource.WALK_IN, ClientStatus.SITE_VISIT, null, phone = other.primaryPhone)).status)
+
+        // 4. Note and 5. follow-up, then reschedule it.
+        api.send("POST", "clients/${c.id}/notes", AddNoteRequest.serializer(), AddNoteRequest("Liked the Bandra flat"))
+        val r = decode(api.send("POST", "reminders", CreateReminderRequest.serializer(),
+            CreateReminderRequest("Call Zara", Instant.now().plusSeconds(7_200).toString(), clientId = c.id)), ReminderEnvelope.serializer(), 201).reminder
+        val later = Instant.now().plusSeconds(3 * 86_400).toString()
+        assertEquals(later, decode(api.send("PATCH", "reminders/${r.id}", UpdateReminderRequest.serializer(), UpdateReminderRequest(dueAt = later)), ReminderEnvelope.serializer()).reminder.dueAt)
+
+        // Profile has everything, and only this client's.
+        val profile = api.get("clients/${c.id}", ClientEnvelope.serializer()).client
+        assertEquals("zara@example.com", profile.email)
+        assertEquals(listOf("Bandra West"), profile.inquiries.single().locations)
+        assertEquals(listOf("Call Zara"), profile.reminders.map { it.title })
+        assertEquals("Liked the Bandra flat", api.get("clients/${c.id}/notes", ClientNoteList.serializer()).notes.first().body)
+        assertFalse(api.get("clients/${other.id}", ClientEnvelope.serializer()).client.reminders.any { it.id == r.id })
+
+        // 6. Search: name, new phone, email, requirement area and type, status tab.
+        fun found(q: String, group: String = "all") = api.get("clients", ClientList.serializer(), "group" to group, "q" to q).clients.map { it.id }
+        assertTrue(c.id in found("zara"))
+        assertEquals(listOf(c.id), found("98765 00021"))
+        assertTrue(found("00011").isEmpty()) // the old number is gone
+        assertEquals(listOf(c.id), found("zara@"))
+        assertTrue(c.id in found("bandra"))
+        assertTrue(c.id in found("2 BHK"))
+        assertFalse(c.id in found("3 BHK bandra"))
+        assertTrue(c.id in api.get("clients", ClientList.serializer(), "group" to "active").clients.map { it.id })
+
+        // 7. Restart: everything is still there.
+        api = Phone(snapshot, today, phone.saved).api
+        val again = api.get("clients/${c.id}", ClientEnvelope.serializer()).client
+        assertEquals("+919876500021", again.primaryPhone)
+        assertEquals(ClientStatus.SITE_VISIT, again.status)
+        assertEquals(later, again.reminders.single().dueAt)
+        assertEquals(1, again.inquiries.size)
+        assertEquals("Liked the Bandra flat", api.get("clients/${c.id}/notes", ClientNoteList.serializer()).notes.first().body)
+        assertEquals(listOf(c.id), api.get("clients", ClientList.serializer(), "group" to "all", "q" to "98765 00021").clients.map { it.id })
+
+        // Deleting a demo client removes it (and its follow-ups) — sample clients stay protected.
+        assertEquals(204, api.handle("DELETE", "/api/v1/clients/${c.id}", emptyList()).status)
+        assertEquals(404, api.handle("GET", "/api/v1/clients/${c.id}", emptyList()).status)
+        assertFalse(api.get("reminders", ReminderList.serializer(), "status" to "PENDING").reminders.any { it.id == r.id })
+        assertEquals(403, api.handle("DELETE", "/api/v1/clients/${other.id}", emptyList()).status)
+    }
 }

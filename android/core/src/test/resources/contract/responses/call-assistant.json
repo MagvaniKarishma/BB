@@ -1,6 +1,6 @@
 {
   "settings": {
-    "brokerageId": "cmujfl7rc00037dacqq57826b",
+    "brokerageId": "cmujg8tj000037dl3isndguzo",
     "enabled": true,
     "mode": "AI_RECEPTIONIST",
     "voice": "RECORDED_STANDARD",
@@ -29,7 +29,7 @@
     "businessNumbers": [
       "+912240001234"
     ],
-    "updatedAt": "2026-09-27T06:22:02.700Z"
+    "updatedAt": "2026-09-27T06:40:24.080Z"
   },
   "greetings": [
     {
@@ -40,7 +40,7 @@
       "mimeType": "audio/wav",
       "size": 48044,
       "durationMs": 3000,
-      "updatedAt": "2026-09-27T06:22:02.719Z"
+      "updatedAt": "2026-09-27T06:40:24.096Z"
     },
     {
       "language": "HINDI",

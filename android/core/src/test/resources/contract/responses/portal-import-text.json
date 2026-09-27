@@ -1,12 +1,12 @@
 {
   "lead": {
-    "id": "cmujfl8pv00287dackmekn386",
-    "brokerageId": "cmujfl7rc00037dacqq57826b",
+    "id": "cmujg8ujf00287dl3no3v3hqe",
+    "brokerageId": "cmujg8tj000037dl3isndguzo",
     "portal": "HOUSING_COM",
-    "listingId": "cmujfl8gj00157dac5dxygjip",
-    "clientId": "cmujfl8ps00247dacpkykyocz",
+    "listingId": "cmujg8uap00157dl3807cpi0f",
+    "clientId": "cmujg8ujc00247dl3t65iy2t9",
     "externalLeadId": null,
-    "enquiredAt": "2026-09-27T06:22:02.839Z",
+    "enquiredAt": "2026-09-27T06:40:24.208Z",
     "name": "Neha Rao",
     "phone": "+919820066666",
     "email": null,
@@ -20,9 +20,9 @@
     "raw": {
       "text": "You have a new lead on Housing.com. Name: Neha Rao, Mobile: 9820066666, Property: 1 BHK Apartment in Mulund West, Price: ₹ 27,000"
     },
-    "dedupeKey": "h:03a0513bbc142f3b40405dda1db925e612542cef",
-    "createdAt": "2026-09-27T06:22:02.852Z",
-    "updatedAt": "2026-09-27T06:22:02.852Z"
+    "dedupeKey": "h:dfe93147834abe0ee156966698adf4c0c3d83693",
+    "createdAt": "2026-09-27T06:40:24.219Z",
+    "updatedAt": "2026-09-27T06:40:24.219Z"
   },
   "created": true,
   "clientCreated": true

@@ -130,7 +130,7 @@ internal class DemoStore(
         val sample = base("clients/$id")?.jsonObject?.obj("client")
         val edited = changes.clients[id]
         val client = when {
-            sample != null && edited != null -> sample.merge(clientFields(edited))
+            sample != null && edited != null -> sample.merge(clientFields(edited)).let { c -> edited["phones"]?.let { c.plus("phones" to it) } ?: c }
             sample != null -> sample
             edited != null -> edited.plus("assignedTo" to meRef(), "portalLeads" to list(emptyList()))
             else -> return null
@@ -206,22 +206,70 @@ internal class DemoStore(
     private fun existingClientWithPhone(e164: String, exceptId: String? = null): JsonObject? =
         allClientItems().firstOrNull { it.str("primaryPhone") == e164 && it.str("id") != exceptId }
 
+    private fun existingClientWithEmail(email: String, exceptId: String? = null): JsonObject? =
+        allClientItems().firstOrNull { it.str("email")?.equals(email, ignoreCase = true) == true && it.str("id") != exceptId }
+
+    private fun duplicate(c: JsonObject, matchedOn: String) = Out.Err(
+        409, "DUPLICATE_CLIENT", "A client with this $matchedOn already exists: ${c.str("name")}",
+        jsonOf("existingClient" to jsonOf("id" to c["id"], "name" to c["name"], "primaryPhone" to c["primaryPhone"]), "matchedOn" to s(matchedOn)),
+    )
+
+    private val emailRe = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
+
+    /** A cleaned email: lower case; "" / null → null; Err when it isn't an email. */
+    private fun email(raw: JsonElement?): Pair<String?, Out.Err?> {
+        val e = (raw as? JsonPrimitive)?.contentOrNull?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: return null to null
+        return if (emailRe.matches(e)) e to null else null to badRequest("\"$e\" is not a valid email")
+    }
+
+    /** "Is this number already a client?" — the live check on the New client form. */
+    fun checkDuplicate(raw: String): JsonObject {
+        val e164 = PhoneNumbers.normalize(raw)
+        val c = e164?.let { existingClientWithPhone(it) }
+        return jsonOf(
+            "normalized" to s(e164 ?: raw),
+            "duplicate" to c?.let { jsonOf("id" to it["id"], "name" to it["name"], "primaryPhone" to it["primaryPhone"]) },
+        )
+    }
+
+    /** Client search like the server's: name, email, phone digits, or an active requirement's area / type. */
+    fun clientMatches(item: JsonObject, q: String): Boolean {
+        val text = q.trim().lowercase()
+        if (text.isEmpty()) return true
+        if (item.str("name")?.lowercase()?.contains(text) == true) return true
+        if (item.str("email")?.lowercase()?.contains(text) == true) return true
+        val digits = text.filter(Char::isDigit)
+        if (digits.length >= 3 && item.str("primaryPhone")?.contains(digits) == true) return true
+        val bhk = Regex("\\b(\\d)\\s?bhk\\b").find(text)
+        val category = when {
+            bhk != null -> if (bhk.groupValues[1].toInt() >= 5) "BHK_5_PLUS" else "BHK_${bhk.groupValues[1]}"
+            Regex("\\b(studio|1\\s?rk)\\b").containsMatchIn(text) -> "STUDIO"
+            Regex("\\b(commercial|shop|office)\\b").containsMatchIn(text) -> "COMMERCIAL"
+            else -> null
+        }
+        val term = text.replace(Regex("\\b\\d\\s?bhk\\b|\\b(studio|1\\s?rk)\\b"), "").trim()
+        if (category == null && term.isEmpty()) return false
+        return inquiriesOf(item.str("id")!!).any { i ->
+            i.str("status") == "ACTIVE" &&
+                (category == null || i.str("category") == category) &&
+                (term.isEmpty() || i["locations"].let { l -> (l as? JsonArray)?.any { (it as? JsonPrimitive)?.contentOrNull?.lowercase()?.contains(term) == true } == true })
+        }
+    }
+
     fun createClient(body: JsonObject): Out {
         val name = body.str("name")?.trim().orEmpty()
         val raw = body.str("phone")?.trim().orEmpty()
         if (name.isEmpty() || raw.isEmpty()) return badRequest("Name and phone are required")
         val phone = PhoneNumbers.normalize(raw) ?: return Out.Err(400, "INVALID_PHONE", "\"$raw\" is not a valid phone number")
-        existingClientWithPhone(phone)?.let { c ->
-            return Out.Err(
-                409, "DUPLICATE_CLIENT", "A client with this phone number already exists: ${c.str("name")}",
-                jsonOf("existingClient" to jsonOf("id" to c["id"], "name" to c["name"], "primaryPhone" to c["primaryPhone"]), "matchedOn" to s("phone number")),
-            )
-        }
+        existingClientWithPhone(phone)?.let { return duplicate(it, "phone number") }
+        val (mail, bad) = email(body["email"])
+        bad?.let { return it }
+        mail?.let { m -> existingClientWithEmail(m)?.let { return duplicate(it, "email") } }
         val id = newId("client")
         val t = nowIso()
         val client = jsonOf(
             "id" to s(id), "brokerageId" to s(brokerageId), "name" to s(name), "primaryPhone" to s(phone),
-            "email" to body["email"], "leadSource" to (body["leadSource"] ?: s("OTHER")), "status" to (body["status"] ?: s("NEW")),
+            "email" to s(mail), "leadSource" to (body["leadSource"] ?: s("OTHER")), "status" to (body["status"] ?: s("NEW")),
             "notes" to body["notes"], "assignedToId" to me["id"], "createdAt" to s(t), "updatedAt" to s(t),
             "phones" to list(listOf(jsonOf("id" to s("$id-phone"), "brokerageId" to s(brokerageId), "clientId" to s(id), "e164" to s(phone), "label" to s("primary")))),
         )
@@ -232,10 +280,29 @@ internal class DemoStore(
 
     fun updateClient(id: String, body: JsonObject): Out {
         val current = clientDetail(id) ?: return notFound("Client")
-        val patch = JsonObject(body.filterKeys { it in setOf("name", "email", "leadSource", "status", "notes") })
+        var patch = JsonObject(body.filterKeys { it in setOf("name", "email", "leadSource", "status", "notes") })
         if (patch.str("name")?.isBlank() == true) return badRequest("Name can't be empty")
+        if (body.containsKey("email")) {
+            val (mail, bad) = email(body["email"])
+            bad?.let { return it }
+            mail?.let { m -> existingClientWithEmail(m, exceptId = id)?.let { return duplicate(it, "email") } }
+            patch = patch.plus("email" to s(mail))
+        }
+        // A new main number replaces the old one (checked against other clients).
+        body.str("phone")?.trim()?.takeIf { it.isNotEmpty() }?.let { raw ->
+            val e164 = PhoneNumbers.normalize(raw) ?: return Out.Err(400, "INVALID_PHONE", "\"$raw\" is not a valid phone number")
+            if (e164 != current.str("primaryPhone")) {
+                existingClientWithPhone(e164, exceptId = id)?.let { return duplicate(it, "phone number") }
+                patch = patch.plus(
+                    "primaryPhone" to s(e164),
+                    "phones" to list(listOf(jsonOf("id" to s("$id-phone"), "brokerageId" to s(brokerageId), "clientId" to s(id), "e164" to s(e164), "label" to s("primary")))),
+                )
+            }
+        }
         val updated = JsonObject(clientFields(current) + patch).plus("updatedAt" to s(nowIso()))
-        changes.clients[id] = (changes.clients[id] ?: JsonObject(emptyMap())).merge(updated)
+        changes.clients[id] = (changes.clients[id] ?: JsonObject(emptyMap())).merge(updated).let { u ->
+            patch["phones"]?.let { u.plus("phones" to it) } ?: u
+        }
         return Out.Ok(200, jsonOf("client" to JsonObject(updated.filterKeys { it in CLIENT_FIELDS })))
     }
 

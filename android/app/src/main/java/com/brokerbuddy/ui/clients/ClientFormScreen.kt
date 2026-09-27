@@ -47,7 +47,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/** Create (clientId == null) or edit a client. Phone numbers are fixed after creation. */
+/** Create (clientId == null) or edit a client, including their main phone number. */
 @Composable
 fun ClientFormScreen(
     clientId: String?,
@@ -83,13 +83,13 @@ fun ClientFormScreen(
         }
     }
 
-    // Live duplicate check while typing a new client's number.
-    LaunchedEffect(phone) {
+    // Live duplicate check while typing a number (another client's number, never this one's).
+    LaunchedEffect(phone, loaded) {
         duplicate = null
-        if (clientId != null) return@LaunchedEffect
+        if (!loaded) return@LaunchedEffect
         val normalized = PhoneNumbers.normalize(phone) ?: return@LaunchedEffect
         delay(400)
-        api.call { checkDuplicate(normalized) }.onSuccess { duplicate = it.duplicate }
+        api.call { checkDuplicate(normalized) }.onSuccess { duplicate = it.duplicate?.takeIf { d -> d.id != clientId } }
     }
 
     fun save() {
@@ -127,9 +127,16 @@ fun ClientFormScreen(
                             leadSource = source,
                             status = status,
                             notes = notes.trim().ifEmpty { null },
+                            phone = phone.trim(),
                         ),
                     )
-                }.onSuccess { onSaved(it.client.id) }.onFailure { error = it.message }
+                }.onSuccess {
+                    CallerDirectorySyncWorker.syncNow(context) // the number may have changed
+                    onSaved(it.client.id)
+                }.onFailure { e ->
+                    val existing = (e as? ApiException)?.takeIf { it.code == "DUPLICATE_CLIENT" }?.existingClient()
+                    if (existing != null && existing.id != clientId) duplicate = existing else error = e.message
+                }
             }
             busy = false
         }
@@ -143,7 +150,6 @@ fun ClientFormScreen(
             OutlinedTextField(name, { name = it }, label = { Text("Name *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(
                 phone, { phone = it }, label = { Text("Phone *") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                enabled = clientId == null,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 isError = phone.isNotBlank() && PhoneNumbers.normalize(phone) == null,
                 supportingText = {
@@ -154,8 +160,8 @@ fun ClientFormScreen(
             duplicate?.let { dup ->
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                     Column(Modifier.padding(12.dp)) {
-                        Text("This number already belongs to ${dup.name}", style = MaterialTheme.typography.titleSmall)
-                        Text("Add a new inquiry to the existing profile instead of creating a duplicate.")
+                        Text("Already a client: ${dup.name} (${PhoneNumbers.display(dup.primaryPhone)})", style = MaterialTheme.typography.titleSmall)
+                        Text("This phone number or email belongs to them. Open their profile and add the requirement there instead of creating a duplicate.")
                         TextButton(onClick = { onOpenExisting(dup.id) }) { Text("Open ${dup.name}") }
                     }
                 }
@@ -175,7 +181,7 @@ fun ClientFormScreen(
             OutlinedTextField(notes, { notes = it }, label = { Text("Notes") }, minLines = 3, modifier = Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             val valid = loaded && name.isNotBlank() && leadSource != null &&
-                (clientId != null || PhoneNumbers.normalize(phone) != null) && duplicate == null
+                PhoneNumbers.normalize(phone) != null && duplicate == null
             Button(onClick = ::save, enabled = valid && !busy, modifier = Modifier.fillMaxWidth()) {
                 Text(if (busy) "Saving…" else "Save")
             }

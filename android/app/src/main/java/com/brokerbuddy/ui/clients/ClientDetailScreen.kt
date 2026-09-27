@@ -2,6 +2,12 @@
 
 package com.brokerbuddy.ui.clients
 
+import com.brokerbuddy.ui.reminders.RescheduleDialog
+import com.brokerbuddy.notifications.ReminderScheduler
+import com.brokerbuddy.core.model.UpdateReminderRequest
+import com.brokerbuddy.core.model.ReminderStatus
+import com.brokerbuddy.core.model.ReminderKind
+import com.brokerbuddy.core.model.Reminder
 import com.brokerbuddy.core.model.ClientPortalLead
 import com.brokerbuddy.core.model.Portal
 import java.time.Instant
@@ -61,7 +67,6 @@ import com.brokerbuddy.ui.caller.ClientNotesSection
 import com.brokerbuddy.core.phone.PhoneNumbers
 import com.brokerbuddy.ui.common.BackTopBar
 import com.brokerbuddy.ui.common.EmptyMessage
-import com.brokerbuddy.ui.common.LabeledValue
 import com.brokerbuddy.ui.common.Load
 import com.brokerbuddy.ui.common.LoadContent
 import com.brokerbuddy.ui.common.SectionTitle
@@ -199,7 +204,7 @@ fun ClientDetailScreen(
                             TextButton(onClick = { addingReminder = true }) { Icon(Icons.Filled.AddAlarm, null); Text(" Add") }
                         }
                         if (client.reminders.isEmpty()) EmptyMessage("No pending follow-ups")
-                        client.reminders.forEach { r -> LabeledValue(formatDateTime(r.dueAt), r.title) }
+                        client.reminders.forEach { r -> ProfileFollowUp(r, onChanged = { loader.reload() }) }
                     }
                     "requirements" -> {
                         if (client.inquiries.isEmpty()) EmptyMessage("No requirements recorded yet")
@@ -381,6 +386,36 @@ private fun PortalEnquiriesSection(leads: List<ClientPortalLead>, onListing: (Po
             }
         }
     }
+}
+
+/** A pending follow-up or callback on the profile: when, what, and Done / Change time. */
+@Composable
+private fun ProfileFollowUp(r: Reminder, onChanged: () -> Unit) {
+    val api = appContainer().api
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var rescheduling by remember { mutableStateOf(false) }
+    Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Column(Modifier.padding(start = 12.dp, top = 10.dp, end = 4.dp)) {
+            Text(
+                (if (r.kind == ReminderKind.CALLBACK) "Callback · " else "Follow-up · ") + formatDateTime(r.dueAt),
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Text(r.title, style = MaterialTheme.typography.bodyMedium)
+            r.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            Row {
+                TextButton(onClick = {
+                    scope.launch {
+                        api.call { updateReminder(r.id, UpdateReminderRequest(status = ReminderStatus.DONE)) }
+                            .onSuccess { ReminderScheduler.cancel(context, r); onChanged() }
+                            .onFailure { toast(context, it.message ?: "Couldn't update") }
+                    }
+                }) { Text("Mark done") }
+                TextButton(onClick = { rescheduling = true }) { Text("Change date & time") }
+            }
+        }
+    }
+    if (rescheduling) RescheduleDialog(r, onDismiss = { rescheduling = false }, onSaved = { rescheduling = false; onChanged() })
 }
 
 /** Voice notes for this client; ones not yet saved can be resumed. */

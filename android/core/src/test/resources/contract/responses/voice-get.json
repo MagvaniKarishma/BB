@@ -1,7 +1,7 @@
 {
   "voiceNote": {
-    "id": "cmujfl87v000v7dac7rc33xwz",
-    "clientId": "cmujfl80o000d7daclfit980o",
+    "id": "cmujg8u11000v7dl34dvmseoa",
+    "clientId": "cmujg8tsw000d7dl37h7w6j4r",
     "inquiryId": null,
     "language": "HINGLISH",
     "status": "READY",
@@ -38,21 +38,21 @@
     "error": null,
     "appliedVersion": null,
     "appliedAt": null,
-    "createdAt": "2026-09-27T06:22:02.203Z",
-    "updatedAt": "2026-09-27T06:22:02.433Z",
+    "createdAt": "2026-09-27T06:40:23.557Z",
+    "updatedAt": "2026-09-27T06:40:23.801Z",
     "createdBy": {
-      "id": "cmujfl7rd00057dacj3805w21",
+      "id": "cmujg8tj200057dl3glhra2qr",
       "name": "Rahul Sharma"
     },
     "hasAudio": false
   },
-  "suggestedInquiryId": "cmujfl813000h7dacr57vykye",
+  "suggestedInquiryId": "cmujg8tte000h7dl31y4kp2ra",
   "targetWarnings": [],
   "inquiries": [
     {
-      "id": "cmujfl813000h7dacr57vykye",
-      "brokerageId": "cmujfl7rc00037dacqq57826b",
-      "clientId": "cmujfl80o000d7daclfit980o",
+      "id": "cmujg8tte000h7dl31y4kp2ra",
+      "brokerageId": "cmujg8tj000037dl3isndguzo",
+      "clientId": "cmujg8tsw000d7dl37h7w6j4r",
       "transactionType": "RENT",
       "category": "BHK_2",
       "status": "ACTIVE",
@@ -75,8 +75,8 @@
       "notes": "Gated society",
       "source": "MANUAL",
       "version": 2,
-      "createdAt": "2026-09-27T06:22:01.959Z",
-      "updatedAt": "2026-09-27T06:22:01.971Z"
+      "createdAt": "2026-09-27T06:40:23.283Z",
+      "updatedAt": "2026-09-27T06:40:23.295Z"
     }
   ]
 }

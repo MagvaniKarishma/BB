@@ -1,11 +1,11 @@
 {
   "account": {
-    "id": "cmujfl8fw00117dacydozzr13",
+    "id": "cmujg8u9v00117dl3ktsg86p7",
     "phoneNumberId": "123456789012345",
     "wabaId": null,
     "displayPhone": null,
-    "webhookPath": "/webhooks/whatsapp/-nn2ZplTEhOp3YrYb-mw457BBl6n78Oh",
-    "verifyToken": "LNaQ1Q5VdvIKJFLCMXWR5lLs",
+    "webhookPath": "/webhooks/whatsapp/nKftUniv76QN1TvoUN5x7_RIeubqd58V",
+    "verifyToken": "ngbKW4rrcCGOn5GtHFiovb43",
     "verifiedAt": null,
     "lastEventAt": null
   }

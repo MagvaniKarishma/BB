@@ -1,21 +1,21 @@
 {
   "messages": [
     {
-      "id": "cmujfl8g400137dacs4cwjpoh",
-      "brokerageId": "cmujfl7rc00037dacqq57826b",
+      "id": "cmujg8ua400137dl3femq2hha",
+      "brokerageId": "cmujg8tj000037dl3isndguzo",
       "accountId": null,
       "contactId": null,
       "clientId": null,
       "inquiryId": null,
       "channel": "MANUAL",
       "direction": "INBOUND",
-      "externalId": "manual:3846bf2f1ca8f9cca107e1e2b74e0c538f217cbc",
+      "externalId": "manual:38db6f5399919ddd80962253f11883fb06d1c2be",
       "type": "text",
       "text": "Hi, I came across your 1 BHK Apartment listed at Housing.com for ₹ 27,000 in Mulund West, Mumbai. Please let me know if it is available.",
       "mediaId": null,
       "mediaMimeType": null,
       "senderName": null,
-      "sentAt": "2026-09-27T06:22:02.498Z",
+      "sentAt": "2026-09-27T06:40:23.881Z",
       "status": "RECEIVED",
       "errorReason": null,
       "leadPhone": null,
@@ -71,9 +71,9 @@
         ]
       },
       "review": "PENDING",
-      "processedAt": "2026-09-27T06:22:02.509Z",
+      "processedAt": "2026-09-27T06:40:23.896Z",
       "processError": null,
-      "createdAt": "2026-09-27T06:22:02.500Z",
+      "createdAt": "2026-09-27T06:40:23.884Z",
       "contact": null,
       "client": null
     }

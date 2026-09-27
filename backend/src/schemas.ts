@@ -70,6 +70,8 @@ export const createClientSchema = z.object({
 
 export const updateClientSchema = z.object({
   name: trimmed(120).optional(),
+  /** A new main number (replaces the old one; checked against other clients). */
+  phone: absentIfNull(trimmed(30)),
   email: z.string().trim().toLowerCase().email().nullish(),
   leadSource: z.nativeEnum(LeadSource).optional(),
   status: z.nativeEnum(ClientStatus).optional(),

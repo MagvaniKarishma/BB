@@ -1,21 +1,21 @@
 {
   "client": {
-    "id": "cmujfl8hc00197dacg4evtoeo",
-    "brokerageId": "cmujfl7rc00037dacqq57826b",
+    "id": "cmujg8ubm00197dl37gjzr427",
+    "brokerageId": "cmujg8tj000037dl3isndguzo",
     "name": "Sneha Kulkarni",
     "primaryPhone": "+919820055555",
     "email": null,
     "leadSource": "HOUSING_COM",
     "status": "NEW",
     "notes": null,
-    "assignedToId": "cmujfl7rd00057dacj3805w21",
-    "createdAt": "2026-09-27T06:22:02.544Z",
-    "updatedAt": "2026-09-27T06:22:02.544Z",
+    "assignedToId": "cmujg8tj200057dl3glhra2qr",
+    "createdAt": "2026-09-27T06:40:23.939Z",
+    "updatedAt": "2026-09-27T06:40:23.939Z",
     "phones": [
       {
-        "id": "cmujfl8hc001b7dacvl58vgj4",
-        "brokerageId": "cmujfl7rc00037dacqq57826b",
-        "clientId": "cmujfl8hc00197dacg4evtoeo",
+        "id": "cmujg8ubm001b7dl3rs725lyl",
+        "brokerageId": "cmujg8tj000037dl3isndguzo",
+        "clientId": "cmujg8ubm00197dl37gjzr427",
         "e164": "+919820055555",
         "label": "primary"
       }
@@ -23,21 +23,21 @@
   },
   "linkedExisting": false,
   "message": {
-    "id": "cmujfl8g400137dacs4cwjpoh",
-    "brokerageId": "cmujfl7rc00037dacqq57826b",
+    "id": "cmujg8ua400137dl3femq2hha",
+    "brokerageId": "cmujg8tj000037dl3isndguzo",
     "accountId": null,
     "contactId": null,
-    "clientId": "cmujfl8hc00197dacg4evtoeo",
+    "clientId": "cmujg8ubm00197dl37gjzr427",
     "inquiryId": null,
     "channel": "MANUAL",
     "direction": "INBOUND",
-    "externalId": "manual:3846bf2f1ca8f9cca107e1e2b74e0c538f217cbc",
+    "externalId": "manual:38db6f5399919ddd80962253f11883fb06d1c2be",
     "type": "text",
     "text": "Hi, I came across your 1 BHK Apartment listed at Housing.com for ₹ 27,000 in Mulund West, Mumbai. Please let me know if it is available.",
     "mediaId": null,
     "mediaMimeType": null,
     "senderName": null,
-    "sentAt": "2026-09-27T06:22:02.498Z",
+    "sentAt": "2026-09-27T06:40:23.881Z",
     "status": "RECEIVED",
     "errorReason": null,
     "leadPhone": null,
@@ -93,12 +93,12 @@
       ]
     },
     "review": "PENDING",
-    "processedAt": "2026-09-27T06:22:02.560Z",
+    "processedAt": "2026-09-27T06:40:23.954Z",
     "processError": null,
-    "createdAt": "2026-09-27T06:22:02.500Z",
+    "createdAt": "2026-09-27T06:40:23.884Z",
     "contact": null,
     "client": {
-      "id": "cmujfl8hc00197dacg4evtoeo",
+      "id": "cmujg8ubm00197dl37gjzr427",
       "name": "Sneha Kulkarni",
       "primaryPhone": "+919820055555"
     }

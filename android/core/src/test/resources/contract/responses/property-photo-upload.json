@@ -1,8 +1,8 @@
 {
-  "photoId": "cmujfl82i000p7dac9rvzxiac",
+  "photoId": "cmujg8tuy000p7dl3bftqe9e6",
   "property": {
-    "id": "cmujfl81o000n7dacer4mhfdl",
-    "brokerageId": "cmujfl7rc00037dacqq57826b",
+    "id": "cmujg8ttz000n7dl3tb71trtv",
+    "brokerageId": "cmujg8tj000037dl3isndguzo",
     "title": "2 BHK Apartment",
     "transactionType": "RENT",
     "category": "BHK_2",
@@ -23,11 +23,11 @@
     "ownerName": "Mr Mehta",
     "ownerPhone": "+919811122233",
     "notes": null,
-    "listedById": "cmujfl7rd00057dacj3805w21",
-    "createdAt": "2026-09-27T06:22:01.980Z",
-    "updatedAt": "2026-09-27T06:22:01.991Z",
+    "listedById": "cmujg8tj200057dl3glhra2qr",
+    "createdAt": "2026-09-27T06:40:23.303Z",
+    "updatedAt": "2026-09-27T06:40:23.313Z",
     "photoIds": [
-      "cmujfl82i000p7dac9rvzxiac"
+      "cmujg8tuy000p7dl3bftqe9e6"
     ]
   }
 }

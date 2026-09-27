@@ -1,8 +1,8 @@
 {
   "inquiry": {
-    "id": "cmujfl813000h7dacr57vykye",
-    "brokerageId": "cmujfl7rc00037dacqq57826b",
-    "clientId": "cmujfl80o000d7daclfit980o",
+    "id": "cmujg8tte000h7dl31y4kp2ra",
+    "brokerageId": "cmujg8tj000037dl3isndguzo",
+    "clientId": "cmujg8tsw000d7dl37h7w6j4r",
     "transactionType": "RENT",
     "category": "BHK_2",
     "status": "ACTIVE",
@@ -25,8 +25,8 @@
     "notes": "Gated society",
     "source": "MANUAL",
     "version": 2,
-    "createdAt": "2026-09-27T06:22:01.959Z",
-    "updatedAt": "2026-09-27T06:22:01.971Z"
+    "createdAt": "2026-09-27T06:40:23.283Z",
+    "updatedAt": "2026-09-27T06:40:23.295Z"
   },
   "changed": true
 }

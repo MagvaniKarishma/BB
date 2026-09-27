@@ -78,7 +78,8 @@ class DemoApi(
         if (method != "GET") return write(method, p, seg, DemoStore.parseBody(body))
 
         val merged: JsonElement? = when {
-            p == "clients" -> clientList(param("group"))
+            p == "clients" -> return ok(clientList(param("group"), q))
+            p == "clients/check-duplicate" -> store.checkDuplicate(param("phone").orEmpty())
             seg.size == 2 && seg[0] == "clients" && seg[1] !in setOf("lookup", "check-duplicate") ->
                 store.clientDetail(seg[1])?.let { jsonOf("client" to it) }
             seg.size == 3 && seg[0] == "clients" && seg[2] == "notes" -> jsonOf("notes" to list(store.notesOf(seg[1])))
@@ -107,8 +108,8 @@ class DemoApi(
 
     // ---------- merged lists ----------
 
-    private fun clientList(group: String?): JsonElement {
-        val all = store.allClientItems()
+    private fun clientList(group: String?, q: String): JsonElement {
+        val all = store.allClientItems().filter { store.clientMatches(it, q) }
         fun inGroup(c: JsonObject, g: String?) = when (g) {
             null, "all" -> true
             "new" -> c.str("status") == "NEW"

@@ -11,24 +11,24 @@
   },
   "clients": [
     {
-      "id": "cmujfl80o000d7daclfit980o",
-      "brokerageId": "cmujfl7rc00037dacqq57826b",
+      "id": "cmujg8tsw000d7dl37h7w6j4r",
+      "brokerageId": "cmujg8tj000037dl3isndguzo",
       "name": "Amit Patil",
       "primaryPhone": "+919876543210",
       "email": null,
       "leadSource": "ACRES_99",
       "status": "CONTACTED",
       "notes": null,
-      "assignedToId": "cmujfl7rd00057dacj3805w21",
-      "createdAt": "2026-09-27T06:22:01.944Z",
-      "updatedAt": "2026-09-27T06:22:01.952Z",
+      "assignedToId": "cmujg8tj200057dl3glhra2qr",
+      "createdAt": "2026-09-27T06:40:23.264Z",
+      "updatedAt": "2026-09-27T06:40:23.274Z",
       "assignedTo": {
-        "id": "cmujfl7rd00057dacj3805w21",
+        "id": "cmujg8tj200057dl3glhra2qr",
         "name": "Rahul Sharma"
       },
       "activeInquiries": 1,
       "requirement": {
-        "id": "cmujfl813000h7dacr57vykye",
+        "id": "cmujg8tte000h7dl31y4kp2ra",
         "transactionType": "RENT",
         "category": "BHK_2",
         "locations": [

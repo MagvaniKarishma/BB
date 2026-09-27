@@ -143,6 +143,8 @@ data class UpdateClientRequest(
     val leadSource: LeadSource,
     val status: ClientStatus,
     val notes: String?,
+    /** The main number; a different one replaces it (checked against other clients). */
+    val phone: String? = null,
 )
 
 @Serializable
