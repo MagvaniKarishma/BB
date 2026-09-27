@@ -67,6 +67,7 @@ import com.brokerbuddy.ui.inquiries.InquiryListScreen
 import com.brokerbuddy.ui.properties.PropertyDetailScreen
 import com.brokerbuddy.ui.properties.PropertyFormScreen
 import com.brokerbuddy.ui.properties.PropertyListScreen
+import com.brokerbuddy.ui.properties.PropertySearch
 import com.brokerbuddy.ui.reminders.RemindersScreen
 import com.brokerbuddy.ui.settings.SettingsScreen
 import com.brokerbuddy.ui.callassistant.CallAssistantScreen
@@ -123,6 +124,13 @@ object Routes {
     fun portalListing(portal: Portal, id: String, filter: PortalFilter) = "portal/${portal.name}/listing/$id?${filter.query()}"
     fun followUps(kind: ReminderKind) = "followups/${kind.name}"
     const val NEW_LEADS = "clients/new-leads"
+    private fun enc(v: String?) = android.net.Uri.encode(v.orEmpty())
+    fun clientNew(name: String? = null, phone: String? = null) = "client/new?phone=${enc(phone)}&source=&name=${enc(name)}"
+    fun inquiryNewFromVoice(clientId: String, token: String) = "inquiry/new/$clientId?voice=${enc(token)}"
+    fun clientSearch(q: String) = "clients/search?q=${enc(q)}"
+    fun propertySearch(s: PropertySearch) =
+        "properties/search?type=${s.type?.name.orEmpty()}&category=${s.category?.name.orEmpty()}" +
+            "&min=${s.minPrice?.toString().orEmpty()}&max=${s.maxPrice?.toString().orEmpty()}&q=${enc(s.query)}"
     fun voice(clientId: String, inquiryId: String? = null, noteId: String? = null) =
         "voice/$clientId?inquiryId=${inquiryId.orEmpty()}&noteId=${noteId.orEmpty()}"
 }
@@ -263,6 +271,27 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                     onAdd = { nav.navigate(Routes.PROPERTY_NEW) },
                 )
             }
+            composable("properties/search?type={type}&category={category}&min={min}&max={max}&q={q}") { entry ->
+                val a = entry.arguments
+                PropertyListScreen(
+                    onProperty = { nav.navigate(Routes.property(it)) },
+                    onAdd = { nav.navigate(Routes.PROPERTY_NEW) },
+                    initial = PropertySearch(
+                        type = TransactionType.entries.firstOrNull { it.name == a?.getString("type") },
+                        category = PropertyCategory.entries.firstOrNull { it.name == a?.getString("category") },
+                        minPrice = a?.getString("min")?.toLongOrNull(),
+                        maxPrice = a?.getString("max")?.toLongOrNull(),
+                        query = a?.getString("q").orEmpty(),
+                    ),
+                )
+            }
+            composable("clients/search?q={q}") { entry ->
+                ClientListScreen(
+                    onClient = { nav.navigate(Routes.client(it)) },
+                    onAdd = { nav.navigate(Routes.CLIENT_NEW) },
+                    initialQuery = entry.arguments?.getString("q").orEmpty(),
+                )
+            }
             composable(Routes.REMINDERS) {
                 RemindersScreen(onClient = { nav.navigate(Routes.client(it)) })
             }
@@ -320,14 +349,16 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
             composable(Routes.CALL_ASSISTANT_TEST) { TestAssistantScreen(onBack = back) }
 
             composable(
-                "client/new?phone={phone}&source={source}",
+                "client/new?phone={phone}&source={source}&name={name}",
                 listOf(
                     navArgument("phone") { type = NavType.StringType; defaultValue = "" },
                     navArgument("source") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("name") { type = NavType.StringType; defaultValue = "" },
                 ),
             ) { entry ->
                 ClientFormScreen(
                     clientId = null,
+                    initialName = entry.arguments?.getString("name")?.ifEmpty { null },
                     initialPhone = entry.arguments?.getString("phone")?.ifEmpty { null },
                     initialLeadSource = entry.arguments?.getString("source")?.let { s -> LeadSource.entries.firstOrNull { it.name == s } },
                     onBack = back,
@@ -367,11 +398,15 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                     onOpenExisting = { nav.navigate(Routes.client(it)) },
                 )
             }
-            composable("inquiry/new/{clientId}") { entry ->
+            composable(
+                "inquiry/new/{clientId}?voice={voice}",
+                listOf(navArgument("voice") { type = NavType.StringType; defaultValue = "" }),
+            ) { entry ->
                 val clientId = entry.arguments?.getString("clientId")!!
                 InquiryFormScreen(
                     clientId = clientId,
                     inquiryId = null,
+                    voiceToken = entry.arguments?.getString("voice")?.ifEmpty { null },
                     onBack = back,
                     onSaved = { id ->
                         nav.popBackStack()
@@ -530,16 +565,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
     if (showAssistant) {
         AssistantDialog(
             onDismiss = { showAssistant = false },
-            onNavigate = { n ->
-                showAssistant = false
-                when (n.screen) {
-                    "PORTAL_LEADS" -> n.portal?.let { nav.navigate(Routes.portalLeads(it, PortalFilter(DateFilter.of(n.range)))) }
-                    "PORTAL_LISTING" -> if (n.portal != null && n.listingId != null) {
-                        nav.navigate(Routes.portalListing(n.portal!!, n.listingId!!, PortalFilter(DateFilter.of(n.range))))
-                    }
-                    "CLIENT" -> n.clientId?.let { nav.navigate(Routes.client(it)) }
-                }
-            },
+            onOpen = { route -> nav.navigate(route) },
         )
     }
     if (pickingVoiceClient) {

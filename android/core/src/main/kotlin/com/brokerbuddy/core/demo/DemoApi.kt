@@ -2,10 +2,12 @@ package com.brokerbuddy.core.demo
 
 import com.brokerbuddy.core.match.Matching
 import com.brokerbuddy.core.model.ApiJson
+import com.brokerbuddy.core.model.Extraction
 import com.brokerbuddy.core.model.Inquiry
 import com.brokerbuddy.core.model.MeResponse
 import com.brokerbuddy.core.model.Property
 import com.brokerbuddy.core.model.User
+import com.brokerbuddy.core.voice.PhoneRules
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -127,7 +129,10 @@ class DemoApi(
                         (param("clientId") == null || it.str("clientId") == param("clientId")) && inRange(it, from, to)
                 }))
             }
-            p == "voice-notes" && param("clientId") in changes.created -> jsonOf("voiceNotes" to list(emptyList()))
+            p == "voice-notes" -> jsonOf("voiceNotes" to list(store.voiceNotesAll().filter {
+                (param("clientId") == null || it.str("clientId") == param("clientId")) && (param("inquiryId") == null || it.str("inquiryId") == param("inquiryId"))
+            }))
+            seg.size == 2 && seg[0] == "voice-notes" -> presentNote(seg[1])
             p == "dashboard" -> dashboard()
             else -> null
         }
@@ -191,6 +196,117 @@ class DemoApi(
             store.inquiryItem(i).plus("matchCount" to JsonPrimitive(count))
         }
         return jsonOf("total" to JsonPrimitive(shown.size), "inquiries" to list(shown))
+    }
+
+    // ---------- voice notes: typed or recorded, read on the phone ----------
+
+    private fun read(text: String): JsonElement = ApiJson.encodeToJsonElement(Extraction.serializer(), PhoneRules.extract(text))
+
+    /**
+     * Voice fill: the original words decide what they can; the phone's English translation (Hindi or
+     * Marathi speech) fills what they missed. Area names only in English.
+     */
+    private fun readForForm(text: String, english: String?): Extraction {
+        val original = PhoneRules.extract(text)
+        if (english.isNullOrBlank()) return original
+        val translated = PhoneRules.extract(english)
+        val o = original.draft
+        val t = translated.draft
+        val locations = (o.locations.orEmpty() + t.locations.orEmpty()).filter { !DEVANAGARI.containsMatchIn(it.value) }.distinctBy { it.value.lowercase() }
+        return Extraction(
+            draft = com.brokerbuddy.core.model.RequirementDraft(
+                transactionType = o.transactionType ?: t.transactionType, category = o.category ?: t.category,
+                budgetMin = o.budgetMin ?: t.budgetMin, budgetMax = o.budgetMax ?: t.budgetMax, locations = locations.ifEmpty { null },
+                furnishing = o.furnishing ?: t.furnishing, minParking = o.minParking ?: t.minParking,
+                floorPreference = o.floorPreference ?: t.floorPreference, possession = o.possession ?: t.possession,
+                possessionBy = o.possessionBy ?: t.possessionBy,
+            ),
+            warnings = (original.warnings + translated.warnings).distinct(),
+            extractor = PhoneRules.NAME,
+        )
+    }
+
+    /** A note as the review screen reads it: which requirement it most likely belongs to, and warnings. */
+    private fun presentNote(id: String): JsonElement? {
+        val note = store.voiceNote(id) ?: return null
+        val clientId = note.str("clientId") ?: return null
+        val inquiries = store.inquiriesOf(clientId).map { JsonObject(it - "client" - "matchCount") }
+            .sortedWith(compareBy<JsonObject>({ it.str("status") }).thenByDescending { it.str("updatedAt") })
+        val draft = (note["extraction"] as? JsonObject)?.obj("draft")
+        fun valueOf(key: String) = draft?.obj(key)?.str("value")
+        val warnings = mutableListOf<String>()
+        var suggested = note.str("inquiryId")
+        if (draft != null && suggested != null) {
+            val chosen = inquiries.firstOrNull { it.str("id") == suggested }
+            if (chosen != null && valueOf("transactionType") != null && valueOf("transactionType") != chosen.str("transactionType")) {
+                warnings += "The note talks about ${valueOf("transactionType")} but the selected inquiry is ${chosen.str("transactionType")}"
+            }
+            if (chosen != null && valueOf("category") != null && valueOf("category") != chosen.str("category")) {
+                warnings += "The note mentions ${valueOf("category")} but the selected inquiry is ${chosen.str("category")}"
+            }
+        } else if (draft != null && note.str("status") == "READY") {
+            val fits = inquiries.filter {
+                it.str("status") == "ACTIVE" && (valueOf("transactionType") == null || it.str("transactionType") == valueOf("transactionType")) &&
+                    (valueOf("category") == null || it.str("category") == valueOf("category"))
+            }
+            // Only when the note pins it down.
+            if (fits.size == 1 && (valueOf("transactionType") != null || valueOf("category") != null)) suggested = fits.first().str("id")
+        }
+        return jsonOf("voiceNote" to note, "suggestedInquiryId" to s(suggested), "targetWarnings" to list(warnings.map(::s)), "inquiries" to list(inquiries))
+    }
+
+    /** A recording the app has saved on the phone (it keeps the audio file). */
+    @Synchronized
+    fun addRecording(clientId: String, inquiryId: String?, language: String, durationMs: Long?): Pair<Reply, String?> =
+        when (val out = store.createVoiceNote(clientId, inquiryId, language, null, true, durationMs, ::read)) {
+            is DemoStore.Out.Err -> error(out.status, out.code, out.message, out.details) to null
+            is DemoStore.Out.Ok -> {
+                onChange(changes)
+                val id = (out.body as JsonObject).str("id")!!
+                Reply(201, presentNote(id).toString()) to id
+            }
+        }
+
+    /** Is this a note (with a recording) the broker can see? */
+    @Synchronized
+    fun hasRecording(noteId: String): Boolean = store.voiceNote(noteId)?.let { (it["hasAudio"] as? JsonPrimitive)?.content == "true" } == true
+
+    /** Ids of every note, so recordings of deleted notes can be removed. */
+    @Synchronized
+    fun voiceNoteIds(): Set<String> = store.voiceNotesAll().mapNotNull { it.str("id") }.toSet()
+
+    private fun voiceWrite(method: String, p: String, seg: List<String>, b: JsonObject): Reply {
+        if (method == "POST" && p == "voice-notes/extract") {
+            val text = b.str("text")?.trim().orEmpty()
+            if (text.isEmpty()) return error(400, "VALIDATION_ERROR", "Say or type the requirement first")
+            return Reply(200, ApiJson.encodeToString(Extraction.serializer(), readForForm(text, b.str("english"))))
+        }
+        val id = seg.getOrNull(1)
+        val out: DemoStore.Out = when {
+            method == "POST" && p == "voice-notes/text" -> {
+                val transcript = b.str("transcript")?.trim().orEmpty()
+                if (transcript.isEmpty()) return error(400, "VALIDATION_ERROR", "Type what was said")
+                store.createVoiceNote(b.str("clientId").orEmpty(), b.str("inquiryId"), b.str("language") ?: "AUTO", transcript, false, null, ::read)
+            }
+            method == "PUT" && seg.size == 3 && seg[2] == "transcript" -> store.setTranscript(id!!, b.str("transcript"), ::read)
+            method == "POST" && seg.size == 3 && seg[2] == "apply" -> store.applyVoiceNote(id!!, b)
+            method == "POST" && seg.size == 3 && seg[2] == "discard" -> store.discardVoiceNote(id!!)
+            method == "POST" && seg.size == 3 && seg[2] == "retry" ->
+                return error(400, "DEMO_MODE", "Turning a recording into text needs a BrokerBuddy server. Play it and type what was said.")
+            else -> return error(403, "DEMO_MODE", NEEDS_SERVER)
+        }
+        return when (out) {
+            is DemoStore.Out.Err -> error(out.status, out.code, out.message, out.details)
+            is DemoStore.Out.Ok -> {
+                onChange(changes)
+                when {
+                    seg.size == 3 && seg[2] == "apply" -> Reply(200, out.body.toString())
+                    seg.size == 3 && seg[2] == "discard" -> Reply(200, jsonOf("voiceNote" to store.voiceNote(id!!)).toString())
+                    p == "voice-notes/text" -> Reply(201, presentNote((out.body as JsonObject).str("id")!!).toString())
+                    else -> Reply(200, presentNote(id!!).toString())
+                }
+            }
+        }
     }
 
     // ---------- portal leads: grouped by listing and filtered by date, as on the server ----------
@@ -342,8 +458,8 @@ class DemoApi(
     // ---------- writes ----------
 
     private fun write(method: String, p: String, seg: List<String>, body: JsonObject?): Reply {
-        if (p == "voice-notes/extract") return error(403, "DEMO_MODE", NO_VOICE_FILL)
         val b = body ?: JsonObject(emptyMap())
+        if (seg.firstOrNull() == "voice-notes") return voiceWrite(method, p, seg, b)
         val out: DemoStore.Out? = when {
             method == "POST" && p == "clients" -> store.createClient(b)
             method == "PATCH" && seg.size == 2 && seg[0] == "clients" -> store.updateClient(seg[1], b)
@@ -382,6 +498,7 @@ class DemoApi(
         const val READ_ONLY = NEEDS_SERVER
 
         private const val UNIDENTIFIED = "unidentified"
+        private val DEVANAGARI = Regex("[\\u0900-\\u097F]")
 
         /** Query parameters that don't change which answer is shown. */
         private val IGNORED = setOf("tz", "page", "pageSize", "from", "to")

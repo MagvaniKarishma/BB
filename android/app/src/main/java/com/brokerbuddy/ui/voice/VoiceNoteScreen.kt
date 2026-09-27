@@ -38,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -380,10 +381,20 @@ private fun ReviewPanel(
         note.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
     if (editingTranscript) {
+        // Play the recording while typing what was said.
+        if (note.hasAudio) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                VoiceNotePlayButton(note.id)
+                Spacer(Modifier.width(10.dp))
+                Text("Play the recording", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
         OutlinedTextField(transcriptText, { transcriptText = it }, minLines = 4, modifier = Modifier.fillMaxWidth(), label = { Text("Transcript") })
+        val isDemo = appContainer().sessionStore.session.collectAsState(initial = null).value?.isDemo == true
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = transcriptText.isNotBlank(), onClick = ::submitTranscript) { Text("Read requirements") }
-            if (note.status == VoiceNoteStatus.NEEDS_TRANSCRIPT && note.hasAudio) {
+            // Speech-to-text of a recording needs a server; the demo has none.
+            if (note.status == VoiceNoteStatus.NEEDS_TRANSCRIPT && note.hasAudio && !isDemo) {
                 OutlinedButton(onClick = {
                     setBusy("Transcribing…")
                     scope.launch { onResult(api.call { retryTranscription(note.id) }); setBusy(null) }

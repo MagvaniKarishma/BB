@@ -138,18 +138,32 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 
+/** Filters a property list opens with (e.g. from “Find properties under 80 lakhs in Powai”). */
+data class PropertySearch(
+    val type: TransactionType? = TransactionType.RENT,
+    val category: PropertyCategory? = null,
+    val minPrice: Long? = null,
+    val maxPrice: Long? = null,
+    val query: String = "",
+)
+
+private enum class Deal(val label: String, val type: TransactionType?) {
+    ALL("All", null), RENT("Rent", TransactionType.RENT), BUY("Buy", TransactionType.BUY)
+}
+
 @Composable
-fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit) {
+fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit, initial: PropertySearch = PropertySearch()) {
     val api = appContainer().api
-    var query by rememberText()
-    var type by rememberSaveable { mutableStateOf(TransactionType.RENT) }
+    var query by rememberText(initial.query)
+    var deal by rememberSaveable { mutableStateOf(Deal.entries.first { it.type == initial.type }) }
+    val type = deal.type
     // null = all availabilities
     var availability by rememberSaveable { mutableStateOf<Availability?>(Availability.AVAILABLE) }
-    var category by rememberSaveable { mutableStateOf<PropertyCategory?>(null) }
+    var category by rememberSaveable { mutableStateOf(initial.category) }
     var propertyType by rememberSaveable { mutableStateOf<PropertyType?>(null) }
     var furnishing by rememberSaveable { mutableStateOf<Furnishing?>(null) }
-    var minPrice by rememberSaveable { mutableStateOf<Long?>(null) }
-    var maxPrice by rememberSaveable { mutableStateOf<Long?>(null) }
+    var minPrice by rememberSaveable { mutableStateOf(initial.minPrice) }
+    var maxPrice by rememberSaveable { mutableStateOf(initial.maxPrice) }
     var priceDialog by remember { mutableStateOf(false) }
     val filtered = category != null || propertyType != null || furnishing != null || minPrice != null || maxPrice != null ||
         availability != Availability.AVAILABLE || query.isNotBlank()
@@ -157,7 +171,7 @@ fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit) {
         query = ""; availability = Availability.AVAILABLE; category = null; propertyType = null; furnishing = null
         minPrice = null; maxPrice = null
     }
-    val loader = rememberLoad(query, type, availability, category, propertyType, furnishing, minPrice, maxPrice) {
+    val loader = rememberLoad(query, deal, availability, category, propertyType, furnishing, minPrice, maxPrice) {
         if (query.isNotBlank()) delay(300)
         api.call {
             properties(
@@ -180,7 +194,7 @@ fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            SegmentedPill(TransactionType.entries, type, { it.label }, { type = it }, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            SegmentedPill(Deal.entries, deal, { it.label }, { deal = it }, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             SearchField(query, { query = it }, "Search title, area or society...", Modifier.padding(horizontal = 16.dp))
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp),
@@ -205,8 +219,8 @@ fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit) {
                 LoadContent(loader) { list ->
                     if (list.properties.isEmpty()) {
                         EmptyMessage(
-                            if (filtered) "No ${type.label.lowercase()} properties match these filters."
-                            else "No ${type.label.lowercase()} properties yet. Tap + to add a listing.",
+                            if (filtered) "No ${type?.label?.lowercase()?.let { "$it " }.orEmpty()}properties match these filters."
+                            else "No ${type?.label?.lowercase()?.let { "$it " }.orEmpty()}properties yet. Tap + to add a listing.",
                         )
                     } else {
                         LazyColumn(

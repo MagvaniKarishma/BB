@@ -28,21 +28,33 @@ import com.brokerbuddy.core.form.FormField
 import com.brokerbuddy.core.form.RequirementForm
 import com.brokerbuddy.core.model.TransactionType
 import com.brokerbuddy.ui.common.BackTopBar
+import com.brokerbuddy.ui.voice.VoiceHandoff
+import com.brokerbuddy.core.form.applyDraft
 import com.brokerbuddy.ui.common.appContainer
 import kotlinx.coroutines.launch
 
 @Composable
-fun InquiryFormScreen(clientId: String?, inquiryId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
+fun InquiryFormScreen(
+    clientId: String?,
+    inquiryId: String?,
+    onBack: () -> Unit,
+    onSaved: (String) -> Unit,
+    /** A requirement a voice command understood, to review here (see VoiceHandoff). */
+    voiceToken: String? = null,
+) {
     val api = appContainer().api
     val scope = rememberCoroutineScope()
+    // From a voice command: only what was said is filled in (rent/buy too); everything else stays blank.
+    val spoken = remember(voiceToken) { VoiceHandoff.take(voiceToken) }
     var form by rememberSaveable(stateSaver = RequirementFormSaver) {
-        mutableStateOf(RequirementForm(transactionType = TransactionType.RENT))
+        mutableStateOf(spoken?.let { RequirementForm(transactionType = null).applyDraft(it.draft).form } ?: RequirementForm(transactionType = TransactionType.RENT))
     }
+    val spokenWarnings = spoken?.warnings.orEmpty()
     var loaded by rememberSaveable { mutableStateOf(inquiryId == null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     // Words each voice-filled field came from (shown under the field).
-    var evidence by remember { mutableStateOf<Map<FormField, String>>(emptyMap()) }
+    var evidence by remember { mutableStateOf(spoken?.let { RequirementForm(transactionType = null).applyDraft(it.draft).evidence } ?: emptyMap<FormField, String>()) }
 
     LaunchedEffect(inquiryId) {
         if (inquiryId == null || loaded) return@LaunchedEffect
@@ -90,6 +102,13 @@ fun InquiryFormScreen(clientId: String?, inquiryId: String?, onBack: () -> Unit,
                     onFilled = { filled, words -> form = filled; evidence = evidence + words },
                     onUndo = { form = it; evidence = emptyMap() },
                 )
+            }
+            if (spoken != null) {
+                Text(
+                    "Filled from what you said — check each field, then Save. Nothing is saved until you do.",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary,
+                )
+                spokenWarnings.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary) }
             }
             Text(
                 "Or fill it in by hand. Leave anything the client hasn't said blank — BrokerBuddy never fills in guesses.",

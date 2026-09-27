@@ -78,7 +78,9 @@ class DemoApiTest {
         assertEquals(403, post.status)
         assertTrue("DEMO_MODE" in post.body)
         assertEquals(404, api.handle("GET", "/api/v1/properties/x/photos/y", emptyList()).status)
-        assertTrue("isn't available in the demo" in api.handle("POST", "/api/v1/voice-notes/extract", emptyList()).body)
+        // Voice fill now reads the words on the phone; only speech-to-text of a recording needs a server.
+        assertEquals(400, api.handle("POST", "/api/v1/voice-notes/extract", emptyList(), "{}").status)
+        assertTrue("needs a BrokerBuddy server" in api.handle("POST", "/api/v1/voice-notes/x/retry", emptyList(), "{}").body)
     }
 
     /** Every answer in the bundled snapshot decodes with the app's models, the way its screens read it. */

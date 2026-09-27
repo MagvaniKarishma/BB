@@ -30,15 +30,17 @@ class DemoChanges(
     val notes: MutableMap<String, JsonObject> = mutableMapOf(),
     /** Portal enquiries whose status the broker changed. */
     val leads: MutableMap<String, JsonObject> = mutableMapOf(),
+    /** Voice notes recorded or typed in the demo, and edits to sample ones. */
+    val voiceNotes: MutableMap<String, JsonObject> = mutableMapOf(),
     /** Ids of records created in the demo (only these can be deleted). */
     val created: MutableSet<String> = mutableSetOf(),
     val deleted: MutableSet<String> = mutableSetOf(),
     var seq: Long = 0,
 ) {
-    val count: Int get() = clients.size + properties.size + inquiries.size + reminders.size + notes.size + leads.size + deleted.size
+    val count: Int get() = clients.size + properties.size + inquiries.size + reminders.size + notes.size + leads.size + voiceNotes.size + deleted.size
 
     fun clear() {
-        clients.clear(); properties.clear(); inquiries.clear(); reminders.clear(); notes.clear(); leads.clear()
+        clients.clear(); properties.clear(); inquiries.clear(); reminders.clear(); notes.clear(); leads.clear(); voiceNotes.clear()
         created.clear(); deleted.clear(); seq = 0
     }
 
@@ -144,6 +146,103 @@ internal class DemoStore(
             .sortedBy { it.str("dueAt") }
         val leads = portalLeadsAll().filter { it.str("clientId") == id }
         return client.plus("inquiries" to list(inquiries), "reminders" to list(reminders), "portalLeads" to list(leads))
+    }
+
+    // ---------- voice notes ----------
+
+    /** Sample voice notes (with edits) and the ones made in the demo, newest first. */
+    fun voiceNotesAll(): List<JsonObject> {
+        val byId = LinkedHashMap<String, JsonObject>()
+        for (n in base("voice-notes")?.jsonObject?.arr("voiceNotes").orEmpty()) byId[n.str("id")!!] = n
+        for ((id, n) in changes.voiceNotes) byId[id] = byId[id]?.merge(n) ?: n
+        return byId.values.filter { it.str("clientId") !in changes.deleted }
+            .map { it.plus("hasAudio" to JsonPrimitive(it.str("audioSize") != null || (it["hasAudio"] as? JsonPrimitive)?.content == "true")) }
+            .sortedByDescending { it.str("createdAt") }
+    }
+
+    fun voiceNote(id: String): JsonObject? = voiceNotesAll().firstOrNull { it.str("id") == id }
+
+    /**
+     * A new note: typed ([transcript] given, read straight away) or recorded ([hasAudio]; without a
+     * server there's no speech-to-text for a recording, so it waits for the broker to type what was said).
+     */
+    fun createVoiceNote(clientId: String, inquiryId: String?, language: String, transcript: String?, hasAudio: Boolean, durationMs: Long?, read: (String) -> JsonElement): Out {
+        clientDetail(clientId) ?: return notFound("Client")
+        if (inquiryId != null) {
+            val i = inquiriesAll().firstOrNull { it.str("id") == inquiryId } ?: return notFound("Inquiry")
+            if (i.str("clientId") != clientId) return badRequest("That inquiry belongs to a different client")
+        }
+        val id = newId("voicenote")
+        val base = jsonOf(
+            "id" to s(id), "clientId" to s(clientId), "inquiryId" to s(inquiryId), "language" to s(language),
+            "hasAudio" to JsonPrimitive(hasAudio), "audioSize" to (if (hasAudio) JsonPrimitive(1) else JsonNull),
+            "durationMs" to (durationMs?.let(::JsonPrimitive) ?: JsonNull), "createdAt" to s(nowIso()), "createdBy" to meRef(),
+            "appliedVersion" to JsonNull,
+        )
+        changes.voiceNotes[id] = if (transcript != null) base.merge(transcribed(transcript, read)).plus("originalTranscript" to s(transcript))
+        else base.plus(
+            "status" to s("NEEDS_TRANSCRIPT"), "originalTranscript" to JsonNull, "transcript" to JsonNull, "extraction" to JsonNull,
+            "error" to s("Speech-to-text needs a BrokerBuddy server, so it isn't available in the demo. Play the recording and type what was said."),
+        )
+        changes.created += id
+        return Out.Ok(201, jsonOf("id" to s(id)))
+    }
+
+    private fun transcribed(transcript: String, read: (String) -> JsonElement): JsonObject {
+        val extraction = read(transcript)
+        return jsonOf(
+            "status" to s("READY"), "transcript" to s(transcript), "transcriptSource" to s("manual"),
+            "extraction" to extraction, "extractor" to ((extraction as? JsonObject)?.get("extractor") ?: JsonNull), "error" to JsonNull,
+        )
+    }
+
+    private fun openNote(id: String): Pair<JsonObject?, Out.Err?> {
+        val note = voiceNote(id) ?: return null to notFound("Voice note")
+        return when (note.str("status")) {
+            "APPLIED" -> null to Out.Err(409, "ALREADY_APPLIED", "This voice note was already saved to an inquiry")
+            "DISCARDED" -> null to Out.Err(409, "DISCARDED", "This voice note was discarded")
+            else -> note to null
+        }
+    }
+
+    fun setTranscript(id: String, transcript: String?, read: (String) -> JsonElement): Out {
+        val text = transcript?.trim().orEmpty()
+        if (text.isEmpty()) return badRequest("Type what was said")
+        val (note, err) = openNote(id)
+        if (err != null) return err
+        val patch = transcribed(text, read).let { if (note!!.str("originalTranscript") == null) it.plus("originalTranscript" to s(text)) else it }
+        changes.voiceNotes[id] = (changes.voiceNotes[id] ?: JsonObject(emptyMap())).merge(patch)
+        return Out.Ok(200, JsonNull)
+    }
+
+    fun discardVoiceNote(id: String): Out {
+        val (_, err) = openNote(id)
+        if (err != null) return err
+        changes.voiceNotes[id] = (changes.voiceNotes[id] ?: JsonObject(emptyMap())).plus("status" to s("DISCARDED"))
+        return Out.Ok(200, JsonNull)
+    }
+
+    /** Saves the reviewed requirement from a note: updates the chosen requirement or creates one. */
+    fun applyVoiceNote(id: String, body: JsonObject): Out {
+        val (note, err) = openNote(id)
+        if (err != null) return err
+        if (note!!.str("status") != "READY") return badRequest("Add a transcript before saving this note")
+        val requirement = body.obj("requirement") ?: return badRequest("Missing requirement")
+        val withSource = requirement.plus("source" to s("VOICE_NOTE"))
+        val targetId = body.str("inquiryId")
+        val out = if (targetId != null) {
+            val target = inquiriesAll().firstOrNull { it.str("id") == targetId } ?: return notFound("Inquiry")
+            if (target.str("clientId") != note.str("clientId")) return badRequest("That inquiry belongs to a different client")
+            updateInquiry(targetId, withSource)
+        } else {
+            createInquiry(note.str("clientId")!!, withSource)
+        }
+        if (out !is Out.Ok) return out
+        val inquiry = (out.body as JsonObject).obj("inquiry")!!
+        changes.voiceNotes[id] = (changes.voiceNotes[id] ?: JsonObject(emptyMap())).plus(
+            "status" to s("APPLIED"), "inquiryId" to inquiry["id"], "appliedVersion" to inquiry["version"],
+        )
+        return Out.Ok(200, jsonOf("inquiry" to inquiry, "changed" to JsonPrimitive(true), "voiceNote" to voiceNote(id)))
     }
 
     // ---------- portal leads (99acres / Housing.com) ----------

@@ -57,11 +57,12 @@ fun ClientFormScreen(
     /** Pre-fill for new clients, e.g. from the caller screen. */
     initialPhone: String? = null,
     initialLeadSource: LeadSource? = null,
+    initialName: String? = null,
 ) {
     val api = appContainer().api
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var name by rememberText()
+    var name by rememberText(initialName)
     var phone by rememberText(initialPhone)
     var altPhone by rememberText()
     var email by rememberText()
