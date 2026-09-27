@@ -28,15 +28,17 @@ class DemoChanges(
     val inquiries: MutableMap<String, JsonObject> = mutableMapOf(),
     val reminders: MutableMap<String, JsonObject> = mutableMapOf(),
     val notes: MutableMap<String, JsonObject> = mutableMapOf(),
+    /** Portal enquiries whose status the broker changed. */
+    val leads: MutableMap<String, JsonObject> = mutableMapOf(),
     /** Ids of records created in the demo (only these can be deleted). */
     val created: MutableSet<String> = mutableSetOf(),
     val deleted: MutableSet<String> = mutableSetOf(),
     var seq: Long = 0,
 ) {
-    val count: Int get() = clients.size + properties.size + inquiries.size + reminders.size + notes.size + deleted.size
+    val count: Int get() = clients.size + properties.size + inquiries.size + reminders.size + notes.size + leads.size + deleted.size
 
     fun clear() {
-        clients.clear(); properties.clear(); inquiries.clear(); reminders.clear(); notes.clear()
+        clients.clear(); properties.clear(); inquiries.clear(); reminders.clear(); notes.clear(); leads.clear()
         created.clear(); deleted.clear(); seq = 0
     }
 
@@ -140,7 +142,54 @@ internal class DemoStore(
         val reminders = remindersAll().filter { it.str("clientId") == id && it.str("status") == "PENDING" }
             .map { JsonObject(it.filterKeys { k -> k != "client" && k != "assignedTo" }) }
             .sortedBy { it.str("dueAt") }
-        return client.plus("inquiries" to list(inquiries), "reminders" to list(reminders))
+        val leads = portalLeadsAll().filter { it.str("clientId") == id }
+        return client.plus("inquiries" to list(inquiries), "reminders" to list(reminders), "portalLeads" to list(leads))
+    }
+
+    // ---------- portal leads (99acres / Housing.com) ----------
+
+    /** The sample listing summaries of one portal: the listing's own facts (counts are recomputed). */
+    fun portalListingFacts(portal: String): List<JsonObject> =
+        base("portal-leads/listings?portal=$portal")?.jsonObject?.arr("listings").orEmpty()
+
+    /** Every sample enquiry, newest first, with status changes and current client details applied. */
+    fun portalLeadsAll(): List<JsonObject> {
+        val byId = LinkedHashMap<String, JsonObject>()
+        for (portal in PORTALS) {
+            for (l in portalListingFacts(portal)) {
+                for (lead in base("portal-leads/listings/${l.str("id")}?portal=$portal")?.jsonObject?.arr("leads").orEmpty()) {
+                    byId.putIfAbsent(lead.str("id")!!, lead)
+                }
+            }
+        }
+        return byId.values.map { lead ->
+            val edited = changes.leads[lead.str("id")]?.let { lead.merge(it) } ?: lead
+            val clientId = edited.str("clientId")
+            when {
+                clientId == null -> edited
+                clientId in changes.deleted -> edited.plus("clientId" to JsonNull, "client" to JsonNull)
+                else -> edited.plus("client" to (clientRef(clientId) ?: edited["client"]))
+            }
+        }.sortedByDescending { it.str("enquiredAt") }
+    }
+
+    /**
+     * Sets an enquiry's status, as the server does: marking it anything but New also moves a
+     * client still marked New to Contacted; nothing else about the client changes.
+     */
+    fun setLeadStatus(id: String, body: JsonObject): Out {
+        val status = body.str("status")
+        if (status !in LEAD_STATUSES) return badRequest("Choose a valid status")
+        val lead = portalLeadsAll().firstOrNull { it.str("id") == id } ?: return notFound("Lead")
+        changes.leads[id] = jsonOf("status" to s(status), "updatedAt" to s(nowIso()))
+        val clientId = lead.str("clientId")
+        if (clientId != null && status != "NEW") {
+            val current = changes.clients[clientId] ?: base("clients/$clientId")?.jsonObject?.obj("client")?.let(::clientFields)
+            if (current != null && current.str("status") == "NEW") {
+                changes.clients[clientId] = current.plus("status" to s("CONTACTED"), "updatedAt" to s(nowIso()))
+            }
+        }
+        return Out.Ok(200, jsonOf("lead" to portalLeadsAll().first { it.str("id") == id }))
     }
 
     fun clientRef(id: String): JsonObject? {
@@ -448,6 +497,8 @@ internal class DemoStore(
     companion object {
         val CLIENT_FIELDS = setOf("id", "brokerageId", "name", "primaryPhone", "email", "leadSource", "status", "notes", "assignedToId", "createdAt", "updatedAt")
         const val MAX_PHOTOS = 12
+        val PORTALS = listOf("ACRES_99", "HOUSING_COM")
+        private val LEAD_STATUSES = com.brokerbuddy.core.model.PortalLeadStatus.entries.map { it.name }.toSet()
         const val SAMPLE_NOT_DELETABLE = "Sample records can't be deleted in the demo. Use Reset demo to undo your own changes."
 
         fun parseBody(body: String?): JsonObject? = body?.let { runCatching { ApiJson.parseToJsonElement(it).jsonObject }.getOrNull() }

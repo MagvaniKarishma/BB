@@ -118,6 +118,15 @@ class DemoApi(
             seg.size == 3 && seg[0] == "inquiries" && seg[2] == "history" && seg[1] in changes.created -> jsonOf("revisions" to list(emptyList()))
             seg.size == 3 && seg[0] == "inquiries" && seg[2] == "matches" -> inquiryMatches(seg[1])
             p == "reminders" -> reminderList(param("status"), param("kind"), param("clientId"))
+            p == "portal-leads/listings" -> param("portal")?.let { portalListings(it, range(::param)) }
+            seg.size == 3 && seg[0] == "portal-leads" && seg[1] == "listings" -> portalListing(seg[2], param("portal"), range(::param))
+            p == "portal-leads" -> {
+                val (from, to) = range(::param)
+                jsonOf("leads" to list(store.portalLeadsAll().filter {
+                    (param("portal") == null || it.str("portal") == param("portal")) &&
+                        (param("clientId") == null || it.str("clientId") == param("clientId")) && inRange(it, from, to)
+                }))
+            }
             p == "voice-notes" && param("clientId") in changes.created -> jsonOf("voiceNotes" to list(emptyList()))
             p == "dashboard" -> dashboard()
             else -> null
@@ -182,6 +191,65 @@ class DemoApi(
             store.inquiryItem(i).plus("matchCount" to JsonPrimitive(count))
         }
         return jsonOf("total" to JsonPrimitive(shown.size), "inquiries" to list(shown))
+    }
+
+    // ---------- portal leads: grouped by listing and filtered by date, as on the server ----------
+
+    private fun range(param: (String) -> String?): Pair<Instant?, Instant?> =
+        param("from")?.let { runCatching { Instant.parse(it) }.getOrNull() } to param("to")?.let { runCatching { Instant.parse(it) }.getOrNull() }
+
+    /** Enquired within [from, to). */
+    private fun inRange(lead: JsonObject, from: Instant?, to: Instant?): Boolean {
+        val at = lead.str("enquiredAt")?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return from == null && to == null
+        return (from == null || at >= from) && (to == null || at < to)
+    }
+
+    /** Distinct people: the client, else the phone, else the email, else the enquiry itself. */
+    private fun personKey(l: JsonObject) =
+        l.str("clientId")?.let { "c:$it" } ?: l.str("phone")?.let { "p:$it" } ?: l.str("email")?.let { "e:$it" } ?: "l:${l.str("id")}"
+
+    private fun summaries(portal: String, from: Instant?, to: Instant?): List<JsonObject> {
+        val facts = store.portalListingFacts(portal).associateBy { it.str("id") }
+        val cover = store.propertiesAll().associate { it.str("id") to store.photoIdsOf(it).firstOrNull() }
+        return store.portalLeadsAll().filter { it.str("portal") == portal && inRange(it, from, to) }
+            .groupBy { it.str("listingId") ?: UNIDENTIFIED }
+            .map { (key, leads) ->
+                val f = facts[key]
+                val base = f ?: jsonOf("id" to s(key), "portal" to s(portal), "identified" to JsonPrimitive(key != UNIDENTIFIED))
+                base.plus(
+                    // The linked inventory property's cover photo, including photos added in the demo.
+                    "propertyPhotoId" to s(base.str("propertyId")?.let { cover[it] }),
+                    "interestedClients" to JsonPrimitive(leads.map(::personKey).toSet().size),
+                    "newLeads" to JsonPrimitive(leads.count { it.str("status") == "NEW" }),
+                    "totalLeads" to JsonPrimitive(leads.size),
+                    "lastEnquiryAt" to s(leads.mapNotNull { it.str("enquiredAt") }.maxOrNull()),
+                )
+            }
+            .sortedByDescending { it.str("lastEnquiryAt") }
+    }
+
+    private fun leadsToday(portal: String, zone: ZoneId): Int {
+        val today = LocalDate.now(zone)
+        val from = today.atStartOfDay(zone).toInstant()
+        val to = today.plusDays(1).atStartOfDay(zone).toInstant()
+        return store.portalLeadsAll().count { it.str("portal") == portal && inRange(it, from, to) }
+    }
+
+    private fun portalListings(portal: String, range: Pair<Instant?, Instant?>) =
+        jsonOf("listings" to list(summaries(portal, range.first, range.second)))
+
+    private fun portalListing(id: String, portalParam: String?, range: Pair<Instant?, Instant?>): JsonElement? {
+        val portal = if (id == UNIDENTIFIED) portalParam ?: return null
+        else DemoStore.PORTALS.firstOrNull { p -> store.portalListingFacts(p).any { it.str("id") == id } } ?: return null
+        val summary = summaries(portal, null, null).firstOrNull { it.str("id") == id }
+        val leads = store.portalLeadsAll().filter {
+            it.str("portal") == portal && (it.str("listingId") ?: UNIDENTIFIED) == id && inRange(it, range.first, range.second)
+        }
+        return jsonOf(
+            "listing" to summary,
+            "totalInterestedClients" to JsonPrimitive(summary?.let { (it["interestedClients"] as? JsonPrimitive)?.content?.toIntOrNull() } ?: 0),
+            "leads" to list(leads),
+        )
     }
 
     // ---------- matching (the server's rules, on the phone; follows every demo edit) ----------
@@ -264,6 +332,9 @@ class DemoApi(
             "newLeads" to JsonPrimitive(clients.count { it.str("status") == "NEW" }),
             "followUps" to JsonPrimitive(pending.count { dueToday(it) && (it.str("kind") ?: "FOLLOW_UP") == "FOLLOW_UP" }),
             "callbacks" to JsonPrimitive(pending.count { dueToday(it) && it.str("kind") == "CALLBACK" }),
+            // Enquiries received today, per portal (the portal screens open on Today).
+            "acres99Leads" to JsonPrimitive(leadsToday("ACRES_99", zone)),
+            "housingLeads" to JsonPrimitive(leadsToday("HOUSING_COM", zone)),
         )
         return d.plus("totals" to totals, "todayWork" to work, "availableProperties" to JsonPrimitive(available))
     }
@@ -286,6 +357,7 @@ class DemoApi(
             method == "DELETE" && seg.size == 4 && seg[0] == "properties" && seg[2] == "photos" -> store.removePhoto(seg[1], seg[3])
             method == "POST" && p == "reminders" -> store.createReminder(b)
             method == "PATCH" && seg.size == 2 && seg[0] == "reminders" -> store.updateReminder(seg[1], b)
+            method == "PATCH" && seg.size == 2 && seg[0] == "portal-leads" -> store.setLeadStatus(seg[1], b)
             else -> null
         }
         return when (out) {
@@ -308,6 +380,8 @@ class DemoApi(
         const val NEEDS_SERVER = "This needs a BrokerBuddy server, so it isn't available in the demo. In the demo you can add and edit clients, requirements, properties, follow-ups and notes."
         /** Kept for older callers/tests: what the demo said before writes were supported. */
         const val READ_ONLY = NEEDS_SERVER
+
+        private const val UNIDENTIFIED = "unidentified"
 
         /** Query parameters that don't change which answer is shown. */
         private val IGNORED = setOf("tz", "page", "pageSize", "from", "to")
