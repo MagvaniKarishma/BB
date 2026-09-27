@@ -60,6 +60,7 @@ class DemoPhotos(private val dir: File, private val api: () -> DemoApi) {
                 }
                 val type = runCatching { File(dir, "$photoId.type").readText() }.getOrDefault("image/jpeg")
                 Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                    .header("Content-Type", type)
                     .body(f.readBytes().toResponseBody(type.toMediaType())).build()
             }
             request.method == "DELETE" && photoId != null -> {
