@@ -136,10 +136,18 @@ fun InquiryDetailScreen(
 
 @Composable
 private fun RequirementDetails(i: Inquiry) {
-    val must = { f: RequirementField -> if (f in i.mandatory) " (must)" else "" }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text("${i.transactionType.label} · ${i.category.label}", style = MaterialTheme.typography.titleLarge)
         Text("${i.status.label} · version ${i.version}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        RequirementFacts(i)
+    }
+}
+
+/** Every field of a requirement, one per row ("(must)" on must-haves). Also used on the client's profile. */
+@Composable
+fun RequirementFacts(i: Inquiry) {
+    val must = { f: RequirementField -> if (f in i.mandatory) " (must)" else "" }
+    Column {
         LabeledValue("Budget${must(RequirementField.BUDGET)}", Money.range(i.budgetMin, i.budgetMax))
         LabeledValue("Locations${must(RequirementField.LOCATION)}", i.locations.takeIf { it.isNotEmpty() }?.joinToString(", "))
         LabeledValue("Furnishing${must(RequirementField.FURNISHING)}", i.furnishing.takeIf { it.isNotEmpty() }?.joinToString(", ") { it.label })

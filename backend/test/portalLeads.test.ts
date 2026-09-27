@@ -454,7 +454,7 @@ describe("quality review: upgrade backfill", () => {
 });
 
 describe("requirement from the enquired listing", () => {
-  it("a portal enquiry gives the client a requirement from the listing (not the listing price as budget)", async () => {
+  it("a portal enquiry gives the client a requirement filled from the listing", async () => {
     const { api } = await registerBroker();
     await api.post("/portal-leads/import", {
       portal: "HOUSING_COM",
@@ -463,9 +463,14 @@ describe("requirement from the enquired listing", () => {
     const client = await prisma.client.findFirstOrThrow({ include: { inquiries: true } });
     expect(client.inquiries).toHaveLength(1);
     const req = client.inquiries[0];
-    expect(req).toMatchObject({ transactionType: "RENT", category: "BHK_1", locations: ["Mulund West"], source: "PORTAL_LEAD", status: "ACTIVE", budgetMin: null, budgetMax: null });
-    expect(req.notes).toContain("Housing.com enquiry about 1 BHK Apartment for Rent, Mulund West");
-    expect(req.notes).toContain("₹27,000/month (the listing's price, not a budget the client stated)");
+    expect(req).toMatchObject({
+      transactionType: "RENT", category: "BHK_1", locations: ["Mulund West"], source: "PORTAL_LEAD", status: "ACTIVE",
+      propertyTypes: ["APARTMENT"], budgetMin: null, mandatory: [],
+    });
+    // No budget in the client's words: the listing's price, and the notes say so.
+    expect(Number(req.budgetMax)).toBe(27000);
+    expect(req.notes).toContain("Housing.com enquiry about 1 BHK Apartment for Rent, Mulund West listed at ₹27,000/month");
+    expect(req.notes).toContain("Filled from the listing — confirm with the client: property type, budget (the listing's price)");
     expect(req.notes).toContain("Is it available?");
     // History starts with the portal lead as its source.
     expect((await api.get(`/inquiries/${req.id}/history`)).body.revisions[0].source).toBe("PORTAL_LEAD");
@@ -478,6 +483,34 @@ describe("requirement from the enquired listing", () => {
     const after = await prisma.inquiry.findMany();
     expect(after).toHaveLength(1);
     expect(after[0].locations).toEqual(["Mulund West"]);
+  });
+
+  it("takes furnishing, parking, floor and possession from the broker's own listing, and the budget from the client's message", async () => {
+    const { api } = await registerBroker();
+    await api.post("/properties", {
+      title: "1 BHK, Mulund West", transactionType: "RENT", category: "BHK_1", propertyType: "APARTMENT", price: 27000,
+      locality: "Mulund West", furnishing: "SEMI_FURNISHED", parkingSpots: 1, floor: 12, totalFloors: 14, possession: "READY_TO_MOVE",
+    });
+    await api.post("/portal-leads/import", {
+      portal: "ACRES_99",
+      csv: `Name,Mobile,Enquiry Date,Message,Property ID,Property Title,Locality,Price\nKavya Nair,9820022003,${exportDate(0, 9)},Budget 26k,A70005555,1 BHK Flat for Rent,Mulund West,"27,000"`,
+    });
+    const req = (await prisma.client.findFirstOrThrow({ include: { inquiries: true } })).inquiries[0];
+    expect(req).toMatchObject({
+      furnishing: ["SEMI_FURNISHED"], minParking: 1, floorPreference: ["HIGHER"], possession: "READY_TO_MOVE",
+      propertyTypes: ["APARTMENT"], mandatory: [],
+    });
+    expect(Number(req.budgetMax)).toBe(26000); // what the client said, not the ₹27,000 listing price
+    expect(req.notes).toContain("confirm with the client: property type, furnishing, parking, floor level, possession.");
+  });
+
+  it("reads property types from portal titles", async () => {
+    const { propertyTypeFromTitle } = await import("../src/services/portalLeads.js");
+    expect(propertyTypeFromTitle("1 BHK Flat for Rent")).toBe("APARTMENT");
+    expect(propertyTypeFromTitle("4 BHK Independent House for Sale")).toBe("INDEPENDENT_HOUSE");
+    expect(propertyTypeFromTitle("3 BHK Villa")).toBe("VILLA");
+    expect(propertyTypeFromTitle("Office Space for Rent")).toBe("COMMERCIAL");
+    expect(propertyTypeFromTitle("2 BHK for Rent")).toBeNull(); // not said
   });
 
   it("uses a budget the client stated, and skips listings that don't say rent/sale and type", async () => {

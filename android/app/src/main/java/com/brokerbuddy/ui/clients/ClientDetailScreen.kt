@@ -222,7 +222,8 @@ fun ClientDetailScreen(
                     }
                     "requirements" -> {
                         if (client.inquiries.isEmpty()) EmptyMessage("No requirements recorded yet")
-                        client.inquiries.forEach { InquiryCard(it) { onInquiry(it.id) } }
+                        // Every requirement in full — no need to open each one.
+                        client.inquiries.forEach { RequirementFullCard(it, onOpen = { onInquiry(it.id) }, onMatches = { onMatches(it.id) }) }
                         OutlinedButton(onClick = onAddInquiry, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                             Icon(Icons.Filled.Add, null); Text(" Add Requirement")
                         }
@@ -342,6 +343,33 @@ private fun ActionChip(icon: ImageVector, label: String, modifier: Modifier, onC
 }
 
 /** A requirement on the client profile: type, area, budget, details and its status. */
+/** A requirement with all its details shown, plus Matches and Open (edit, history). */
+@Composable
+private fun RequirementFullCard(inquiry: Inquiry, onOpen: () -> Unit, onMatches: () -> Unit) {
+    val b = MaterialTheme.brand
+    val tint = when (inquiry.status) {
+        InquiryStatus.ACTIVE -> b.success
+        InquiryStatus.PAUSED -> b.amber
+        else -> b.neutral
+    }
+    BrandCard(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentPadding = 12.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${inquiry.category.label} • ${inquiry.transactionType.label}",
+                style = MaterialTheme.typography.titleMedium, color = b.navy, modifier = Modifier.weight(1f),
+            )
+            Pill(inquiry.status.label, tint)
+        }
+        com.brokerbuddy.ui.inquiries.RequirementFacts(inquiry)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+            if (inquiry.status == InquiryStatus.ACTIVE) {
+                OutlinedButton(onClick = onMatches, modifier = Modifier.weight(1f)) { Text("Matches") }
+            }
+            OutlinedButton(onClick = onOpen, modifier = Modifier.weight(1f)) { Text("Open / Edit") }
+        }
+    }
+}
+
 @Composable
 fun InquiryCard(inquiry: Inquiry, onClick: () -> Unit) {
     val b = MaterialTheme.brand

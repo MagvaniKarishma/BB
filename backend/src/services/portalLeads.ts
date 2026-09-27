@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
-import { Prisma, type PortalLead, type PortalLeadChannel, type PropertyCategory, type TransactionType } from "@prisma/client";
+import { Prisma, type PortalLead, type PortalLeadChannel, type PropertyCategory, type PropertyType, type TransactionType } from "@prisma/client";
 import { prisma } from "../db.js";
 import type { AuthUser } from "../lib/auth.js";
 import { HttpError } from "../lib/errors.js";
 import { normalizePhone } from "../lib/phone.js";
 import { localityMatches } from "../domain/locality.js";
+import { floorBandOf } from "../domain/matching.js";
 import { createClientChecked, findByPhones } from "./clients.js";
 
 /**
@@ -338,12 +339,29 @@ export async function linkLeadsOfMessage(me: AuthUser, messageId: string, client
 
 const inr = (n: bigint | number) => `₹${Number(n).toLocaleString("en-IN")}`;
 
+/** Property type from a portal listing's title ("1 BHK Flat for Rent", "3 BHK Villa for Sale"). */
+export function propertyTypeFromTitle(title: string | null | undefined): PropertyType | null {
+  const t = (title ?? "").toLowerCase();
+  if (/\bindependent\s+(house|floor)\b|\bbungalow\b|\browhouse\b|\brow\s+house\b/.test(t)) return "INDEPENDENT_HOUSE";
+  if (/\bbuilder\s+floor\b/.test(t)) return "BUILDER_FLOOR";
+  if (/\bvilla\b/.test(t)) return "VILLA";
+  if (/\bpenthouse\b/.test(t)) return "PENTHOUSE";
+  if (/\b(plot|land)\b/.test(t)) return "PLOT";
+  if (/\b(office|shop|showroom|commercial|warehouse|godown)\b/.test(t)) return "COMMERCIAL";
+  if (/\b(flat|apartment|studio)\b/.test(t)) return "APARTMENT";
+  return null;
+}
+
 /**
- * The requirement a portal enquiry states: someone who enquired about a "1 BHK for rent in
- * Mulund West" is looking for that. Created only when the listing says rent/sale and the
- * property type, and the client has no active requirement of that kind already (existing
- * requirements are never changed). The listing's price is noted as the advertised price —
- * it is not a budget the client stated; a budget from the client's own words is used.
+ * The requirement a portal enquiry states: someone who enquired about a "1 BHK flat for rent in
+ * Mulund West" is looking for something like that listing. Created only when the listing says
+ * rent/sale and the BHK, and the client has no active requirement of that kind already (existing
+ * requirements are never changed).
+ *
+ * Filled from the listing: area, property type (from the title) and — when the listing is one of
+ * the broker's own properties — its furnishing, parking, floor level and possession. The budget is
+ * what the client said in their message if they said one, otherwise the listing's price. Nothing
+ * is made a must-have, and the notes say what came from where so the broker can confirm it.
  */
 export async function requirementFromLead(me: AuthUser, leadId: string) {
   const lead = await prisma.portalLead.findFirst({ where: { id: leadId, brokerageId: me.brokerageId }, include: { listing: true } });
@@ -355,20 +373,51 @@ export async function requirementFromLead(me: AuthUser, leadId: string) {
   if (existing) return null;
   const portal = PORTAL_NAME[lead.portal as PortalSource] ?? lead.portal;
   const about = [l.title, l.locality].filter(Boolean).join(", ") || "a listing";
-  const priced = l.price != null ? ` listed at ${inr(l.price)}${l.transactionType === "RENT" ? "/month" : ""} (the listing's price, not a budget the client stated)` : "";
+  const own = l.propertyId ? await prisma.property.findFirst({ where: { id: l.propertyId, brokerageId: me.brokerageId } }) : null;
+
+  // The client's own words decide the budget; otherwise the listing's price is used.
+  let budgetMin = lead.budgetMin != null ? Number(lead.budgetMin) : null;
+  let budgetMax = lead.budgetMax != null ? Number(lead.budgetMax) : null;
+  if (budgetMin == null && budgetMax == null && lead.message) {
+    const { extractWithRules } = await import("../voice/rulesExtractor.js");
+    const d = extractWithRules(lead.message).draft;
+    budgetMin = d.budgetMin?.value ?? null;
+    budgetMax = d.budgetMax?.value ?? null;
+  }
+  const budgetSaid = budgetMin != null || budgetMax != null;
+  if (!budgetSaid && l.price != null) budgetMax = Number(l.price);
+
+  const propertyType = own?.propertyType ?? propertyTypeFromTitle(l.title);
+  const band = own ? floorBandOf(own.floor, own.totalFloors) : null;
+  const fromListing = [
+    propertyType && "property type",
+    own?.furnishing && "furnishing",
+    own?.parkingSpots && own.parkingSpots > 0 && "parking",
+    band && "floor level",
+    own?.possession && "possession",
+    !budgetSaid && l.price != null && "budget (the listing's price)",
+  ].filter(Boolean) as string[];
+  const priced = l.price != null ? ` listed at ${inr(l.price)}${l.transactionType === "RENT" ? "/month" : ""}` : "";
+  const notes =
+    `From a ${portal} enquiry about ${about}${priced}.` +
+    (fromListing.length ? ` Filled from the listing — confirm with the client: ${fromListing.join(", ")}.` : "") +
+    (lead.message ? ` Their message: “${lead.message.slice(0, 500)}”` : "");
+
   const { createInquiry } = await import("../routes/inquiries.js");
   return createInquiry(me, lead.clientId, {
     transactionType: l.transactionType,
     category: l.category,
     status: "ACTIVE",
     locations: l.locality ? [l.locality] : [],
-    furnishing: [],
-    floorPreference: [],
-    propertyTypes: [],
+    furnishing: own?.furnishing ? [own.furnishing] : [],
+    minParking: own?.parkingSpots && own.parkingSpots > 0 ? own.parkingSpots : null,
+    floorPreference: band ? [band] : [],
+    propertyTypes: propertyType ? [propertyType] : [],
+    possession: own?.possession ?? null,
     mandatory: [],
-    budgetMin: lead.budgetMin != null ? Number(lead.budgetMin) : null,
-    budgetMax: lead.budgetMax != null ? Number(lead.budgetMax) : null,
-    notes: `From a ${portal} enquiry about ${about}${priced}.${lead.message ? ` Their message: “${lead.message.slice(0, 500)}”` : ""}`,
+    budgetMin,
+    budgetMax,
+    notes,
     source: "PORTAL_LEAD",
   });
 }
