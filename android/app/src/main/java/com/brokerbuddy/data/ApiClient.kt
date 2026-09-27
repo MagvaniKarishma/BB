@@ -55,7 +55,11 @@ class ApiClient(private val sessionStore: SessionStore, val json: Json, demo: In
         }
         .apply {
             if (BuildConfig.DEBUG) {
-                addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
+                // Method, path and status only: search text and phone numbers in the query are left out.
+                addInterceptor(
+                    HttpLoggingInterceptor { line -> android.util.Log.d("BrokerBuddyHttp", line.replace(Regex("\\?\\S*"), "")) }
+                        .setLevel(HttpLoggingInterceptor.Level.BASIC),
+                )
             }
         }
         .build()

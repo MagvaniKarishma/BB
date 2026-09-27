@@ -30,10 +30,21 @@ class DemoInterceptor(private val context: Context, private val sessionStore: Se
     private val voiceDir: File get() = File(context.filesDir, "demo/voice")
     private val recordings by lazy { DemoVoiceNotes(voiceDir) { api } }
 
+    /** Something the broker should know about the saved demo data (shown once on the demo banner). */
+    val notice = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
     private val api: DemoApi by lazy {
         val snapshot = context.assets.open("demo/responses.json").bufferedReader().use { it.readText() }
-        val saved = runCatching { file.takeIf { it.exists() }?.readText() }.getOrNull()
-        DemoApi(snapshot, LocalDate.now(ZoneId.of("Asia/Kolkata")), DemoChanges.fromJson(saved), onChange = ::save).also { api ->
+        val saved = file.takeIf { it.exists() }?.let { f -> runCatching { f.readText() }.getOrNull() ?: "" }
+        val changes = if (saved == null) DemoChanges() else DemoChanges.parse(saved) ?: run {
+            // Never silently drop the broker's work: keep the unreadable file and say so.
+            val backup = File(file.parentFile, "changes-unreadable-${System.currentTimeMillis()}.json")
+            val kept = file.renameTo(backup)
+            notice.value = "Your saved demo changes couldn't be read, so the demo started from the sample data." +
+                if (kept) " The unreadable file was kept (${backup.name})." else ""
+            DemoChanges()
+        }
+        DemoApi(snapshot, LocalDate.now(ZoneId.of("Asia/Kolkata")), changes, onChange = ::save).also { api ->
             DemoPhotos(photoDir) { api }.pruneUnused()
             DemoVoiceNotes(voiceDir) { api }.pruneUnused()
         }
@@ -60,18 +71,32 @@ class DemoInterceptor(private val context: Context, private val sessionStore: Se
             f.delete()
             return
         }
-        // Write then rename, so a crash mid-write never leaves a half-written file.
+        // Write then rename, so a crash mid-write never leaves a half-written file. A failure is
+        // thrown so the demo undoes the change instead of pretending it was saved.
         val tmp = File(f.parentFile, "changes.json.tmp")
         tmp.writeText(changes.toJson())
         if (!tmp.renameTo(f)) {
             f.delete()
-            tmp.renameTo(f)
+            if (!tmp.renameTo(f)) throw java.io.IOException("Couldn't save the demo changes")
         }
     }
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         if (runBlocking { sessionStore.current().token } != DEMO_TOKEN) return chain.proceed(request)
+        // In the demo nothing ever goes to the network — a problem here is answered as an error.
+        return try {
+            answer(request)
+        } catch (e: java.io.IOException) {
+            demoResponse(request, DemoApi.Reply(503, errorJson("DEMO_UNAVAILABLE", "The demo data couldn't be loaded on this phone. Reinstalling the app fixes this.")))
+        } catch (e: RuntimeException) {
+            demoResponse(request, DemoApi.Reply(500, errorJson("DEMO_ERROR", "Something went wrong in the demo. Nothing was changed.")))
+        }
+    }
+
+    private fun errorJson(code: String, message: String) = """{"error":{"code":"$code","message":"$message","details":null}}"""
+
+    private fun answer(request: okhttp3.Request): Response {
         val url = request.url
         val seg = url.pathSegments.dropWhile { it != "properties" }
         if (seg.size >= 3 && seg[0] == "properties" && seg[2] == "photos") photos.handle(request, seg)?.let { return it }

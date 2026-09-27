@@ -65,6 +65,18 @@ class DemoApi(
     /** The demo broker's account, for signing in. */
     fun user(): User = ApiJson.decodeFromJsonElement(MeResponse.serializer(), responses.getValue("auth/me")).user
 
+    /**
+     * Saves the demo changes on the phone. If that fails (e.g. storage full) the change is undone,
+     * so what the broker sees is always what's saved, and a clear error is returned instead.
+     */
+    private fun persistOrUndo(before: String): Reply? = try {
+        onChange(changes)
+        null
+    } catch (e: Exception) {
+        changes.replaceWith(DemoChanges.fromJson(before))
+        error(507, "SAVE_FAILED", "Couldn't save this on the phone (is the storage full?). Nothing was changed — try again.")
+    }
+
     /** Forgets every change made in the demo (the sample data comes back). */
     @Synchronized
     fun reset() {
@@ -78,11 +90,11 @@ class DemoApi(
      * the server would answer them, and the caller then discards the file.
      */
     @Synchronized
-    fun addPhoto(propertyId: String, photoId: String): Reply = when (val out = store.addPhoto(propertyId, photoId)) {
-        is DemoStore.Out.Err -> error(out.status, out.code, out.message, out.details)
-        is DemoStore.Out.Ok -> {
-            onChange(changes)
-            Reply(out.status, out.body.toString())
+    fun addPhoto(propertyId: String, photoId: String): Reply {
+        val before = changes.toJson()
+        return when (val out = store.addPhoto(propertyId, photoId)) {
+            is DemoStore.Out.Err -> error(out.status, out.code, out.message, out.details)
+            is DemoStore.Out.Ok -> persistOrUndo(before) ?: Reply(out.status, out.body.toString())
         }
     }
 
@@ -305,15 +317,17 @@ class DemoApi(
 
     /** A recording the app has saved on the phone (it keeps the audio file). */
     @Synchronized
-    fun addRecording(clientId: String, inquiryId: String?, language: String, durationMs: Long?): Pair<Reply, String?> =
-        when (val out = store.createVoiceNote(clientId, inquiryId, language, null, true, durationMs, ::read)) {
+    fun addRecording(clientId: String, inquiryId: String?, language: String, durationMs: Long?): Pair<Reply, String?> {
+        val before = changes.toJson()
+        return when (val out = store.createVoiceNote(clientId, inquiryId, language, null, true, durationMs, ::read)) {
             is DemoStore.Out.Err -> error(out.status, out.code, out.message, out.details) to null
             is DemoStore.Out.Ok -> {
-                onChange(changes)
+                persistOrUndo(before)?.let { return it to null }
                 val id = (out.body as JsonObject).str("id")!!
                 Reply(201, presentNote(id).toString()) to id
             }
         }
+    }
 
     /** Is this a note (with a recording) the broker can see? */
     @Synchronized
@@ -324,6 +338,7 @@ class DemoApi(
     fun voiceNoteIds(): Set<String> = store.voiceNotesAll().mapNotNull { it.str("id") }.toSet()
 
     private fun voiceWrite(method: String, p: String, seg: List<String>, b: JsonObject): Reply {
+        val before = changes.toJson()
         if (method == "POST" && p == "voice-notes/extract") {
             val text = b.str("text")?.trim().orEmpty()
             if (text.isEmpty()) return error(400, "VALIDATION_ERROR", "Say or type the requirement first")
@@ -346,7 +361,7 @@ class DemoApi(
         return when (out) {
             is DemoStore.Out.Err -> error(out.status, out.code, out.message, out.details)
             is DemoStore.Out.Ok -> {
-                onChange(changes)
+                persistOrUndo(before)?.let { return it }
                 when {
                     seg.size == 3 && seg[2] == "apply" -> Reply(200, out.body.toString())
                     seg.size == 3 && seg[2] == "discard" -> Reply(200, jsonOf("voiceNote" to store.voiceNote(id!!)).toString())
@@ -568,6 +583,7 @@ class DemoApi(
 
     private fun write(method: String, p: String, seg: List<String>, body: JsonObject?): Reply {
         val b = body ?: JsonObject(emptyMap())
+        val before = changes.toJson()
         if (seg.firstOrNull() == "voice-notes") return voiceWrite(method, p, seg, b)
         val out: DemoStore.Out? = when {
             method == "POST" && p == "clients" -> store.createClient(b)
@@ -588,10 +604,7 @@ class DemoApi(
         return when (out) {
             null -> error(403, "DEMO_MODE", NEEDS_SERVER)
             is DemoStore.Out.Err -> error(out.status, out.code, out.message, out.details)
-            is DemoStore.Out.Ok -> {
-                onChange(changes)
-                Reply(out.status, if (out.body == JsonNull) "" else out.body.toString())
-            }
+            is DemoStore.Out.Ok -> persistOrUndo(before) ?: Reply(out.status, if (out.body == JsonNull) "" else out.body.toString())
         }
     }
 

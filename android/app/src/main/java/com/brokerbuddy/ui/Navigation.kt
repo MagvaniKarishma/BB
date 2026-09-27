@@ -60,6 +60,8 @@ import com.brokerbuddy.ui.clients.ClientDetailScreen
 import com.brokerbuddy.ui.clients.ClientFormScreen
 import com.brokerbuddy.ui.clients.ClientListScreen
 import com.brokerbuddy.ui.common.appContainer
+import com.brokerbuddy.ui.common.toast
+import com.brokerbuddy.ui.common.DemoMode
 import com.brokerbuddy.ui.dashboard.DashboardScreen
 import com.brokerbuddy.ui.inquiries.InquiryDetailScreen
 import com.brokerbuddy.ui.inquiries.InquiryFormScreen
@@ -194,6 +196,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
     var pickingVoiceClient by remember { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
     val isDemo = container.sessionStore.session.collectAsState(initial = null).value?.isDemo == true
+    LaunchedEffect(isDemo) { DemoMode.active = isDemo }
 
     LaunchedEffect(openRoute) {
         if (openRoute != null) {
@@ -214,13 +217,18 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                         onExit = { scope.launch { container.sessionStore.signOut() } },
                         onReset = {
                             scope.launch {
-                                container.demo.reset()
-                                // Sign in again so every screen reloads the original sample data.
-                                val user = container.demo.user()
-                                container.sessionStore.signOut()
-                                container.sessionStore.signIn(DEMO_TOKEN, user)
+                                runCatching { container.demo.reset() }
+                                    .onSuccess {
+                                        // Sign in again so every screen reloads the original sample data.
+                                        val user = container.demo.user()
+                                        container.sessionStore.signOut()
+                                        container.sessionStore.signIn(DEMO_TOKEN, user)
+                                    }
+                                    .onFailure { toast(context, "Couldn't reset the demo on this phone. Try again.") }
                             }
                         },
+                        notice = container.demo.notice.collectAsState().value,
+                        onNoticeSeen = { container.demo.notice.value = null },
                         aboveTabs = onTab,
                     )
                 }
@@ -594,9 +602,17 @@ private fun RequestNotificationPermissionOnce() {
 
 /** Shown on every screen while the offline demo is on: it's sample data, with Reset and Exit. */
 @Composable
-private fun DemoBanner(onExit: () -> Unit, onReset: () -> Unit, aboveTabs: Boolean) {
+private fun DemoBanner(onExit: () -> Unit, onReset: () -> Unit, aboveTabs: Boolean, notice: String? = null, onNoticeSeen: () -> Unit = {}) {
     val tint = MaterialTheme.brand.amber
     var confirmReset by remember { mutableStateOf(false) }
+    if (notice != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onNoticeSeen,
+            title = { Text("Demo data") },
+            text = { Text(notice) },
+            confirmButton = { TextButton(onClick = onNoticeSeen) { Text("OK") } },
+        )
+    }
     androidx.compose.foundation.layout.Row(
         Modifier.fillMaxWidth().background(tint.container)
             .then(if (aboveTabs) Modifier else Modifier.navigationBarsPadding())

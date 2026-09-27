@@ -46,9 +46,19 @@ class DemoChanges(
 
     fun toJson(): String = ApiJson.encodeToString(serializer(), this)
 
+    /** Makes this hold exactly what [other] holds (used to undo a change that couldn't be saved). */
+    fun replaceWith(other: DemoChanges) {
+        clear()
+        clients += other.clients; properties += other.properties; inquiries += other.inquiries
+        reminders += other.reminders; notes += other.notes; leads += other.leads; voiceNotes += other.voiceNotes
+        created += other.created; deleted += other.deleted; seq = other.seq
+    }
+
     companion object {
-        fun fromJson(json: String?): DemoChanges =
-            json?.let { runCatching { ApiJson.decodeFromString(serializer(), it) }.getOrNull() } ?: DemoChanges()
+        fun fromJson(json: String?): DemoChanges = parse(json) ?: DemoChanges()
+
+        /** Null when [json] is missing or can't be read (damaged file). */
+        fun parse(json: String?): DemoChanges? = json?.let { runCatching { ApiJson.decodeFromString(serializer(), it) }.getOrNull() }
     }
 }
 

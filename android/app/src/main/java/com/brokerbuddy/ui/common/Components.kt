@@ -269,7 +269,6 @@ fun formatDateTime(iso: String): String =
 fun formatDate(iso: String): String =
     runCatching { dateFormat.format(Instant.parse(iso).atZone(ZoneId.systemDefault())) }.getOrDefault(iso)
 
-/** Opens the dialer — no CALL_PHONE permission needed; the broker taps call themselves. */
 /** Opens the phone's dialer with the number filled in; the broker taps Call (nothing is dialled automatically). */
 fun dial(context: Context, e164: String?) {
     if (e164.isNullOrBlank() || e164.count(Char::isDigit) < 8) {
@@ -308,11 +307,30 @@ fun sendSms(context: Context, e164: String, message: String? = null) {
     launch(context, intent, "No SMS app found")
 }
 
+/** True while the offline demo is signed in (set by the app's navigation). */
+object DemoMode {
+    @Volatile var active: Boolean = false
+}
+
 private fun launch(context: Context, intent: Intent, failure: String) {
-    try {
-        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    } catch (_: ActivityNotFoundException) {
-        Toast.makeText(context, failure, Toast.LENGTH_SHORT).show()
+    val go = {
+        try {
+            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(context, failure, Toast.LENGTH_SHORT).show()
+        }
+    }
+    // Demo numbers are made up, but a made-up Indian mobile number can still belong to someone.
+    val activity = generateSequence(context) { (it as? android.content.ContextWrapper)?.baseContext }.firstOrNull { it is android.app.Activity }
+    if (DemoMode.active && activity != null) {
+        android.app.AlertDialog.Builder(activity)
+            .setTitle("Demo number")
+            .setMessage("This is a made-up sample number and may belong to someone real. Open it anyway?")
+            .setPositiveButton("Open") { _, _ -> go() }
+            .setNegativeButton("Cancel", null)
+            .show()
+    } else {
+        go()
     }
 }
 
