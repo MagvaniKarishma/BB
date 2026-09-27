@@ -83,6 +83,8 @@ import com.brokerbuddy.ui.reminders.AddReminderDialog
 import com.brokerbuddy.ui.design.Avatar
 import com.brokerbuddy.ui.design.BrandCard
 import com.brokerbuddy.ui.design.Pill
+import com.brokerbuddy.ui.design.priceText
+import com.brokerbuddy.core.match.MatchLabel
 import com.brokerbuddy.ui.design.RoundIconButton
 import com.brokerbuddy.ui.design.whatsAppIcon
 import com.brokerbuddy.ui.theme.Brand
@@ -125,6 +127,7 @@ fun ClientDetailScreen(
     onMatches: (inquiryId: String) -> Unit,
     /** A portal listing this client enquired about, filtered to the day of the enquiry. */
     onPortalListing: (portal: Portal, listingId: String, day: LocalDate) -> Unit = { _, _, _ -> },
+    onProperty: (String) -> Unit = {},
 ) {
     val container = appContainer()
     val context = LocalContext.current
@@ -199,6 +202,7 @@ fun ClientDetailScreen(
                             client.inquiries.filter { it.status == InquiryStatus.ACTIVE }.ifEmpty { client.inquiries }.take(2)
                                 .forEach { InquiryCard(it) { onInquiry(it.id) } }
                         }
+                        MatchedPropertiesSection(client.inquiries.filter { it.status == InquiryStatus.ACTIVE }, onProperty, onMatches)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             SectionTitle("Follow-ups", Modifier.weight(1f))
                             TextButton(onClick = { addingReminder = true }) { Icon(Icons.Filled.AddAlarm, null); Text(" Add") }
@@ -363,6 +367,46 @@ fun InquiryCard(inquiry: Inquiry, onClick: () -> Unit) {
 }
 
 /** 99acres / Housing.com enquiries: which listing, when, and where each stands. */
+/**
+ * Available properties that fit this client's active requirements (exact or partial), best first.
+ * Recomputed each time the profile opens, so edits to the client or a listing show up here.
+ */
+@Composable
+private fun MatchedPropertiesSection(active: List<Inquiry>, onProperty: (String) -> Unit, onMatches: (String) -> Unit) {
+    if (active.isEmpty()) return
+    val api = appContainer().api
+    val loader = rememberLoad(active.map { it.id to it.version }) {
+        runCatching {
+            active.flatMap { i -> api.call { inquiryMatches(i.id) }.getOrThrow().matches.map { i to it } }
+                .sortedByDescending { it.second.score }
+                .distinctBy { it.second.property.id }
+        }
+    }
+    SectionTitle("Matched properties")
+    LoadContent(loader) { matches ->
+        if (matches.isEmpty()) {
+            EmptyMessage("No available properties match yet")
+        } else {
+            matches.take(5).forEach { (_, m) ->
+                val p = m.property
+                val exact = MatchLabel.isExact(m.checks)
+                BrandCard(Modifier.fillMaxWidth().padding(vertical = 4.dp), onClick = { onProperty(p.id) }, contentPadding = 10.dp) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(p.title, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                            Text("${p.locality} · ${priceText(p)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.brand.muted, maxLines = 1)
+                        }
+                        Pill(MatchLabel.of(m.score, m.checks), if (exact) MaterialTheme.brand.success else MaterialTheme.brand.neutral)
+                    }
+                }
+            }
+            if (matches.size > 5 || active.size == 1) {
+                TextButton(onClick = { onMatches(active.first().id) }) { Text("See all matches") }
+            }
+        }
+    }
+}
+
 @Composable
 private fun PortalEnquiriesSection(leads: List<ClientPortalLead>, onListing: (Portal, String, LocalDate) -> Unit) {
     if (leads.isEmpty()) return

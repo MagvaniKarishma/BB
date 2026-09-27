@@ -20,8 +20,7 @@ const ExtractionSchema = z.object({
   locations: z.array(z.object({ value: z.string(), evidence: z.string() })),
   furnishing: withEvidence(z.array(z.enum(["UNFURNISHED", "SEMI_FURNISHED", "FULLY_FURNISHED"]))),
   minParking: withEvidence(z.number().int()),
-  floorMin: withEvidence(z.number().int()),
-  floorMax: withEvidence(z.number().int()),
+  floorPreference: withEvidence(z.array(z.enum(["LOWER", "MIDDLE", "HIGHER"]))),
   possession: withEvidence(z.enum(["READY_TO_MOVE", "UNDER_CONSTRUCTION"])),
   possessionBy: withEvidence(z.string()),
   warnings: z.array(z.string()),
@@ -43,7 +42,7 @@ Rules — the broker relies on these, so follow them exactly:
 - locations: one entry per wanted locality, canonical English spelling (e.g. "Andheri West", "Powai", "Lower Parel"). Keep East/West if said. Skip places mentioned as not wanted (e.g. "Khar nahi chahiye") and warn.
 - furnishing: list the acceptable types. A bare "furnished" means FULLY_FURNISHED — warn that you interpreted it.
 - minParking: number of parking spots needed; "parking chahiye" = 1. If parking is explicitly not needed, return null.
-- floors: "5th floor ke upar"/"above 5th" = floorMin 5; "10th floor tak" = floorMax 10. "High floor" without a number = null plus a warning.
+- floorPreference: only LOWER, MIDDLE or HIGHER floors of the building. "high floor"/"upar wala floor"/"ऊंची मंजिल" = HIGHER; "low floor"/"neeche wala floor"/"ground floor" = LOWER; "middle floor"/"beech ka floor" = MIDDLE. For an exact floor number ("5th floor ke upar", "10th floor tak") return null and add a warning quoting it — never convert a floor number into a band.
 - possessionBy: YYYY-MM-DD, last day of the stated month/year, only when a possession deadline is stated.
 - Do not decide which requirements are mandatory. Put anything the broker should double-check in warnings (short, in English).`;
 
@@ -120,10 +119,9 @@ export function toDraft(o: ClaudeOutput): { draft: RequirementDraft; warnings: s
   }
   const parking = intIn(o.minParking, 1, 20, "parking");
   if (parking) draft.minParking = parking;
-  const fMin = intIn(o.floorMin, -5, 200, "minimum floor");
-  const fMax = intIn(o.floorMax, -5, 200, "maximum floor");
-  if (fMin) draft.floorMin = fMin;
-  if (fMax) draft.floorMax = fMax;
+  if (o.floorPreference && o.floorPreference.value.length) {
+    draft.floorPreference = { value: [...new Set(o.floorPreference.value)], evidence: o.floorPreference.evidence };
+  }
   if (o.possession) draft.possession = o.possession;
   if (o.possessionBy) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(o.possessionBy.value) && !Number.isNaN(Date.parse(o.possessionBy.value))) {

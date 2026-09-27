@@ -236,7 +236,7 @@ describe("AI extraction", () => {
   };
   const empty = {
     transactionType: null, category: null, budgetMinRupees: null, budgetMaxRupees: null, locations: [], furnishing: null,
-    minParking: null, floorMin: null, floorMax: null, possession: null, possessionBy: null, warnings: [],
+    minParking: null, floorPreference: null, possession: null, possessionBy: null, warnings: [],
   };
 
   it("sends the right request and drops hallucinated or out-of-range values", async () => {
@@ -293,7 +293,7 @@ describe("voice fill for the requirement form", () => {
     expect(d.locations.map((l: { value: string }) => l.value)).toEqual(["Andheri West", "Jogeshwari"]);
     expect(d.minParking.value).toBe(1);
     // Not said → not returned.
-    expect(d.floorMin).toBeUndefined();
+    expect(d.floorPreference).toBeUndefined();
     expect(d.possession).toBeUndefined();
 
     const partial = (await api.post("/voice-notes/extract", { text: "3 BHK chahiye Powai mein" })).body.draft;

@@ -71,14 +71,9 @@ export async function updateInquiryTx(
   const merged = {
     budgetMin: patch.budgetMin !== undefined ? patch.budgetMin : current.budgetMin == null ? null : Number(current.budgetMin),
     budgetMax: patch.budgetMax !== undefined ? patch.budgetMax : current.budgetMax == null ? null : Number(current.budgetMax),
-    floorMin: patch.floorMin !== undefined ? patch.floorMin : current.floorMin,
-    floorMax: patch.floorMax !== undefined ? patch.floorMax : current.floorMax,
   };
   if (merged.budgetMin != null && merged.budgetMax != null && merged.budgetMin > merged.budgetMax) {
     throw badRequest("budgetMin cannot exceed budgetMax");
-  }
-  if (merged.floorMin != null && merged.floorMax != null && merged.floorMin > merged.floorMax) {
-    throw badRequest("floorMin cannot exceed floorMax");
   }
 
   const data: Prisma.InquiryUpdateInput = {
@@ -193,6 +188,8 @@ inquiriesRouter.get("/:id/matches", async (req, res) => {
       availability: "AVAILABLE",
       ...(budgetHardCap ? { price: { lte: inquiry.budgetMax! } } : {}),
     },
+    // Equal score and price keep this order (oldest listing first).
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: 2000,
   });
   const ranked = rankMatches(candidates, (p) => evaluateMatch(inquiry, p), (p) => p.price);

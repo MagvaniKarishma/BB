@@ -363,6 +363,8 @@ export async function requirementFromLead(me: AuthUser, leadId: string) {
     status: "ACTIVE",
     locations: l.locality ? [l.locality] : [],
     furnishing: [],
+    floorPreference: [],
+    propertyTypes: [],
     mandatory: [],
     budgetMin: lead.budgetMin != null ? Number(lead.budgetMin) : null,
     budgetMax: lead.budgetMax != null ? Number(lead.budgetMax) : null,

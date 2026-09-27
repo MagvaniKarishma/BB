@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizePhone } from "../src/lib/phone.js";
 import { localityMatches, normalizeLocality } from "../src/domain/locality.js";
-import { type Listing, type Requirement, evaluateMatch, rankMatches } from "../src/domain/matching.js";
+import { type Listing, type Requirement, evaluateMatch, floorBandOf, rankMatches } from "../src/domain/matching.js";
 import { diffSnapshots } from "../src/domain/requirementHistory.js";
 
 describe("normalizePhone", () => {
@@ -49,8 +49,8 @@ const req = (over: Partial<Requirement> = {}): Requirement => ({
   locations: [],
   furnishing: [],
   minParking: null,
-  floorMin: null,
-  floorMax: null,
+  floorPreference: [],
+  propertyTypes: [],
   possession: null,
   possessionBy: null,
   mandatory: [],
@@ -66,6 +66,8 @@ const listing = (over: Partial<Listing> = {}): Listing => ({
   furnishing: "SEMI_FURNISHED",
   parkingSpots: 1,
   floor: 5,
+  totalFloors: 20,
+  propertyType: "APARTMENT",
   possession: "READY_TO_MOVE",
   possessionDate: null,
   ...over,
@@ -117,16 +119,51 @@ describe("evaluateMatch", () => {
   it("checks furnishing, floor and parking", () => {
     const r = req({
       furnishing: ["FULLY_FURNISHED"],
-      floorMin: 3,
-      floorMax: 10,
+      floorPreference: ["LOWER", "MIDDLE"],
       minParking: 2,
       mandatory: ["FURNISHING", "FLOOR", "PARKING"],
     });
     const res = evaluateMatch(r, listing());
     expect(res.eligible).toBe(false);
-    expect(res.violations).toHaveLength(2); // furnishing + parking; floor 5 is fine
-    expect(evaluateMatch(r, listing({ furnishing: "FULLY_FURNISHED", parkingSpots: 2, floor: 12 })).eligible).toBe(false);
+    expect(res.violations).toHaveLength(2); // furnishing + parking; floor 5 of 20 is a lower floor
+    expect(evaluateMatch(r, listing({ furnishing: "FULLY_FURNISHED", parkingSpots: 2, floor: 15 })).eligible).toBe(false);
     expect(evaluateMatch(r, listing({ furnishing: "FULLY_FURNISHED", parkingSpots: 2, floor: 10 })).eligible).toBe(true);
+  });
+
+  it("floor preference is lower / middle / higher, never an exact floor", () => {
+    expect(floorBandOf(0, 10)).toBe("LOWER"); // ground
+    expect(floorBandOf(3, 10)).toBe("LOWER");
+    expect(floorBandOf(4, 10)).toBe("MIDDLE");
+    expect(floorBandOf(6, 10)).toBe("MIDDLE");
+    expect(floorBandOf(7, 10)).toBe("HIGHER");
+    expect(floorBandOf(10, 10)).toBe("HIGHER");
+    expect(floorBandOf(5, null)).toBeNull(); // building height unknown: not guessed
+    expect(floorBandOf(null, 10)).toBeNull();
+    expect(floorBandOf(12, 10)).toBeNull(); // inconsistent data
+
+    const higher = req({ floorPreference: ["HIGHER"], mandatory: ["FLOOR"] });
+    expect(evaluateMatch(higher, listing({ floor: 18 })).checks.find((c) => c.field === "FLOOR")?.outcome).toBe("match");
+    expect(evaluateMatch(higher, listing({ floor: 2 })).eligible).toBe(false);
+    // Unknown floor or building height: kept, flagged as unverified.
+    for (const unknown of [listing({ floor: null }), listing({ totalFloors: null })]) {
+      const res = evaluateMatch(higher, unknown);
+      expect(res.eligible).toBe(true);
+      expect(res.needsVerification).toEqual(["FLOOR"]);
+      expect(res.checks.find((c) => c.field === "FLOOR")?.detail).toMatch(/unverified/);
+    }
+    // No preference: floor is ignored.
+    expect(evaluateMatch(req(), listing({ floor: null })).checks.find((c) => c.field === "FLOOR")?.outcome).toBe("n/a");
+  });
+
+  it("checks property type", () => {
+    const r = req({ propertyTypes: ["APARTMENT", "BUILDER_FLOOR"] });
+    expect(evaluateMatch(r, listing()).checks.find((c) => c.field === "PROPERTY_TYPE")?.outcome).toBe("match");
+    const villa = evaluateMatch(r, listing({ propertyType: "VILLA" }));
+    expect(villa.checks.find((c) => c.field === "PROPERTY_TYPE")?.outcome).toBe("mismatch");
+    expect(villa.eligible).toBe(true); // not a must-have: a partial match
+    expect(villa.score).toBe(0);
+    expect(evaluateMatch({ ...r, mandatory: ["PROPERTY_TYPE"] }, listing({ propertyType: "VILLA" })).eligible).toBe(false);
+    expect(evaluateMatch(r, listing({ propertyType: null })).checks.find((c) => c.field === "PROPERTY_TYPE")?.outcome).toBe("unknown");
   });
 
   it("handles possession timelines for buyers", () => {

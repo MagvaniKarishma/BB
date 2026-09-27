@@ -88,6 +88,7 @@ enum RequirementField {
   PARKING
   FLOOR
   POSSESSION
+  PROPERTY_TYPE
 }
 
 enum RequirementSource {
@@ -276,8 +277,17 @@ model Inquiry {
   locations       String[]
   furnishing      Furnishing[]
   minParking      Int?
+  // Exact floor range: no longer used by the app (floor preference is categorical below); kept so old data isn't lost.
   floorMin        Int?
   floorMax        Int?
+  /**
+   * Acceptable floor bands (empty = no preference).
+   */
+  floorPreference FloorBand[]        @default([])
+  /**
+   * Acceptable property types (empty = any).
+   */
+  propertyTypes   PropertyType[]     @default([])
   possession      Possession?
   possessionBy    DateTime?
   mandatory       RequirementField[]
@@ -369,6 +379,9 @@ model Property {
   building        String?
   address         String?
   carpetAreaSqft  Int?
+  builtUpAreaSqft Int?
+  propertyType    PropertyType?
+  amenities       String[]         @default([])
   bathrooms       Int?
   furnishing      Furnishing?
   parkingSpots    Int?
@@ -876,4 +889,27 @@ model PortalIntegration {
   updatedAt      DateTime   @updatedAt
 
   @@unique([brokerageId, portal])
+}
+
+/**
+ * Floor preference of a requirement, relative to the building (not an exact floor).
+ */
+enum FloorBand {
+  LOWER
+  MIDDLE
+  HIGHER
+}
+
+/**
+ * Kind of property (BHK is the category).
+ */
+enum PropertyType {
+  APARTMENT
+  INDEPENDENT_HOUSE
+  VILLA
+  PENTHOUSE
+  BUILDER_FLOOR
+  COMMERCIAL
+  PLOT
+  OTHER
 }

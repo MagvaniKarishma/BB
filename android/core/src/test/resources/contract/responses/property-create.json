@@ -1,7 +1,7 @@
 {
   "property": {
-    "id": "cmujg8ttz000n7dl3tb71trtv",
-    "brokerageId": "cmujg8tj000037dl3isndguzo",
+    "id": "cmujgxall000n7ddvn4kx7o4x",
+    "brokerageId": "cmujgxab000037ddvpgg1ty0x",
     "title": "2 BHK Apartment",
     "transactionType": "RENT",
     "category": "BHK_2",
@@ -11,6 +11,12 @@
     "building": "Oberoi Splendor",
     "address": null,
     "carpetAreaSqft": 850,
+    "builtUpAreaSqft": 1000,
+    "propertyType": "APARTMENT",
+    "amenities": [
+      "Lift",
+      "Gym"
+    ],
     "bathrooms": 2,
     "furnishing": "SEMI_FURNISHED",
     "parkingSpots": 1,
@@ -22,9 +28,9 @@
     "ownerName": "Mr Mehta",
     "ownerPhone": "+919811122233",
     "notes": null,
-    "listedById": "cmujg8tj200057dl3glhra2qr",
-    "createdAt": "2026-09-27T06:40:23.303Z",
-    "updatedAt": "2026-09-27T06:40:23.303Z",
+    "listedById": "cmujgxab100057ddvw77g2se0",
+    "createdAt": "2026-09-27T06:59:24.778Z",
+    "updatedAt": "2026-09-27T06:59:24.778Z",
     "photoIds": []
   }
 }

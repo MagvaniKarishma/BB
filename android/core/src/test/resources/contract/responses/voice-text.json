@@ -1,7 +1,7 @@
 {
   "voiceNote": {
-    "id": "cmujg8u11000v7dl34dvmseoa",
-    "clientId": "cmujg8tsw000d7dl37h7w6j4r",
+    "id": "cmujgxase000v7ddvlqgh803q",
+    "clientId": "cmujgxaki000d7ddvxf80ydq4",
     "inquiryId": null,
     "language": "HINGLISH",
     "status": "READY",
@@ -38,21 +38,21 @@
     "error": null,
     "appliedVersion": null,
     "appliedAt": null,
-    "createdAt": "2026-09-27T06:40:23.557Z",
-    "updatedAt": "2026-09-27T06:40:23.700Z",
+    "createdAt": "2026-09-27T06:59:25.022Z",
+    "updatedAt": "2026-09-27T06:59:25.161Z",
     "createdBy": {
-      "id": "cmujg8tj200057dl3glhra2qr",
+      "id": "cmujgxab100057ddvw77g2se0",
       "name": "Rahul Sharma"
     },
     "hasAudio": false
   },
-  "suggestedInquiryId": "cmujg8tte000h7dl31y4kp2ra",
+  "suggestedInquiryId": "cmujgxal0000h7ddvvrjpqtwh",
   "targetWarnings": [],
   "inquiries": [
     {
-      "id": "cmujg8tte000h7dl31y4kp2ra",
-      "brokerageId": "cmujg8tj000037dl3isndguzo",
-      "clientId": "cmujg8tsw000d7dl37h7w6j4r",
+      "id": "cmujgxal0000h7ddvvrjpqtwh",
+      "brokerageId": "cmujgxab000037ddvpgg1ty0x",
+      "clientId": "cmujgxaki000d7ddvxf80ydq4",
       "transactionType": "RENT",
       "category": "BHK_2",
       "status": "ACTIVE",
@@ -65,8 +65,15 @@
         "SEMI_FURNISHED"
       ],
       "minParking": 1,
-      "floorMin": 2,
+      "floorMin": null,
       "floorMax": null,
+      "floorPreference": [
+        "MIDDLE",
+        "HIGHER"
+      ],
+      "propertyTypes": [
+        "APARTMENT"
+      ],
       "possession": "READY_TO_MOVE",
       "possessionBy": null,
       "mandatory": [
@@ -75,8 +82,8 @@
       "notes": "Gated society",
       "source": "MANUAL",
       "version": 2,
-      "createdAt": "2026-09-27T06:40:23.283Z",
-      "updatedAt": "2026-09-27T06:40:23.295Z"
+      "createdAt": "2026-09-27T06:59:24.756Z",
+      "updatedAt": "2026-09-27T06:59:24.768Z"
     }
   ]
 }

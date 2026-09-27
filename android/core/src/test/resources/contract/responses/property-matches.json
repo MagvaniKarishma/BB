@@ -1,11 +1,11 @@
 {
-  "propertyId": "cmujg8ttz000n7dl3tb71trtv",
+  "propertyId": "cmujgxall000n7ddvn4kx7o4x",
   "matches": [
     {
       "inquiry": {
-        "id": "cmujg8tte000h7dl31y4kp2ra",
-        "brokerageId": "cmujg8tj000037dl3isndguzo",
-        "clientId": "cmujg8tsw000d7dl37h7w6j4r",
+        "id": "cmujgxal0000h7ddvvrjpqtwh",
+        "brokerageId": "cmujgxab000037ddvpgg1ty0x",
+        "clientId": "cmujgxaki000d7ddvxf80ydq4",
         "transactionType": "RENT",
         "category": "BHK_2",
         "status": "ACTIVE",
@@ -18,8 +18,15 @@
           "SEMI_FURNISHED"
         ],
         "minParking": 1,
-        "floorMin": 2,
+        "floorMin": null,
         "floorMax": null,
+        "floorPreference": [
+          "MIDDLE",
+          "HIGHER"
+        ],
+        "propertyTypes": [
+          "APARTMENT"
+        ],
         "possession": "READY_TO_MOVE",
         "possessionBy": null,
         "mandatory": [
@@ -28,17 +35,17 @@
         "notes": "Gated society",
         "source": "MANUAL",
         "version": 2,
-        "createdAt": "2026-09-27T06:40:23.283Z",
-        "updatedAt": "2026-09-27T06:40:23.295Z",
+        "createdAt": "2026-09-27T06:59:24.756Z",
+        "updatedAt": "2026-09-27T06:59:24.768Z",
         "client": {
-          "id": "cmujg8tsw000d7dl37h7w6j4r",
+          "id": "cmujgxaki000d7ddvxf80ydq4",
           "name": "Amit Patil",
           "primaryPhone": "+919876543210",
           "status": "CONTACTED"
         }
       },
       "eligible": true,
-      "score": 100,
+      "score": 95,
       "checks": [
         {
           "field": "BUDGET",
@@ -66,15 +73,21 @@
         },
         {
           "field": "FLOOR",
-          "outcome": "match",
+          "outcome": "mismatch",
           "mandatory": false,
-          "detail": "Floor 5 in range"
+          "detail": "Floor 5 of 15 is a lower floor; client wants middle/higher"
         },
         {
           "field": "POSSESSION",
           "outcome": "match",
           "mandatory": false,
           "detail": "Ready to move"
+        },
+        {
+          "field": "PROPERTY_TYPE",
+          "outcome": "match",
+          "mandatory": false,
+          "detail": "Apartment accepted"
         }
       ],
       "violations": [],

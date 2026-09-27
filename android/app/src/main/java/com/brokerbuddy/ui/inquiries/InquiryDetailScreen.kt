@@ -30,6 +30,7 @@ import com.brokerbuddy.core.format.Money
 import com.brokerbuddy.core.model.FieldCheck
 import com.brokerbuddy.core.model.Inquiry
 import com.brokerbuddy.core.model.InquiryRevision
+import com.brokerbuddy.core.match.MatchLabel
 import com.brokerbuddy.core.model.PropertyMatch
 import com.brokerbuddy.core.model.RequirementField
 import com.brokerbuddy.core.phone.PhoneNumbers
@@ -143,15 +144,8 @@ private fun RequirementDetails(i: Inquiry) {
         LabeledValue("Locations${must(RequirementField.LOCATION)}", i.locations.takeIf { it.isNotEmpty() }?.joinToString(", "))
         LabeledValue("Furnishing${must(RequirementField.FURNISHING)}", i.furnishing.takeIf { it.isNotEmpty() }?.joinToString(", ") { it.label })
         LabeledValue("Parking${must(RequirementField.PARKING)}", i.minParking?.let { "At least $it" })
-        LabeledValue(
-            "Floor${must(RequirementField.FLOOR)}",
-            when {
-                i.floorMin != null && i.floorMax != null -> "${i.floorMin} – ${i.floorMax}"
-                i.floorMin != null -> "${i.floorMin} or above"
-                i.floorMax != null -> "Up to ${i.floorMax}"
-                else -> null
-            },
-        )
+        LabeledValue("Floor${must(RequirementField.FLOOR)}", i.floorPreference.takeIf { it.isNotEmpty() }?.joinToString(" or ") { it.label })
+        LabeledValue("Property type${must(RequirementField.PROPERTY_TYPE)}", i.propertyTypes.takeIf { it.isNotEmpty() }?.joinToString(", ") { it.label })
         LabeledValue("Possession${must(RequirementField.POSSESSION)}", i.possession?.label)
         LabeledValue("Needed by", i.possessionBy?.let(::formatDate))
         LabeledValue("Notes", i.notes)
@@ -159,7 +153,7 @@ private fun RequirementDetails(i: Inquiry) {
     }
 }
 
-private enum class MatchFilter(val label: String) { ALL("All"), BEST("Best"), VERIFY("To verify") }
+private enum class MatchFilter(val label: String) { ALL("All"), EXACT("Exact"), VERIFY("To verify") }
 
 /** Matches (screen 10): eligible listings, best first, shareable with the client. */
 @Composable
@@ -169,18 +163,18 @@ private fun MatchesTab(inquiry: Inquiry, onProperty: (String) -> Unit) {
     val loader = rememberLoad(inquiry.id) { api.call { inquiryMatches(inquiry.id).matches } }
     var filter by rememberSaveable { mutableStateOf(MatchFilter.ALL) }
     LoadContent(loader) { matches ->
-        val best = matches.filter { it.score >= 90 }
+        val exact = matches.filter { MatchLabel.isExact(it.checks) }
         val verify = matches.filter { it.needsVerification.isNotEmpty() }
         val shown = when (filter) {
             MatchFilter.ALL -> matches
-            MatchFilter.BEST -> best
+            MatchFilter.EXACT -> exact
             MatchFilter.VERIFY -> verify
         }
         Column(Modifier.fillMaxSize()) {
             FilterTabs(
                 listOf(
                     TabItem(MatchFilter.ALL, "All", matches.size),
-                    TabItem(MatchFilter.BEST, "Best", best.size),
+                    TabItem(MatchFilter.EXACT, "Exact", exact.size),
                     TabItem(MatchFilter.VERIFY, "To verify", verify.size),
                 ),
                 selected = filter,
@@ -218,8 +212,9 @@ private fun shareText(p: Property): String = listOfNotNull(
 private fun MatchCard(m: PropertyMatch, onClick: () -> Unit, onShare: (() -> Unit)?) {
     val b = MaterialTheme.brand
     val p = m.property
+    val exact = MatchLabel.isExact(m.checks)
     val scoreTint = when {
-        m.score >= 90 -> b.success
+        exact -> b.success
         m.score >= 75 -> b.amber
         else -> b.neutral
     }
@@ -229,7 +224,7 @@ private fun MatchCard(m: PropertyMatch, onClick: () -> Unit, onShare: (() -> Uni
                 PropertyPhoto(p.id, p.photoIds.firstOrNull(), Modifier.fillMaxSize(), maxPx = 400)
             }
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Pill("${m.score}% Match", scoreTint)
+                Pill(MatchLabel.of(m.score, m.checks), scoreTint)
                 Text(p.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
                 Text(p.locality, style = MaterialTheme.typography.bodySmall, color = b.muted, maxLines = 1)
                 Text(priceText(p), style = MaterialTheme.typography.titleSmall, color = b.link)
@@ -244,8 +239,8 @@ private fun MatchCard(m: PropertyMatch, onClick: () -> Unit, onShare: (() -> Uni
                 }
             }
         }
-        // Only what the broker should look at: near misses, unknowns and things to verify.
-        m.checks.filter { it.outcome == "near" || it.outcome == "unknown" }.forEach { CheckLine(it) }
+        // Why it's partial: what doesn't match, what's close, and what the listing hasn't recorded.
+        m.checks.filter { it.outcome == "near" || it.outcome == "unknown" || it.outcome == "mismatch" }.forEach { CheckLine(it) }
         if (m.needsVerification.isNotEmpty()) {
             Text("Verify with owner: ${m.needsVerification.joinToString { it.label }}", color = b.amber.content, style = MaterialTheme.typography.bodySmall)
         }

@@ -1,4 +1,4 @@
-import type { Furnishing, Possession, PropertyCategory, TransactionType } from "@prisma/client";
+import type { FloorBand, Furnishing, Possession, PropertyCategory, TransactionType } from "@prisma/client";
 
 /** A value extracted from a transcript, with the exact words it came from. */
 export interface Evidence<T> {
@@ -18,8 +18,8 @@ export interface RequirementDraft {
   locations?: Evidence<string>[];
   furnishing?: Evidence<Furnishing[]>;
   minParking?: Evidence<number>;
-  floorMin?: Evidence<number>;
-  floorMax?: Evidence<number>;
+  /** Only when a lower / middle / higher floor is asked for; exact floors are never extracted. */
+  floorPreference?: Evidence<FloorBand[]>;
   possession?: Evidence<Possession>;
   /** YYYY-MM-DD */
   possessionBy?: Evidence<string>;
@@ -84,11 +84,6 @@ export function verifyDraft(draft: RequirementDraft, transcript: string): { draf
     warnings.push("Budget minimum was above maximum; both left for you to fill in");
     delete out.budgetMin;
     delete out.budgetMax;
-  }
-  if (out.floorMin && out.floorMax && out.floorMin.value > out.floorMax.value) {
-    warnings.push("Floor range was inverted; left for you to fill in");
-    delete out.floorMin;
-    delete out.floorMax;
   }
   return { draft: out, warnings };
 }

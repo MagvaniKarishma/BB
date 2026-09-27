@@ -1,11 +1,11 @@
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbXVqZzh0ajIwMDA1N2RsM2dsaHJhMnFyIiwiaWF0IjoxNzkwNDkxMjIyLCJleHAiOjE3OTMwODMyMjJ9.sJ6MdoIcXQL1uRF86yvPGbcMf2ikRTA51gMPp_fIiTk",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbXVqZ3hhYjEwMDA1N2Rkdnc3N2cyc2UwIiwiaWF0IjoxNzkwNDkyMzY0LCJleHAiOjE3OTMwODQzNjR9.XLrSv6EsIkrgC0VKxMyoU9P601Rs2VCZS4cr5jKehWM",
   "user": {
-    "id": "cmujg8tj200057dl3glhra2qr",
+    "id": "cmujgxab100057ddvw77g2se0",
     "name": "Rahul Sharma",
-    "email": "owner-1790491222699@example.com",
+    "email": "owner-1790492364191@example.com",
     "phone": "+919820000001",
     "role": "OWNER",
-    "brokerageId": "cmujg8tj000037dl3isndguzo"
+    "brokerageId": "cmujgxab000037ddvpgg1ty0x"
   }
 }

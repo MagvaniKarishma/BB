@@ -57,7 +57,7 @@ class VoiceFormTest {
         assertEquals("Andheri West, Jogeshwari", f.locations)
         assertEquals(setOf(Furnishing.SEMI_FURNISHED), f.furnishing)
         assertEquals("", f.minParking) // not said → left blank
-        assertEquals("", f.floorMin)
+        assertTrue(f.floorPreference.isEmpty())
         assertNull(f.possession)
         assertEquals("60 se 70 hazaar", merge.evidence[FormField.BUDGET_MAX])
         assertTrue(merge.previous.isEmpty())
@@ -84,10 +84,10 @@ class VoiceFormTest {
 
     @Test
     fun validationReportsErrorsInsteadOfDropping() {
-        val v = RequirementForm(budgetMin = "80k", budgetMax = "abc", floorMin = "9", floorMax = "3", possessionBy = "June").validate()
+        val v = RequirementForm(budgetMin = "80k", budgetMax = "abc", possessionBy = "June").validate()
         assertFalse(v.isValid)
         assertEquals(
-            setOf(FormField.BUDGET_MAX, FormField.FLOOR_MAX, FormField.POSSESSION_BY, FormField.TRANSACTION, FormField.CATEGORY),
+            setOf(FormField.BUDGET_MAX, FormField.POSSESSION_BY, FormField.TRANSACTION, FormField.CATEGORY),
             v.errors.keys,
         )
         val ok = RequirementForm(TransactionType.BUY, PropertyCategory.BHK_3, budgetMax = "1.5 cr").validate()

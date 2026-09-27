@@ -355,6 +355,7 @@ private fun MainScaffold(openRoute: String?, onRouteOpened: () -> Unit) {
                     onPortalListing = { portal, listingId, day ->
                         nav.navigate(Routes.portalListing(portal, listingId, PortalFilter(DateFilter.CUSTOM, day, day)))
                     },
+                    onProperty = { nav.navigate(Routes.property(it)) },
                 )
             }
             composable("client/{id}/edit") { entry ->

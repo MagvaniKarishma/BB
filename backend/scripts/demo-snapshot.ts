@@ -13,6 +13,7 @@
  * Keys must match the app's DemoApi.key(): the path after /api/v1/, then "?" and the query
  * parameters sorted by name (tz, page, pageSize, from and to are ignored).
  */
+import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -52,13 +53,13 @@ const clients: C[] = [
   { name: "Rahul Sharma", phone: "+919820011001", leadSource: "WALK_IN", status: "SITE_VISIT",
     req: { transactionType: "RENT", category: "BHK_2", budgetMin: 60000, budgetMax: 75000, locations: ["Andheri West"], furnishing: ["SEMI_FURNISHED"], minParking: 1, mandatory: ["BUDGET", "LOCATION"], notes: "Family of 4, needs school nearby" } },
   { name: "Priya Mehta", phone: "+919820011002", leadSource: "ACRES_99", status: "NEW",
-    req: { transactionType: "BUY", category: "BHK_3", budgetMin: 22000000, budgetMax: 28000000, locations: ["Powai"], furnishing: [], minParking: 2, possession: "READY_TO_MOVE", mandatory: ["BUDGET"], notes: "Lake view preferred" } },
+    req: { transactionType: "BUY", category: "BHK_3", budgetMin: 22000000, budgetMax: 28000000, locations: ["Powai"], furnishing: [], minParking: 2, floorPreference: ["MIDDLE", "HIGHER"], propertyTypes: ["APARTMENT"], possession: "READY_TO_MOVE", mandatory: ["BUDGET"], notes: "Lake view preferred" } },
   { name: "Amit Patil", phone: "+919820011003", leadSource: "HOUSING_COM", status: "CONTACTED",
     req: { transactionType: "RENT", category: "BHK_1", budgetMin: 25000, budgetMax: 30000, locations: ["Mulund West"], furnishing: ["SEMI_FURNISHED", "FULLY_FURNISHED"], mandatory: ["BUDGET"] } },
   { name: "Sneha Iyer", phone: "+919820011004", leadSource: "REFERRAL", status: "NEGOTIATION",
     req: { transactionType: "BUY", category: "BHK_2", budgetMin: 14000000, budgetMax: 17000000, locations: ["Goregaon East"], furnishing: [], minParking: 1, mandatory: ["BUDGET", "LOCATION"], notes: "Referred by Rahul Sharma" } },
   { name: "Vikram Singh", phone: "+919820011005", leadSource: "WHATSAPP", status: "NEW",
-    req: { transactionType: "RENT", category: "BHK_3", budgetMin: 150000, budgetMax: 200000, locations: ["Bandra West"], furnishing: ["FULLY_FURNISHED"], minParking: 2, floorMin: 5, mandatory: ["FURNISHING"], notes: "Sea-facing if possible" } },
+    req: { transactionType: "RENT", category: "BHK_3", budgetMin: 150000, budgetMax: 200000, locations: ["Bandra West"], furnishing: ["FULLY_FURNISHED"], minParking: 2, floorPreference: ["HIGHER"], mandatory: ["FURNISHING"], notes: "Sea-facing if possible" } },
   { name: "Fatima Shaikh", phone: "+919820011006", leadSource: "MAGICBRICKS", status: "CONTACTED",
     req: { transactionType: "RENT", category: "BHK_1", budgetMin: 20000, budgetMax: 28000, locations: ["Malad West"], furnishing: [], mandatory: [] } },
   { name: "Rohan Kulkarni", phone: "+919820011007", leadSource: "PHONE_CALL", status: "ON_HOLD",
@@ -68,24 +69,25 @@ const clients: C[] = [
   { name: "Karan Malhotra", phone: "+919820011009", leadSource: "SOCIAL_MEDIA", status: "CLOSED_LOST",
     req: { transactionType: "BUY", category: "COMMERCIAL", status: "DROPPED", budgetMin: 30000000, budgetMax: 40000000, locations: ["Andheri East"], furnishing: [], mandatory: [], notes: "Office space, bought elsewhere" } },
   { name: "Anjali Rao", phone: "+919820011010", leadSource: "WALK_IN", status: "NEW",
-    req: { transactionType: "RENT", category: "BHK_2", budgetMin: 70000, budgetMax: 80000, locations: ["Andheri West", "Juhu"], furnishing: ["FULLY_FURNISHED"], minParking: 1, mandatory: ["LOCATION"] } },
+    req: { transactionType: "RENT", category: "BHK_2", budgetMin: 70000, budgetMax: 80000, locations: ["Andheri West", "Juhu"], furnishing: ["FULLY_FURNISHED"], minParking: 1, propertyTypes: ["APARTMENT"], mandatory: ["LOCATION"] } },
   { name: "Deepak Gupta", phone: "+919820011011", leadSource: "REFERRAL", status: "SITE_VISIT",
     req: { transactionType: "BUY", category: "BHK_2", budgetMin: 18000000, budgetMax: 21000000, locations: ["Powai"], furnishing: [], minParking: 1, mandatory: ["BUDGET"] } },
 ];
 
 const properties = [
-  { title: "2 BHK in Oberoi Splendor", transactionType: "RENT", category: "BHK_2", price: 70000, deposit: 210000, locality: "Andheri West", building: "Oberoi Splendor", carpetAreaSqft: 850, bathrooms: 2, furnishing: "SEMI_FURNISHED", parkingSpots: 1, floor: 8, totalFloors: 22, possession: "READY_TO_MOVE", ownerName: "Mr Mehta", ownerPhone: "+919811100001" },
-  { title: "2 BHK near Lokhandwala", transactionType: "RENT", category: "BHK_2", price: 65000, deposit: 200000, locality: "Andheri West", building: "Green Acres", carpetAreaSqft: 780, bathrooms: 2, furnishing: "SEMI_FURNISHED", parkingSpots: 1, floor: 4, totalFloors: 12, possession: "READY_TO_MOVE", ownerName: "Mrs Kapoor", ownerPhone: "+919811100002" },
-  { title: "Furnished 2 BHK, Juhu", transactionType: "RENT", category: "BHK_2", price: 78000, deposit: 300000, locality: "Juhu", building: "Sea Breeze", carpetAreaSqft: 900, bathrooms: 2, furnishing: "FULLY_FURNISHED", parkingSpots: 1, floor: 6, totalFloors: 10, possession: "READY_TO_MOVE", ownerName: "Mr D'Souza", ownerPhone: "+919811100003" },
-  { title: "3 BHK lake view, Hiranandani", transactionType: "BUY", category: "BHK_3", price: 25500000, locality: "Powai", building: "Hiranandani Gardens", carpetAreaSqft: 1350, bathrooms: 3, furnishing: "SEMI_FURNISHED", parkingSpots: 2, floor: 14, totalFloors: 25, possession: "READY_TO_MOVE", ownerName: "Mr Rao", ownerPhone: "+919811100004" },
-  { title: "2 BHK, Powai", transactionType: "BUY", category: "BHK_2", price: 19500000, locality: "Powai", building: "Lake Homes", carpetAreaSqft: 900, bathrooms: 2, furnishing: "UNFURNISHED", parkingSpots: 1, floor: 9, totalFloors: 20, possession: "READY_TO_MOVE", ownerName: "Mrs Nair", ownerPhone: "+919811100005" },
-  { title: "1 BHK, Mulund West", transactionType: "RENT", category: "BHK_1", price: 27000, deposit: 100000, locality: "Mulund West", building: "Nirmal Lifestyle", carpetAreaSqft: 450, bathrooms: 1, furnishing: "SEMI_FURNISHED", parkingSpots: 0, floor: 3, totalFloors: 14, possession: "READY_TO_MOVE", ownerName: "Mr Shah", ownerPhone: "+919811100006" },
-  { title: "2 BHK, Goregaon East", transactionType: "BUY", category: "BHK_2", price: 16000000, locality: "Goregaon East", building: "Oberoi Esquire", carpetAreaSqft: 820, bathrooms: 2, furnishing: "UNFURNISHED", parkingSpots: 1, floor: 11, totalFloors: 30, possession: "READY_TO_MOVE", ownerName: "Mr Bhatt", ownerPhone: "+919811100007" },
-  { title: "3 BHK sea view, Bandra", transactionType: "RENT", category: "BHK_3", price: 185000, deposit: 1000000, locality: "Bandra West", building: "Carter Road Residency", carpetAreaSqft: 1500, bathrooms: 3, furnishing: "FULLY_FURNISHED", parkingSpots: 2, floor: 7, totalFloors: 12, possession: "READY_TO_MOVE", ownerName: "Mrs Fernandes", ownerPhone: "+919811100008" },
-  { title: "1 BHK, Malad West", transactionType: "RENT", category: "BHK_1", price: 26000, deposit: 80000, locality: "Malad West", building: "Raheja Classique", carpetAreaSqft: 480, bathrooms: 1, furnishing: "UNFURNISHED", parkingSpots: 0, floor: 2, totalFloors: 7, possession: "READY_TO_MOVE", ownerName: "Mr Khan", ownerPhone: "+919811100009" },
-  { title: "1 BHK under construction, Thane", transactionType: "BUY", category: "BHK_1", price: 8200000, locality: "Thane West", building: "Lodha Amara", carpetAreaSqft: 430, bathrooms: 1, furnishing: "UNFURNISHED", parkingSpots: 0, floor: 18, totalFloors: 32, possession: "UNDER_CONSTRUCTION", possessionDate: ist(400, 12), ownerName: "Builder sales office", ownerPhone: "+919811100010" },
-  { title: "2 BHK, Chembur", transactionType: "RENT", category: "BHK_2", price: 50000, deposit: 150000, locality: "Chembur", building: "Rustomjee Elanza", carpetAreaSqft: 700, bathrooms: 2, furnishing: "SEMI_FURNISHED", parkingSpots: 1, floor: 5, totalFloors: 15, possession: "READY_TO_MOVE", availability: "RENTED", ownerName: "Mr Pillai", ownerPhone: "+919811100011" },
-  { title: "Studio, Andheri East", transactionType: "RENT", category: "STUDIO", price: 22000, deposit: 60000, locality: "Andheri East", building: "Kanakia Boomerang", carpetAreaSqft: 350, bathrooms: 1, furnishing: "FULLY_FURNISHED", parkingSpots: 0, floor: 3, totalFloors: 9, possession: "READY_TO_MOVE", ownerName: "Mrs Joshi", ownerPhone: "+919811100012" },
+  { title: "2 BHK in Oberoi Splendor", transactionType: "RENT", category: "BHK_2", propertyType: "APARTMENT", price: 70000, deposit: 210000, locality: "Andheri West", building: "Oberoi Splendor", carpetAreaSqft: 850, bathrooms: 2, furnishing: "SEMI_FURNISHED", parkingSpots: 1, floor: 8, totalFloors: 22, possession: "READY_TO_MOVE", builtUpAreaSqft: 1050, amenities: ["Lift", "Gym", "Swimming pool", "Power backup", "Security"], ownerName: "Mr Mehta", ownerPhone: "+919811100001" },
+  { title: "2 BHK near Lokhandwala", transactionType: "RENT", category: "BHK_2", propertyType: "APARTMENT", price: 65000, deposit: 200000, locality: "Andheri West", building: "Green Acres", carpetAreaSqft: 780, bathrooms: 2, furnishing: "SEMI_FURNISHED", parkingSpots: 1, floor: 4, totalFloors: 12, possession: "READY_TO_MOVE", amenities: ["Lift", "Security"], ownerName: "Mrs Kapoor", ownerPhone: "+919811100002" },
+  { title: "Furnished 2 BHK, Juhu", transactionType: "RENT", category: "BHK_2", propertyType: "APARTMENT", price: 78000, deposit: 300000, locality: "Juhu", building: "Sea Breeze", carpetAreaSqft: 900, bathrooms: 2, furnishing: "FULLY_FURNISHED", parkingSpots: 1, floor: 6, totalFloors: 10, possession: "READY_TO_MOVE", builtUpAreaSqft: 1100, amenities: ["Lift", "Sea view", "Power backup"], ownerName: "Mr D'Souza", ownerPhone: "+919811100003" },
+  { title: "3 BHK lake view, Hiranandani", transactionType: "BUY", category: "BHK_3", propertyType: "APARTMENT", price: 25500000, locality: "Powai", building: "Hiranandani Gardens", carpetAreaSqft: 1350, bathrooms: 3, furnishing: "SEMI_FURNISHED", parkingSpots: 2, floor: 14, totalFloors: 25, possession: "READY_TO_MOVE", builtUpAreaSqft: 1650, amenities: ["Lift", "Clubhouse", "Swimming pool", "Gym", "Garden"], ownerName: "Mr Rao", ownerPhone: "+919811100004" },
+  { title: "2 BHK, Powai", transactionType: "BUY", category: "BHK_2", propertyType: "APARTMENT", price: 19500000, locality: "Powai", building: "Lake Homes", carpetAreaSqft: 900, bathrooms: 2, furnishing: "UNFURNISHED", parkingSpots: 1, floor: 9, totalFloors: 20, possession: "READY_TO_MOVE", amenities: ["Lift", "Garden"], ownerName: "Mrs Nair", ownerPhone: "+919811100005" },
+  { title: "1 BHK, Mulund West", transactionType: "RENT", category: "BHK_1", propertyType: "APARTMENT", price: 27000, deposit: 100000, locality: "Mulund West", building: "Nirmal Lifestyle", carpetAreaSqft: 450, bathrooms: 1, furnishing: "SEMI_FURNISHED", parkingSpots: 0, floor: 3, totalFloors: 14, possession: "READY_TO_MOVE", ownerName: "Mr Shah", ownerPhone: "+919811100006" },
+  { title: "2 BHK, Goregaon East", transactionType: "BUY", category: "BHK_2", propertyType: "APARTMENT", price: 16000000, locality: "Goregaon East", building: "Oberoi Esquire", carpetAreaSqft: 820, bathrooms: 2, furnishing: "UNFURNISHED", parkingSpots: 1, floor: 11, totalFloors: 30, possession: "READY_TO_MOVE", ownerName: "Mr Bhatt", ownerPhone: "+919811100007" },
+  { title: "3 BHK sea view, Bandra", transactionType: "RENT", category: "BHK_3", propertyType: "APARTMENT", price: 185000, deposit: 1000000, locality: "Bandra West", building: "Carter Road Residency", carpetAreaSqft: 1500, bathrooms: 3, furnishing: "FULLY_FURNISHED", parkingSpots: 2, floor: 7, totalFloors: 12, possession: "READY_TO_MOVE", builtUpAreaSqft: 1800, amenities: ["Lift", "Sea view", "Gym", "Power backup"], ownerName: "Mrs Fernandes", ownerPhone: "+919811100008" },
+  { title: "1 BHK, Malad West", transactionType: "RENT", category: "BHK_1", propertyType: "APARTMENT", price: 26000, deposit: 80000, locality: "Malad West", building: "Raheja Classique", carpetAreaSqft: 480, bathrooms: 1, furnishing: "UNFURNISHED", parkingSpots: 0, floor: 2, totalFloors: 7, possession: "READY_TO_MOVE", ownerName: "Mr Khan", ownerPhone: "+919811100009" },
+  { title: "1 BHK under construction, Thane", transactionType: "BUY", category: "BHK_1", propertyType: "APARTMENT", price: 8200000, locality: "Thane West", building: "Lodha Amara", carpetAreaSqft: 430, bathrooms: 1, furnishing: "UNFURNISHED", parkingSpots: 0, floor: 18, totalFloors: 32, possession: "UNDER_CONSTRUCTION", possessionDate: ist(400, 12), amenities: ["Clubhouse", "Swimming pool"], ownerName: "Builder sales office", ownerPhone: "+919811100010" },
+  { title: "2 BHK, Chembur", transactionType: "RENT", category: "BHK_2", propertyType: "APARTMENT", price: 50000, deposit: 150000, locality: "Chembur", building: "Rustomjee Elanza", carpetAreaSqft: 700, bathrooms: 2, furnishing: "SEMI_FURNISHED", parkingSpots: 1, floor: 5, totalFloors: 15, possession: "READY_TO_MOVE", availability: "RENTED", ownerName: "Mr Pillai", ownerPhone: "+919811100011" },
+  { title: "4 BHK bungalow, Madh Island", transactionType: "BUY", category: "BHK_4", propertyType: "INDEPENDENT_HOUSE", price: 95000000, locality: "Madh Island", carpetAreaSqft: 3200, builtUpAreaSqft: 4000, bathrooms: 4, furnishing: "SEMI_FURNISHED", parkingSpots: 3, floor: 0, totalFloors: 2, possession: "READY_TO_MOVE", amenities: ["Garden", "Private terrace", "Security"], ownerName: "Mr Almeida", ownerPhone: "+919811100013" },
+  { title: "Studio, Andheri East", transactionType: "RENT", category: "STUDIO", propertyType: "APARTMENT", price: 22000, deposit: 60000, locality: "Andheri East", building: "Kanakia Boomerang", carpetAreaSqft: 350, bathrooms: 1, furnishing: "FULLY_FURNISHED", parkingSpots: 0, floor: 3, totalFloors: 9, possession: "READY_TO_MOVE", ownerName: "Mrs Joshi", ownerPhone: "+919811100012" },
 ];
 
 async function build() {
@@ -257,6 +259,41 @@ async function capture() {
   for (const id of messageIds) await grab(`whatsapp/messages/${id}`);
 }
 
+/**
+ * Stable ids: every generated id is replaced by one derived from the record's own content (not its
+ * dates or links), so a re-captured snapshot keeps the same ids and the demo changes a broker saved
+ * on the phone still point at the right sample records after an app update.
+ */
+async function stableIds(): Promise<Map<string, string>> {
+  const tables = (await prisma.$queryRawUnsafe<{ t: string }[]>(
+    `SELECT table_name AS t FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'id' AND table_name <> '_prisma_migrations' ORDER BY table_name`,
+  )).map((r) => r.t);
+  const rows: [string, Record<string, unknown>][] = [];
+  for (const t of tables) {
+    for (const r of await prisma.$queryRawUnsafe<Record<string, unknown>[]>(`SELECT * FROM "${t}"`)) rows.push([t, r]);
+  }
+  const ids = new Set(rows.map(([, r]) => String(r.id)));
+  // Dates move with the capture day; hashes and ciphertext (random salts and nonces) change every run.
+  const plain = (v: unknown): unknown =>
+    v instanceof Date || v instanceof Uint8Array ? undefined
+    : typeof v === "string" && ids.has(v) ? "#"
+    : typeof v === "string" && /^[\w+/=:$.-]{32,}$/.test(v) ? undefined
+    : typeof v === "string" ? v.replace(/c[a-z0-9]{24}/g, (m) => (ids.has(m) ? "#" : m))
+    : typeof v === "bigint" ? v.toString()
+    : Array.isArray(v) ? v.map(plain)
+    : v;
+  const used = new Map<string, number>();
+  const map = new Map<string, string>();
+  for (const [t, r] of rows) {
+    const content = Object.keys(r).sort().filter((k) => k !== "id").map((k) => [k, plain(r[k])]).filter(([, v]) => v !== undefined);
+    const base = `${t}:${JSON.stringify(content)}`;
+    const n = used.get(base) ?? 0;
+    used.set(base, n + 1);
+    map.set(String(r.id), `demo${createHash("sha256").update(`${base}#${n}`).digest("hex").slice(0, 21)}`);
+  }
+  return map;
+}
+
 async function main() {
   setVoiceServices(null);
   setBlobStore(new EncryptingStore(new LocalDiskStore(await mkdtemp(path.join(tmpdir(), "bb-demo-")))));
@@ -264,7 +301,9 @@ async function main() {
   await capture();
   await mkdir(path.dirname(OUT), { recursive: true });
   const capturedOn = new Date(Date.now() + IST_MS).toISOString().slice(0, 10);
-  await writeFile(OUT, `${JSON.stringify({ capturedOn, responses: out })}\n`);
+  let json = JSON.stringify({ capturedOn, responses: out });
+  for (const [from, to] of await stableIds()) json = json.split(from).join(to);
+  await writeFile(OUT, `${json}\n`);
   console.log(`wrote ${Object.keys(out).length} responses (captured ${capturedOn}) to ${OUT}`);
   await prisma.$disconnect();
 }

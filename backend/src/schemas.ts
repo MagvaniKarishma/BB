@@ -2,12 +2,14 @@ import { z } from "zod";
 import {
   Availability,
   ClientStatus,
+  FloorBand,
   Furnishing,
   InquiryStatus,
   LeadSource,
   NoteSource,
   Possession,
   PropertyCategory,
+  PropertyType,
   ReminderStatus,
   RequirementField,
   ReminderKind,
@@ -111,26 +113,22 @@ const requirementFields = {
   locations: z.array(trimmed(80)).max(20),
   furnishing: z.array(z.nativeEnum(Furnishing)).max(3),
   minParking: z.number().int().min(0).max(20).nullish(),
-  floorMin: z.number().int().min(-5).max(200).nullish(),
-  floorMax: z.number().int().min(-5).max(200).nullish(),
+  /** Lower / middle / higher floors of the building; never an exact floor. */
+  floorPreference: z.array(z.nativeEnum(FloorBand)).max(3),
+  propertyTypes: z.array(z.nativeEnum(PropertyType)).max(8),
   possession: z.nativeEnum(Possession).nullish(),
   possessionBy: isoDate.nullish(),
-  mandatory: z.array(z.nativeEnum(RequirementField)).max(6),
+  mandatory: z.array(z.nativeEnum(RequirementField)).max(7),
   notes: optionalText(5000),
 };
 
 type RangeCheckable = {
   budgetMin?: number | null;
   budgetMax?: number | null;
-  floorMin?: number | null;
-  floorMax?: number | null;
 };
 const checkRanges = (v: RangeCheckable, ctx: z.RefinementCtx) => {
   if (v.budgetMin != null && v.budgetMax != null && v.budgetMin > v.budgetMax) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["budgetMin"], message: "budgetMin > budgetMax" });
-  }
-  if (v.floorMin != null && v.floorMax != null && v.floorMin > v.floorMax) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["floorMin"], message: "floorMin > floorMax" });
   }
 };
 
@@ -140,6 +138,8 @@ export const createInquirySchema = z
     status: requirementFields.status.default(InquiryStatus.ACTIVE),
     locations: requirementFields.locations.default([]),
     furnishing: requirementFields.furnishing.default([]),
+    floorPreference: requirementFields.floorPreference.default([]),
+    propertyTypes: requirementFields.propertyTypes.default([]),
     mandatory: requirementFields.mandatory.default([]),
     source: z.nativeEnum(RequirementSource).default(RequirementSource.MANUAL),
   })
@@ -155,8 +155,8 @@ export const updateInquirySchema = z
     locations: requirementFields.locations.optional(),
     furnishing: requirementFields.furnishing.optional(),
     minParking: requirementFields.minParking,
-    floorMin: requirementFields.floorMin,
-    floorMax: requirementFields.floorMax,
+    floorPreference: requirementFields.floorPreference.optional(),
+    propertyTypes: requirementFields.propertyTypes.optional(),
     possession: requirementFields.possession,
     possessionBy: requirementFields.possessionBy,
     mandatory: requirementFields.mandatory.optional(),
@@ -177,12 +177,14 @@ const propertyFields = {
   title: trimmed(160),
   transactionType: z.nativeEnum(TransactionType),
   category: z.nativeEnum(PropertyCategory),
+  propertyType: z.nativeEnum(PropertyType).nullish(),
   price: rupees.positive(),
   deposit: rupees.nullish(),
   locality: trimmed(80),
   building: optionalText(120),
   address: optionalText(300),
   carpetAreaSqft: z.number().int().positive().max(1_000_000).nullish(),
+  builtUpAreaSqft: z.number().int().positive().max(1_000_000).nullish(),
   bathrooms: z.number().int().min(0).max(20).nullish(),
   furnishing: z.nativeEnum(Furnishing).nullish(),
   parkingSpots: z.number().int().min(0).max(50).nullish(),
@@ -191,6 +193,7 @@ const propertyFields = {
   possession: z.nativeEnum(Possession).nullish(),
   possessionDate: isoDate.nullish(),
   availability: z.nativeEnum(Availability),
+  amenities: z.array(trimmed(60)).max(40),
   ownerName: optionalText(120),
   ownerPhone: optionalText(30),
   notes: optionalText(5000),
@@ -199,6 +202,7 @@ const propertyFields = {
 export const createPropertySchema = z.object({
   ...propertyFields,
   availability: propertyFields.availability.default(Availability.AVAILABLE),
+  amenities: propertyFields.amenities.default([]),
 });
 
 export const updatePropertySchema = z.object(propertyFields).partial();
@@ -207,6 +211,12 @@ export const listPropertiesSchema = z.object({
   transactionType: z.nativeEnum(TransactionType).optional(),
   category: z.nativeEnum(PropertyCategory).optional(),
   availability: z.nativeEnum(Availability).optional(),
+  propertyType: z.nativeEnum(PropertyType).optional(),
+  furnishing: z.nativeEnum(Furnishing).optional(),
+  /** Area name; "Andheri" also finds "Andheri (W)". */
+  locality: z.string().trim().max(80).optional(),
+  minPrice: z.coerce.number().int().min(0).optional(),
+  maxPrice: z.coerce.number().int().min(0).optional(),
   q: z.string().trim().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(30),

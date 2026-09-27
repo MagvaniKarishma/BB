@@ -314,7 +314,7 @@ internal class DemoStore(
 
     private val requirementKeys = setOf(
         "transactionType", "category", "status", "budgetMin", "budgetMax", "locations", "furnishing", "minParking",
-        "floorMin", "floorMax", "possession", "possessionBy", "mandatory", "notes", "source",
+        "floorPreference", "propertyTypes", "possession", "possessionBy", "mandatory", "notes", "source",
     )
 
     fun createInquiry(clientId: String, body: JsonObject): Out {
@@ -343,9 +343,9 @@ internal class DemoStore(
     }
 
     private val propertyKeys = setOf(
-        "title", "transactionType", "category", "price", "deposit", "locality", "building", "address", "carpetAreaSqft",
-        "bathrooms", "furnishing", "parkingSpots", "floor", "totalFloors", "possession", "possessionDate", "availability",
-        "ownerName", "ownerPhone", "notes",
+        "title", "transactionType", "category", "propertyType", "price", "deposit", "locality", "building", "address",
+        "carpetAreaSqft", "builtUpAreaSqft", "bathrooms", "furnishing", "parkingSpots", "floor", "totalFloors", "possession",
+        "possessionDate", "availability", "amenities", "ownerName", "ownerPhone", "notes",
     )
 
     fun createProperty(body: JsonObject): Out {
@@ -356,6 +356,7 @@ internal class DemoStore(
         val t = nowIso()
         val property = JsonObject(body.filterKeys { it in propertyKeys }).plus(
             "id" to s(id), "brokerageId" to s(brokerageId), "availability" to (body["availability"] ?: s("AVAILABLE")),
+            "amenities" to (body["amenities"] ?: list(emptyList())),
             "listedById" to me["id"], "createdAt" to s(t), "updatedAt" to s(t), "photoIds" to list(emptyList()),
         )
         changes.properties[id] = property
@@ -369,6 +370,27 @@ internal class DemoStore(
         changes.properties[id] = updated
         return Out.Ok(200, jsonOf("property" to updated))
     }
+
+    /** Records a photo the app saved on the phone; the first photo is the cover. */
+    fun addPhoto(propertyId: String, photoId: String): Out {
+        val current = propertiesAll().firstOrNull { it.str("id") == propertyId } ?: return notFound("Property")
+        val ids = photoIdsOf(current)
+        if (ids.size >= MAX_PHOTOS) return badRequest("A property can have at most $MAX_PHOTOS photos")
+        val updated = current.plus("photoIds" to list((ids + photoId).map(::s)), "updatedAt" to s(nowIso()))
+        changes.properties[propertyId] = updated
+        return Out.Ok(201, jsonOf("photoId" to s(photoId), "property" to updated))
+    }
+
+    fun removePhoto(propertyId: String, photoId: String): Out {
+        val current = propertiesAll().firstOrNull { it.str("id") == propertyId } ?: return notFound("Property")
+        val ids = photoIdsOf(current)
+        if (photoId !in ids) return notFound("Photo")
+        changes.properties[propertyId] = current.plus("photoIds" to list((ids - photoId).map(::s)), "updatedAt" to s(nowIso()))
+        return Out.Ok(204, JsonNull)
+    }
+
+    fun photoIdsOf(property: JsonObject): List<String> =
+        (property["photoIds"] as? JsonArray)?.mapNotNull { it.primitiveOrNull()?.contentOrNull }.orEmpty()
 
     fun deleteProperty(id: String): Out {
         if (id !in changes.created) return Out.Err(403, "DEMO_SAMPLE", SAMPLE_NOT_DELETABLE)
@@ -425,6 +447,7 @@ internal class DemoStore(
 
     companion object {
         val CLIENT_FIELDS = setOf("id", "brokerageId", "name", "primaryPhone", "email", "leadSource", "status", "notes", "assignedToId", "createdAt", "updatedAt")
+        const val MAX_PHOTOS = 12
         const val SAMPLE_NOT_DELETABLE = "Sample records can't be deleted in the demo. Use Reset demo to undo your own changes."
 
         fun parseBody(body: String?): JsonObject? = body?.let { runCatching { ApiJson.parseToJsonElement(it).jsonObject }.getOrNull() }

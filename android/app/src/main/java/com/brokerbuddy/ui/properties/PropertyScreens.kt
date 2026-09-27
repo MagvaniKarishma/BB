@@ -1,10 +1,11 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 
 package com.brokerbuddy.ui.properties
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,6 +51,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.brokerbuddy.core.format.Money
+import com.brokerbuddy.core.match.MatchLabel
+import com.brokerbuddy.core.match.Matching
 import com.brokerbuddy.core.model.Availability
 import com.brokerbuddy.core.model.Furnishing
 import com.brokerbuddy.core.model.InquiryMatch
@@ -57,6 +60,7 @@ import com.brokerbuddy.core.model.Possession
 import com.brokerbuddy.core.model.Property
 import com.brokerbuddy.core.model.PropertyCategory
 import com.brokerbuddy.core.model.PropertyRequest
+import com.brokerbuddy.core.model.PropertyType
 import com.brokerbuddy.core.model.TransactionType
 import com.brokerbuddy.core.phone.PhoneNumbers
 import com.brokerbuddy.ui.common.BackTopBar
@@ -139,14 +143,26 @@ fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit) {
     val api = appContainer().api
     var query by rememberText()
     var type by rememberSaveable { mutableStateOf(TransactionType.RENT) }
-    var availableOnly by rememberSaveable { mutableStateOf(true) }
-    val loader = rememberLoad(query, type, availableOnly) {
+    // null = all availabilities
+    var availability by rememberSaveable { mutableStateOf<Availability?>(Availability.AVAILABLE) }
+    var category by rememberSaveable { mutableStateOf<PropertyCategory?>(null) }
+    var propertyType by rememberSaveable { mutableStateOf<PropertyType?>(null) }
+    var furnishing by rememberSaveable { mutableStateOf<Furnishing?>(null) }
+    var minPrice by rememberSaveable { mutableStateOf<Long?>(null) }
+    var maxPrice by rememberSaveable { mutableStateOf<Long?>(null) }
+    var priceDialog by remember { mutableStateOf(false) }
+    val filtered = category != null || propertyType != null || furnishing != null || minPrice != null || maxPrice != null ||
+        availability != Availability.AVAILABLE || query.isNotBlank()
+    fun clearFilters() {
+        query = ""; availability = Availability.AVAILABLE; category = null; propertyType = null; furnishing = null
+        minPrice = null; maxPrice = null
+    }
+    val loader = rememberLoad(query, type, availability, category, propertyType, furnishing, minPrice, maxPrice) {
         if (query.isNotBlank()) delay(300)
         api.call {
             properties(
-                q = query.ifBlank { null },
-                transactionType = type,
-                availability = if (availableOnly) Availability.AVAILABLE else null,
+                q = query.ifBlank { null }, transactionType = type, availability = availability, category = category,
+                propertyType = propertyType, furnishing = furnishing, minPrice = minPrice, maxPrice = maxPrice,
             )
         }
     }
@@ -165,15 +181,33 @@ fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit) {
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             SegmentedPill(TransactionType.entries, type, { it.label }, { type = it }, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                SearchField(query, { query = it }, "Search properties...", Modifier.weight(1f))
-                Spacer(Modifier.width(8.dp))
-                FilterChip(selected = availableOnly, onClick = { availableOnly = !availableOnly }, label = { Text("Available") })
+            SearchField(query, { query = it }, "Search title, area or society...", Modifier.padding(horizontal = 16.dp))
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MenuChip("BHK", category, PropertyCategory.entries, { it.label }) { category = it }
+                FilterChip(
+                    selected = minPrice != null || maxPrice != null,
+                    onClick = { priceDialog = true },
+                    label = { Text(Money.range(minPrice, maxPrice) ?: "Price") },
+                )
+                MenuChip("Type", propertyType, PropertyType.entries, { it.label }) { propertyType = it }
+                MenuChip("Furnishing", furnishing, Furnishing.entries, { it.label }) { furnishing = it }
+                MenuChip(
+                    "All availability", availability, Availability.entries, { if (it == Availability.AVAILABLE) "Available" else it.label },
+                    noneLabel = "All availability",
+                ) { availability = it }
+                if (filtered) TextButton(onClick = ::clearFilters) { Text("Clear filters") }
             }
             PullToRefreshBox(isRefreshing = false, onRefresh = loader.reload, modifier = Modifier.fillMaxSize()) {
                 LoadContent(loader) { list ->
                     if (list.properties.isEmpty()) {
-                        EmptyMessage("No ${type.label.lowercase()} properties found. Tap + to add a listing.")
+                        EmptyMessage(
+                            if (filtered) "No ${type.label.lowercase()} properties match these filters."
+                            else "No ${type.label.lowercase()} properties yet. Tap + to add a listing.",
+                        )
                     } else {
                         LazyColumn(
                             Modifier.fillMaxSize(),
@@ -184,7 +218,7 @@ fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit) {
                                 PropertyRow(
                                     p,
                                     onClick = { onProperty(p.id) },
-                                    badge = p.availability.takeIf { it != Availability.AVAILABLE }?.label,
+                                    badge = p.availability.takeIf { it != Availability.AVAILABLE }?.let { "Not available · ${it.label}" },
                                 )
                             }
                         }
@@ -193,6 +227,52 @@ fun PropertyListScreen(onProperty: (String) -> Unit, onAdd: () -> Unit) {
             }
         }
     }
+    if (priceDialog) {
+        PriceRangeDialog(minPrice, maxPrice, onDismiss = { priceDialog = false }) { lo, hi ->
+            minPrice = lo; maxPrice = hi; priceDialog = false
+        }
+    }
+}
+
+/** A filter chip with a menu; the first entry clears it. */
+@Composable
+private fun <T> MenuChip(label: String, selected: T?, options: List<T>, optionLabel: (T) -> String, noneLabel: String = "Any", onSelect: (T?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        FilterChip(selected = selected != null, onClick = { open = true }, label = { Text(selected?.let(optionLabel) ?: label) })
+        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            androidx.compose.material3.DropdownMenuItem(text = { Text(noneLabel) }, onClick = { onSelect(null); open = false })
+            options.forEach { o ->
+                androidx.compose.material3.DropdownMenuItem(text = { Text(optionLabel(o)) }, onClick = { onSelect(o); open = false })
+            }
+        }
+    }
+}
+
+@Composable
+private fun PriceRangeDialog(min: Long?, max: Long?, onDismiss: () -> Unit, onApply: (Long?, Long?) -> Unit) {
+    var lo by remember { mutableStateOf(min?.toString() ?: "") }
+    var hi by remember { mutableStateOf(max?.toString() ?: "") }
+    val pLo = lo.takeIf { it.isNotBlank() }?.let(Money::parse)
+    val pHi = hi.takeIf { it.isNotBlank() }?.let(Money::parse)
+    val loBad = lo.isNotBlank() && pLo == null
+    val hiBad = hi.isNotBlank() && pHi == null
+    val inverted = pLo != null && pHi != null && pLo > pHi
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Price range") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                NumberField("Minimum", lo, { lo = it }, Modifier.fillMaxWidth(), pLo?.let(Money::full) ?: "e.g. 50k, 80 lakh", loBad, KeyboardType.Text)
+                NumberField(
+                    "Maximum", hi, { hi = it }, Modifier.fillMaxWidth(),
+                    if (inverted) "Below the minimum" else pHi?.let(Money::full) ?: "e.g. 1.2 Cr", hiBad || inverted, KeyboardType.Text,
+                )
+            }
+        },
+        confirmButton = { TextButton(enabled = !loBad && !hiBad && !inverted, onClick = { onApply(pLo, pHi) }) { Text("Apply") } },
+        dismissButton = { TextButton(onClick = { onApply(null, null) }) { Text("Clear") } },
+    )
 }
 
 /** Property detail (screen 9): photos, key facts, owner, Share and Mark as Rented/Sold. */
@@ -209,19 +289,39 @@ fun PropertyDetailScreen(propertyId: String, onBack: () -> Unit, onEdit: () -> U
     var uploading by remember { mutableIntStateOf(0) }
     var confirmStatus by remember { mutableStateOf<Availability?>(null) }
     var deletePhoto by remember { mutableStateOf<String?>(null) }
+    var replacing by remember { mutableStateOf<String?>(null) }
+
+    suspend fun upload(uri: android.net.Uri): Boolean {
+        val bytes = PropertyPhotos.prepareUpload(context, uri)
+        if (bytes == null) {
+            toast(context, "Couldn't read that photo")
+            return false
+        }
+        val part = MultipartBody.Part.createFormData("photo", "photo.jpg", bytes.toRequestBody("image/jpeg".toMediaType()))
+        return api.call { uploadPropertyPhoto(propertyId, part) }.onFailure { toast(context, it.message ?: "Upload failed") }.isSuccess
+    }
+
+    // Replace = add the new photo, then remove the old one (so a failed upload loses nothing).
+    val replacePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val old = replacing
+        replacing = null
+        if (uri == null || old == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            uploading = 1
+            if (upload(uri)) {
+                api.call { deletePropertyPhoto(propertyId, old) }.onFailure { toast(context, "New photo added, but the old one couldn't be removed") }
+            }
+            uploading = 0
+            loader.reload()
+        }
+    }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         scope.launch {
             uploading = uris.size
             for (uri in uris) {
-                val bytes = PropertyPhotos.prepareUpload(context, uri)
-                if (bytes == null) {
-                    toast(context, "Couldn't read one of the photos")
-                } else {
-                    val part = MultipartBody.Part.createFormData("photo", "photo.jpg", bytes.toRequestBody("image/jpeg".toMediaType()))
-                    api.call { uploadPropertyPhoto(propertyId, part) }.onFailure { toast(context, it.message ?: "Upload failed") }
-                }
+                upload(uri)
                 uploading--
             }
             loader.reload()
@@ -301,6 +401,7 @@ fun PropertyDetailScreen(propertyId: String, onBack: () -> Unit, onEdit: () -> U
                     Text(priceText(p), style = MaterialTheme.typography.titleLarge, color = b.link, modifier = Modifier.padding(top = 4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
                         Pill(p.transactionType.label, if (p.transactionType == TransactionType.RENT) b.success else b.info)
+                        p.propertyType?.let { Pill(it.label, b.info) }
                         p.furnishing?.let { Pill(it.chipLabel(), b.neutral) }
                     }
 
@@ -315,13 +416,24 @@ fun PropertyDetailScreen(propertyId: String, onBack: () -> Unit, onEdit: () -> U
                         FactGrid(
                             listOf(
                                 "Society" to p.building,
-                                "Floor" to p.floor?.let { f -> p.totalFloors?.let { "$f of $it" } ?: "$f" },
+                                "Floor" to p.floor?.let { f ->
+                                    Matching.floorBandOf(f, p.totalFloors)?.let { band -> "$f of ${p.totalFloors} (${band.label.lowercase()})" }
+                                        ?: "$f (total floors not recorded)"
+                                },
+                                "Built-up area" to p.builtUpAreaSqft?.let { "$it sq ft" },
                                 "Parking" to p.parkingSpots?.let { if (it == 0) "None" else "$it" },
                                 "Available" to (p.possession?.label ?: p.possessionDate?.let(::formatDate)),
                                 "Deposit" to p.deposit?.let(Money::full),
                                 "Address" to p.address,
                             ).filter { it.second != null }.map { it.first to it.second!! },
                         )
+                    }
+
+                    if (p.amenities.isNotEmpty()) {
+                        SectionTitle("Amenities")
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            p.amenities.forEach { Pill(it, b.neutral) }
+                        }
                     }
 
                     // ----- owner -----
@@ -348,7 +460,7 @@ fun PropertyDetailScreen(propertyId: String, onBack: () -> Unit, onEdit: () -> U
                         p.photoIds.forEach { id ->
                             Box(
                                 Modifier.size(72.dp).clip(RoundedCornerShape(10.dp))
-                                    .combinedClickable(onClick = {}, onLongClick = { deletePhoto = id }),
+                                    .combinedClickable(onClick = { deletePhoto = id }, onLongClick = { deletePhoto = id }),
                             ) { PropertyPhoto(p.id, id, Modifier.fillMaxSize(), maxPx = 200) }
                         }
                         OutlinedButton(onClick = { picker.launch("image/*") }, enabled = uploading == 0, modifier = Modifier.height(72.dp)) {
@@ -356,7 +468,11 @@ fun PropertyDetailScreen(propertyId: String, onBack: () -> Unit, onEdit: () -> U
                             Text(if (uploading > 0) "  Uploading $uploading…" else "  Add")
                         }
                     }
-                    if (p.photoIds.isNotEmpty()) Text("Long-press a photo to remove it.", style = MaterialTheme.typography.bodySmall, color = b.muted)
+                    Text(
+                        if (p.photoIds.isEmpty()) "No photos yet — add some so clients can see the place."
+                        else "Tap a photo to replace or remove it. The first photo is the cover.",
+                        style = MaterialTheme.typography.bodySmall, color = b.muted,
+                    )
 
                     p.notes?.let {
                         SectionTitle("Notes")
@@ -391,7 +507,13 @@ fun PropertyDetailScreen(propertyId: String, onBack: () -> Unit, onEdit: () -> U
             deletePhoto?.let { id ->
                 AlertDialog(
                     onDismissRequest = { deletePhoto = null },
-                    title = { Text("Remove this photo?") },
+                    title = { Text("Photo") },
+                    text = {
+                        Column {
+                            PropertyPhoto(p.id, id, Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(12.dp)), maxPx = 800)
+                            TextButton(onClick = { deletePhoto = null; replacing = id; replacePicker.launch("image/*") }) { Text("Replace with another photo") }
+                        }
+                    },
                     confirmButton = {
                         TextButton(onClick = {
                             deletePhoto = null
@@ -400,9 +522,9 @@ fun PropertyDetailScreen(propertyId: String, onBack: () -> Unit, onEdit: () -> U
                                     .onSuccess { loader.reload() }
                                     .onFailure { toast(context, it.message ?: "Couldn't remove the photo") }
                             }
-                        }) { Text("Remove") }
+                        }) { Text("Remove photo", color = MaterialTheme.colorScheme.error) }
                     },
-                    dismissButton = { TextButton(onClick = { deletePhoto = null }) { Text("Cancel") } },
+                    dismissButton = { TextButton(onClick = { deletePhoto = null }) { Text("Close") } },
                 )
             }
         }
@@ -455,14 +577,23 @@ private fun FactGrid(facts: List<Pair<String, String>>) {
 private fun ClientMatchCard(m: InquiryMatch, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Column(Modifier.padding(12.dp)) {
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(m.inquiry.client?.name ?: "Client", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Text("${m.score}%", color = MaterialTheme.colorScheme.primary)
+                Pill(MatchLabel.of(m.score, m.checks), if (MatchLabel.isExact(m.checks)) MaterialTheme.brand.success else MaterialTheme.brand.neutral)
             }
+            Text(
+                listOfNotNull(
+                    "${m.inquiry.transactionType.label} · ${m.inquiry.category.label}",
+                    Money.range(m.inquiry.budgetMin, m.inquiry.budgetMax),
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.brand.muted,
+            )
             m.checks.filter { it.outcome != "n/a" }.forEach { CheckLine(it) }
         }
     }
 }
+
+private val COMMON_AMENITIES = listOf("Lift", "Security", "Power backup", "Gym", "Swimming pool", "Clubhouse", "Garden", "Sea view")
 
 @Composable
 fun PropertyFormScreen(propertyId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
@@ -471,12 +602,16 @@ fun PropertyFormScreen(propertyId: String?, onBack: () -> Unit, onSaved: (String
     var title by rememberText()
     var type by rememberSaveable { mutableStateOf(TransactionType.RENT) }
     var category by rememberSaveable { mutableStateOf<PropertyCategory?>(null) }
+    var propertyType by rememberSaveable { mutableStateOf<PropertyType?>(null) }
     var price by rememberText()
     var deposit by rememberText()
     var locality by rememberText()
     var building by rememberText()
     var address by rememberText()
     var area by rememberText()
+    var builtUp by rememberText()
+    // Comma-separated, so it survives rotation like the other fields.
+    var amenities by rememberText()
     var baths by rememberText()
     var furnishing by rememberSaveable { mutableStateOf<Furnishing?>(null) }
     var parking by rememberText()
@@ -495,7 +630,8 @@ fun PropertyFormScreen(propertyId: String?, onBack: () -> Unit, onSaved: (String
     LaunchedEffect(propertyId) {
         if (propertyId == null || loaded) return@LaunchedEffect
         api.call { property(propertyId).property }.onSuccess { p ->
-            title = p.title; type = p.transactionType; category = p.category
+            title = p.title; type = p.transactionType; category = p.category; propertyType = p.propertyType
+            builtUp = p.builtUpAreaSqft?.toString() ?: ""; amenities = p.amenities.joinToString(", ")
             price = p.price.toString(); deposit = p.deposit?.toString() ?: ""
             locality = p.locality; building = p.building ?: ""; address = p.address ?: ""
             area = p.carpetAreaSqft?.toString() ?: ""; baths = p.bathrooms?.toString() ?: ""; furnishing = p.furnishing
@@ -513,20 +649,23 @@ fun PropertyFormScreen(propertyId: String?, onBack: () -> Unit, onSaved: (String
     val pPrice = Money.parse(price)
     val pDeposit = opt(deposit, Money::parse)
     val pArea = opt(area) { it.toIntOrNull()?.takeIf { n -> n > 0 } }
+    val pBuiltUp = opt(builtUp) { it.toIntOrNull()?.takeIf { n -> n > 0 } }
+    val amenityList = amenities.split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }
     val pParking = opt(parking) { it.toIntOrNull()?.takeIf { n -> n in 0..50 } }
     val pBaths = opt(baths) { it.toIntOrNull()?.takeIf { n -> n in 0..20 } }
     val pFloor = opt(floor) { it.toIntOrNull()?.takeIf { n -> n in -5..200 } }
     val pTotal = opt(totalFloors) { it.toIntOrNull()?.takeIf { n -> n in 0..200 } }
     val pDate = opt(possessionDate) { runCatching { LocalDate.parse(it) }.getOrNull() }
     val valid = loaded && title.isNotBlank() && category != null && locality.isNotBlank() && pPrice != null && pPrice > 0 &&
-        listOf(pDeposit, pArea, pParking, pBaths, pFloor, pTotal, pDate).all { it.isSuccess }
+        listOf(pDeposit, pArea, pBuiltUp, pParking, pBaths, pFloor, pTotal, pDate).all { it.isSuccess } &&
+        (pFloor.getOrNull() == null || pTotal.getOrNull() == null || pFloor.getOrNull()!! <= pTotal.getOrNull()!!)
 
     fun save() {
         val body = PropertyRequest(
-            title = title.trim(), transactionType = type, category = category ?: return, price = pPrice ?: return,
+            title = title.trim(), transactionType = type, category = category ?: return, propertyType = propertyType, price = pPrice ?: return,
             deposit = pDeposit.getOrNull(), locality = locality.trim(),
             building = building.trim().ifEmpty { null }, address = address.trim().ifEmpty { null },
-            carpetAreaSqft = pArea.getOrNull(), bathrooms = pBaths.getOrNull(), furnishing = furnishing, parkingSpots = pParking.getOrNull(),
+            carpetAreaSqft = pArea.getOrNull(), builtUpAreaSqft = pBuiltUp.getOrNull(), amenities = amenityList, bathrooms = pBaths.getOrNull(), furnishing = furnishing, parkingSpots = pParking.getOrNull(),
             floor = pFloor.getOrNull(), totalFloors = pTotal.getOrNull(), possession = possession,
             possessionDate = pDate.getOrNull()?.toString(), availability = availability,
             ownerName = ownerName.trim().ifEmpty { null }, ownerPhone = ownerPhone.trim().ifEmpty { null },
@@ -559,7 +698,8 @@ fun PropertyFormScreen(propertyId: String?, onBack: () -> Unit, onSaved: (String
                     ) { Text(if (t == TransactionType.RENT) "For rent" else "For sale") }
                 }
             }
-            DropdownField("Property type *", PropertyCategory.entries, category, { it.label }, { category = it }, Modifier.fillMaxWidth())
+            DropdownField("BHK / size *", PropertyCategory.entries, category, { it.label }, { category = it }, Modifier.fillMaxWidth())
+            DropdownField("Property type", PropertyType.entries, propertyType, { it.label }, { propertyType = it }, Modifier.fillMaxWidth(), allowNone = true)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NumberField(
                     if (type == TransactionType.RENT) "Rent / month *" else "Price *", price, { price = it }, Modifier.weight(1f),
@@ -573,13 +713,24 @@ fun PropertyFormScreen(propertyId: String?, onBack: () -> Unit, onSaved: (String
             SectionTitle("Features")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NumberField("Carpet sq ft", area, { area = it }, Modifier.weight(1f), isError = pArea.isFailure)
+                NumberField("Built-up sq ft", builtUp, { builtUp = it }, Modifier.weight(1f), isError = pBuiltUp.isFailure)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NumberField("Bathrooms", baths, { baths = it }, Modifier.weight(1f), isError = pBaths.isFailure)
                 NumberField("Parking", parking, { parking = it }, Modifier.weight(1f), isError = pParking.isFailure)
             }
+            val floorAboveTotal = pFloor.getOrNull() != null && pTotal.getOrNull() != null && pFloor.getOrNull()!! > pTotal.getOrNull()!!
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberField("Floor", floor, { floor = it }, Modifier.weight(1f), isError = pFloor.isFailure)
-                NumberField("Total floors", totalFloors, { totalFloors = it }, Modifier.weight(1f), isError = pTotal.isFailure)
+                NumberField("Floor (0 = ground)", floor, { floor = it }, Modifier.weight(1f), isError = pFloor.isFailure || floorAboveTotal)
+                NumberField(
+                    "Total floors", totalFloors, { totalFloors = it }, Modifier.weight(1f),
+                    if (floorAboveTotal) "Below the floor" else null, pTotal.isFailure || floorAboveTotal,
+                )
             }
+            Text(
+                "Floor and total floors tell clients whether it's a lower, middle or higher floor.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.brand.muted,
+            )
             DropdownField("Furnishing", Furnishing.entries, furnishing, { it.label }, { furnishing = it }, Modifier.fillMaxWidth(), allowNone = true)
             DropdownField("Possession", Possession.entries, possession, { it.label }, { possession = it }, Modifier.fillMaxWidth(), allowNone = true)
             if (possession == Possession.UNDER_CONSTRUCTION) {
@@ -588,6 +739,23 @@ fun PropertyFormScreen(propertyId: String?, onBack: () -> Unit, onSaved: (String
                     isError = pDate.isFailure, keyboardType = KeyboardType.Text,
                 )
             }
+            SectionTitle("Amenities")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                COMMON_AMENITIES.forEach { a ->
+                    val on = amenityList.any { it.equals(a, ignoreCase = true) }
+                    FilterChip(
+                        selected = on,
+                        onClick = {
+                            amenities = (if (on) amenityList.filterNot { it.equals(a, ignoreCase = true) } else amenityList + a).joinToString(", ")
+                        },
+                        label = { Text(a) },
+                    )
+                }
+            }
+            OutlinedTextField(
+                amenities, { amenities = it }, label = { Text("Amenities") }, modifier = Modifier.fillMaxWidth(),
+                supportingText = { Text("Tap above or type your own, separated by commas") },
+            )
             DropdownField("Availability", Availability.entries, availability, { it.label }, { if (it != null) availability = it }, Modifier.fillMaxWidth())
             SectionTitle("Owner")
             OutlinedTextField(ownerName, { ownerName = it }, label = { Text("Owner name") }, singleLine = true, modifier = Modifier.fillMaxWidth())

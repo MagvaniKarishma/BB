@@ -12,8 +12,7 @@ const values = (transcript: string) => {
     locations: draft.locations?.map((l) => l.value),
     furnishing: draft.furnishing?.value,
     parking: draft.minParking?.value,
-    floorMin: draft.floorMin?.value,
-    floorMax: draft.floorMax?.value,
+    floors: draft.floorPreference?.value,
     possession: draft.possession?.value,
     possessionBy: draft.possessionBy?.value,
     warnings,
@@ -36,9 +35,11 @@ describe("rule-based extraction – realistic notes", () => {
     );
     expect(r).toMatchObject({
       type: "RENT", category: "BHK_2", min: 60000, max: 70000, locations: ["Andheri West", "Jogeshwari"],
-      furnishing: ["SEMI_FURNISHED"], parking: 1, floorMin: 5,
+      furnishing: ["SEMI_FURNISHED"], parking: 1,
     });
-    expect(r.floorMax).toBeUndefined();
+    // An exact floor is never turned into a requirement; the broker is told what was said.
+    expect(r.floors).toBeUndefined();
+    expect(r.warnings.join(" ")).toMatch(/"5th floor ke upar".*Lower \/ Middle \/ Higher/);
     expect(r.possession).toBeUndefined();
     expect(r.draft.budgetMax?.evidence).toBe("60 se 70 hazaar");
   });
@@ -95,8 +96,8 @@ describe("rule-based extraction – realistic notes", () => {
       type: "BUY", category: "BHK_4", min: 80_000_000, max: 100_000_000, locations: ["Worli", "Lower Parel"],
       parking: 2, possession: "READY_TO_MOVE",
     });
-    expect(r.floorMin).toBeUndefined();
-    expect(r.warnings.join(" ")).toMatch(/higher floor/);
+    expect(r.floors).toEqual(["HIGHER"]);
+    expect(r.draft.floorPreference?.evidence).toBe("high floor");
   });
 
   it("extracts nothing from a note without requirements", () => {
@@ -125,7 +126,9 @@ describe("rule-based extraction – realistic notes", () => {
 
   it("minimum budgets, half rooms and floor ranges", () => {
     const r = values("kam se kam 80 lakh, 2.5 BHK, 3rd se 10th floor, Goregaon East");
-    expect(r).toMatchObject({ min: 8_000_000, category: "BHK_2", floorMin: 3, floorMax: 10, locations: ["Goregaon East"] });
+    expect(r).toMatchObject({ min: 8_000_000, category: "BHK_2", locations: ["Goregaon East"] });
+    expect(r.floors).toBeUndefined();
+    expect(r.warnings.join(" ")).toMatch(/"3rd se 10th floor"/);
     expect(r.max).toBeUndefined();
     expect(r.warnings.join(" ")).toMatch(/2 BHK/);
   });
@@ -141,8 +144,22 @@ describe("rule-based extraction – realistic notes", () => {
     const transcript = "Borivali West mein 3 BHK kharidna hai, dhai crore tak, semi furnished, 2 parking chahiye, 7th floor tak";
     const { draft } = extractWithRules(transcript);
     expect(draft.budgetMax?.value).toBe(25_000_000);
-    expect(draft.floorMax?.value).toBe(7);
+    expect(draft.floorPreference).toBeUndefined();
     expect(verifyDraft(draft, transcript).warnings).toEqual([]);
+  });
+
+  it("floor preference: lower / middle / higher only", () => {
+    expect(values("upar wala floor chahiye, Powai").floors).toEqual(["HIGHER"]);
+    expect(values("ऊंची मंजिल चाहिए").floors).toEqual(["HIGHER"]);
+    expect(values("middle floor or higher floor is fine").floors).toEqual(["HIGHER", "MIDDLE"]);
+    expect(values("neeche wala floor, papa ke liye").floors).toEqual(["LOWER"]);
+    const ground = values("ground floor chahiye");
+    expect(ground.floors).toEqual(["LOWER"]);
+    expect(ground.warnings.join(" ")).toMatch(/lower floor/);
+    const notGround = values("ground floor nahi chahiye");
+    expect(notGround.floors).toBeUndefined();
+    expect(notGround.warnings.join(" ")).toMatch(/Doesn't want "ground floor"/);
+    expect(values("7th floor tak").floors).toBeUndefined();
   });
 });
 

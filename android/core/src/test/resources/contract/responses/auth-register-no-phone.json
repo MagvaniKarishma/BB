@@ -1,11 +1,11 @@
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbXVqZzh0Z2kwMDAyN2RsM2J0MmpqY2h4IiwiaWF0IjoxNzkwNDkxMjIyLCJleHAiOjE3OTMwODMyMjJ9.WzPpmsj92bwJCDpSYSgX1X5QwpfVDabuAWLntJwoSOk",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbXVqZ3hhOGcwMDAyN2RkdjY1Y202bTJoIiwiaWF0IjoxNzkwNDkyMzY0LCJleHAiOjE3OTMwODQzNjR9.Yv4-mlDl-jfwrroeYuMAveAaQ2c5jnPvr9oB53y5I2c",
   "user": {
-    "id": "cmujg8tgi00027dl3bt2jjchx",
+    "id": "cmujgxa8g00027ddv65cm6m2h",
     "name": "Kiran Mehta",
-    "email": "owner2-1790491222699@example.com",
+    "email": "owner2-1790492364191@example.com",
     "phone": null,
     "role": "OWNER",
-    "brokerageId": "cmujg8tgg00007dl3uyxqi5vv"
+    "brokerageId": "cmujgxa8e00007ddvfuaerubq"
   }
 }

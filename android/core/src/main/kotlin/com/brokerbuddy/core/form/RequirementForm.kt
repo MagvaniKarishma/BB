@@ -1,11 +1,13 @@
 package com.brokerbuddy.core.form
 
 import com.brokerbuddy.core.format.Money
+import com.brokerbuddy.core.model.FloorBand
 import com.brokerbuddy.core.model.Furnishing
 import com.brokerbuddy.core.model.Inquiry
 import com.brokerbuddy.core.model.InquiryStatus
 import com.brokerbuddy.core.model.Possession
 import com.brokerbuddy.core.model.PropertyCategory
+import com.brokerbuddy.core.model.PropertyType
 import com.brokerbuddy.core.model.RequirementDraft
 import com.brokerbuddy.core.model.RequirementField
 import com.brokerbuddy.core.model.RequirementRequest
@@ -17,14 +19,14 @@ import java.time.LocalDate
 /** Form fields that can be filled from a voice note. */
 enum class FormField(val label: String) {
     TRANSACTION("Rent / Buy"),
-    CATEGORY("Property type"),
+    CATEGORY("BHK"),
     BUDGET_MIN("Min budget"),
     BUDGET_MAX("Max budget"),
     LOCATIONS("Locations"),
     FURNISHING("Furnishing"),
     PARKING("Parking"),
-    FLOOR_MIN("Floor from"),
-    FLOOR_MAX("Floor to"),
+    FLOORS("Floor"),
+    PROPERTY_TYPES("Property type"),
     POSSESSION("Possession"),
     POSSESSION_BY("Needed by"),
 }
@@ -44,8 +46,9 @@ data class RequirementForm(
     val locations: String = "",
     val furnishing: Set<Furnishing> = emptySet(),
     val minParking: String = "",
-    val floorMin: String = "",
-    val floorMax: String = "",
+    /** Lower / middle / higher floors; exact floors are never a client preference. */
+    val floorPreference: Set<FloorBand> = emptySet(),
+    val propertyTypes: Set<PropertyType> = emptySet(),
     val possession: Possession? = null,
     val possessionBy: String = "",
     val mandatory: Set<RequirementField> = setOf(RequirementField.BUDGET),
@@ -62,15 +65,12 @@ data class RequirementForm(
         val min = field(FormField.BUDGET_MIN, budgetMin, "Couldn't read this amount", Money::parse)
         val max = field(FormField.BUDGET_MAX, budgetMax, "Couldn't read this amount", Money::parse)
         val parking = field(FormField.PARKING, minParking, "0–20") { it.toIntOrNull()?.takeIf { n -> n in 0..20 } }
-        val fMin = field(FormField.FLOOR_MIN, floorMin, "-5 to 200") { it.toIntOrNull()?.takeIf { n -> n in -5..200 } }
-        val fMax = field(FormField.FLOOR_MAX, floorMax, "-5 to 200") { it.toIntOrNull()?.takeIf { n -> n in -5..200 } }
         val by = field(FormField.POSSESSION_BY, possessionBy, "Use the format 2027-06-30") {
             runCatching { LocalDate.parse(it) }.getOrNull()
         }
         if (min != null && max != null && min > max) errors[FormField.BUDGET_MAX] = "Max is below min"
-        if (fMin != null && fMax != null && fMin > fMax) errors[FormField.FLOOR_MAX] = "Below the 'from' floor"
         if (transactionType == null) errors[FormField.TRANSACTION] = "Choose rent or buy"
-        if (category == null) errors[FormField.CATEGORY] = "Choose a property type"
+        if (category == null) errors[FormField.CATEGORY] = "Choose the BHK"
 
         val request = if (errors.isEmpty()) {
             RequirementRequest(
@@ -82,8 +82,8 @@ data class RequirementForm(
                 locations = locationList(),
                 furnishing = furnishing.sortedBy { it.ordinal },
                 minParking = parking,
-                floorMin = fMin,
-                floorMax = fMax,
+                floorPreference = floorPreference.sortedBy { it.ordinal },
+                propertyTypes = propertyTypes.sortedBy { it.ordinal },
                 possession = possession,
                 possessionBy = by?.toString(),
                 mandatory = mandatory.sortedBy { it.ordinal },
@@ -104,8 +104,8 @@ data class RequirementForm(
         FormField.LOCATIONS -> locationList().takeIf { it.isNotEmpty() }?.joinToString(", ")
         FormField.FURNISHING -> furnishing.takeIf { it.isNotEmpty() }?.sortedBy { it.ordinal }?.joinToString(", ") { it.label }
         FormField.PARKING -> minParking.ifBlank { null }
-        FormField.FLOOR_MIN -> floorMin.ifBlank { null }
-        FormField.FLOOR_MAX -> floorMax.ifBlank { null }
+        FormField.FLOORS -> floorPreference.takeIf { it.isNotEmpty() }?.sortedBy { it.ordinal }?.joinToString(", ") { it.label }
+        FormField.PROPERTY_TYPES -> propertyTypes.takeIf { it.isNotEmpty() }?.sortedBy { it.ordinal }?.joinToString(", ") { it.label }
         FormField.POSSESSION -> possession?.label
         FormField.POSSESSION_BY -> possessionBy.ifBlank { null }
     }
@@ -120,8 +120,8 @@ data class RequirementForm(
             locations = i.locations.joinToString(", "),
             furnishing = i.furnishing.toSet(),
             minParking = i.minParking?.toString() ?: "",
-            floorMin = i.floorMin?.toString() ?: "",
-            floorMax = i.floorMax?.toString() ?: "",
+            floorPreference = i.floorPreference.toSet(),
+            propertyTypes = i.propertyTypes.toSet(),
             possession = i.possession,
             possessionBy = i.possessionBy?.take(10) ?: "",
             mandatory = i.mandatory.toSet(),
@@ -164,8 +164,7 @@ fun RequirementForm.applyDraft(draft: RequirementDraft): DraftMerge {
     }
     draft.furnishing?.let { f = f.copy(furnishing = it.value.toSet()); evidence[FormField.FURNISHING] = it.evidence }
     draft.minParking?.let { f = f.copy(minParking = it.value.toString()); evidence[FormField.PARKING] = it.evidence }
-    draft.floorMin?.let { f = f.copy(floorMin = it.value.toString()); evidence[FormField.FLOOR_MIN] = it.evidence }
-    draft.floorMax?.let { f = f.copy(floorMax = it.value.toString()); evidence[FormField.FLOOR_MAX] = it.evidence }
+    draft.floorPreference?.takeIf { it.value.isNotEmpty() }?.let { f = f.copy(floorPreference = it.value.toSet()); evidence[FormField.FLOORS] = it.evidence }
     draft.possession?.let { f = f.copy(possession = it.value); evidence[FormField.POSSESSION] = it.evidence }
     draft.possessionBy?.let { f = f.copy(possessionBy = it.value); evidence[FormField.POSSESSION_BY] = it.evidence }
 

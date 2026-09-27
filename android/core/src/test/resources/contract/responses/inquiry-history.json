@@ -1,10 +1,10 @@
 {
   "revisions": [
     {
-      "id": "cmujg8ttt000l7dl3ozsp2hu7",
-      "inquiryId": "cmujg8tte000h7dl31y4kp2ra",
+      "id": "cmujgxalf000l7ddv5c57wlay",
+      "inquiryId": "cmujgxal0000h7ddvvrjpqtwh",
       "version": 2,
-      "changedById": "cmujg8tj200057dl3glhra2qr",
+      "changedById": "cmujgxab100057ddvw77g2se0",
       "source": "MANUAL",
       "changes": {
         "budgetMax": {
@@ -16,8 +16,6 @@
         "notes": "Gated society",
         "status": "ACTIVE",
         "category": "BHK_2",
-        "floorMax": null,
-        "floorMin": 2,
         "budgetMax": 80000,
         "budgetMin": 65000,
         "locations": [
@@ -32,29 +30,34 @@
         "minParking": 1,
         "possession": "READY_TO_MOVE",
         "possessionBy": null,
+        "propertyTypes": [
+          "APARTMENT"
+        ],
+        "floorPreference": [
+          "MIDDLE",
+          "HIGHER"
+        ],
         "transactionType": "RENT"
       },
       "voiceNoteId": null,
       "whatsappMessageId": null,
-      "createdAt": "2026-09-27T06:40:23.297Z",
+      "createdAt": "2026-09-27T06:59:24.771Z",
       "changedBy": {
-        "id": "cmujg8tj200057dl3glhra2qr",
+        "id": "cmujgxab100057ddvw77g2se0",
         "name": "Rahul Sharma"
       },
       "voiceNote": null
     },
     {
-      "id": "cmujg8tth000j7dl3iugr8noi",
-      "inquiryId": "cmujg8tte000h7dl31y4kp2ra",
+      "id": "cmujgxal3000j7ddv67blr985",
+      "inquiryId": "cmujgxal0000h7ddvvrjpqtwh",
       "version": 1,
-      "changedById": "cmujg8tj200057dl3glhra2qr",
+      "changedById": "cmujgxab100057ddvw77g2se0",
       "source": "MANUAL",
       "changes": {
         "notes": "Gated society",
         "status": "ACTIVE",
         "category": "BHK_2",
-        "floorMax": null,
-        "floorMin": 2,
         "budgetMax": 75000,
         "budgetMin": 65000,
         "locations": [
@@ -69,14 +72,19 @@
         "minParking": 1,
         "possession": "READY_TO_MOVE",
         "possessionBy": null,
+        "propertyTypes": [
+          "APARTMENT"
+        ],
+        "floorPreference": [
+          "MIDDLE",
+          "HIGHER"
+        ],
         "transactionType": "RENT"
       },
       "snapshot": {
         "notes": "Gated society",
         "status": "ACTIVE",
         "category": "BHK_2",
-        "floorMax": null,
-        "floorMin": 2,
         "budgetMax": 75000,
         "budgetMin": 65000,
         "locations": [
@@ -91,13 +99,20 @@
         "minParking": 1,
         "possession": "READY_TO_MOVE",
         "possessionBy": null,
+        "propertyTypes": [
+          "APARTMENT"
+        ],
+        "floorPreference": [
+          "MIDDLE",
+          "HIGHER"
+        ],
         "transactionType": "RENT"
       },
       "voiceNoteId": null,
       "whatsappMessageId": null,
-      "createdAt": "2026-09-27T06:40:23.286Z",
+      "createdAt": "2026-09-27T06:59:24.759Z",
       "changedBy": {
-        "id": "cmujg8tj200057dl3glhra2qr",
+        "id": "cmujgxab100057ddvw77g2se0",
         "name": "Rahul Sharma"
       },
       "voiceNote": null

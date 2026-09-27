@@ -1,8 +1,8 @@
 {
   "inquiry": {
-    "id": "cmujg8udg001d7dl3w7cy79od",
-    "brokerageId": "cmujg8tj000037dl3isndguzo",
-    "clientId": "cmujg8ubm00197dl37gjzr427",
+    "id": "cmujgxb46001d7ddvet43nbml",
+    "brokerageId": "cmujgxab000037ddvpgg1ty0x",
+    "clientId": "cmujgxb2b00197ddvrz3c1nuq",
     "transactionType": "RENT",
     "category": "BHK_1",
     "status": "ACTIVE",
@@ -15,8 +15,15 @@
       "SEMI_FURNISHED"
     ],
     "minParking": 1,
-    "floorMin": 2,
+    "floorMin": null,
     "floorMax": null,
+    "floorPreference": [
+      "MIDDLE",
+      "HIGHER"
+    ],
+    "propertyTypes": [
+      "APARTMENT"
+    ],
     "possession": "READY_TO_MOVE",
     "possessionBy": null,
     "mandatory": [
@@ -25,26 +32,26 @@
     "notes": "Gated society",
     "source": "WHATSAPP",
     "version": 1,
-    "createdAt": "2026-09-27T06:40:24.005Z",
-    "updatedAt": "2026-09-27T06:40:24.005Z"
+    "createdAt": "2026-09-27T06:59:25.446Z",
+    "updatedAt": "2026-09-27T06:59:25.446Z"
   },
   "changed": true,
   "message": {
-    "id": "cmujg8ua400137dl3femq2hha",
-    "brokerageId": "cmujg8tj000037dl3isndguzo",
+    "id": "cmujgxb0x00137ddvshxeeu4b",
+    "brokerageId": "cmujgxab000037ddvpgg1ty0x",
     "accountId": null,
     "contactId": null,
-    "clientId": "cmujg8ubm00197dl37gjzr427",
-    "inquiryId": "cmujg8udg001d7dl3w7cy79od",
+    "clientId": "cmujgxb2b00197ddvrz3c1nuq",
+    "inquiryId": "cmujgxb46001d7ddvet43nbml",
     "channel": "MANUAL",
     "direction": "INBOUND",
-    "externalId": "manual:38db6f5399919ddd80962253f11883fb06d1c2be",
+    "externalId": "manual:26032940919c9311506d58752e2068fc48f948c3",
     "type": "text",
     "text": "Hi, I came across your 1 BHK Apartment listed at Housing.com for ₹ 27,000 in Mulund West, Mumbai. Please let me know if it is available.",
     "mediaId": null,
     "mediaMimeType": null,
     "senderName": null,
-    "sentAt": "2026-09-27T06:40:23.881Z",
+    "sentAt": "2026-09-27T06:59:25.326Z",
     "status": "RECEIVED",
     "errorReason": null,
     "leadPhone": null,
@@ -100,21 +107,21 @@
       ]
     },
     "review": "APPLIED",
-    "processedAt": "2026-09-27T06:40:23.977Z",
+    "processedAt": "2026-09-27T06:59:25.417Z",
     "processError": null,
-    "createdAt": "2026-09-27T06:40:23.884Z",
+    "createdAt": "2026-09-27T06:59:25.329Z",
     "contact": null,
     "client": {
-      "id": "cmujg8ubm00197dl37gjzr427",
+      "id": "cmujgxb2b00197ddvrz3c1nuq",
       "name": "Sneha Kulkarni",
       "primaryPhone": "+919820055555"
     }
   },
   "inquiries": [
     {
-      "id": "cmujg8udg001d7dl3w7cy79od",
-      "brokerageId": "cmujg8tj000037dl3isndguzo",
-      "clientId": "cmujg8ubm00197dl37gjzr427",
+      "id": "cmujgxb46001d7ddvet43nbml",
+      "brokerageId": "cmujgxab000037ddvpgg1ty0x",
+      "clientId": "cmujgxb2b00197ddvrz3c1nuq",
       "transactionType": "RENT",
       "category": "BHK_1",
       "status": "ACTIVE",
@@ -127,8 +134,15 @@
         "SEMI_FURNISHED"
       ],
       "minParking": 1,
-      "floorMin": 2,
+      "floorMin": null,
       "floorMax": null,
+      "floorPreference": [
+        "MIDDLE",
+        "HIGHER"
+      ],
+      "propertyTypes": [
+        "APARTMENT"
+      ],
       "possession": "READY_TO_MOVE",
       "possessionBy": null,
       "mandatory": [
@@ -137,11 +151,11 @@
       "notes": "Gated society",
       "source": "WHATSAPP",
       "version": 1,
-      "createdAt": "2026-09-27T06:40:24.005Z",
-      "updatedAt": "2026-09-27T06:40:24.005Z"
+      "createdAt": "2026-09-27T06:59:25.446Z",
+      "updatedAt": "2026-09-27T06:59:25.446Z"
     }
   ],
-  "suggestedInquiryId": "cmujg8udg001d7dl3w7cy79od",
+  "suggestedInquiryId": "cmujgxb46001d7ddvet43nbml",
   "existingClient": null,
   "enquiredProperties": []
 }

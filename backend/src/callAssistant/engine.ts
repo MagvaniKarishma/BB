@@ -115,7 +115,7 @@ function filled(state: CallState, slot: Slot): boolean {
     case "locations": return (d.locations?.length ?? 0) > 0;
     case "budget": return d.budgetMax != null || d.budgetMin != null;
     case "name": return state.name != null;
-    case "extras": return (d.furnishing != null && d.minParking != null && (d.floorMin != null || d.floorMax != null));
+    case "extras": return (d.furnishing != null && d.minParking != null && d.floorPreference != null);
     case "callback":
     case "callbackNumber": return state.callbackSettled;
   }
@@ -318,8 +318,7 @@ export function summarize(state: CallState, callerNumber: string | null): string
   else if (d.budgetMin) parts.push(`from ${inr(d.budgetMin.value)}`);
   if (d.furnishing) parts.push(d.furnishing.value.map((f) => LABEL[f] ?? f).join("/"));
   if (d.minParking) parts.push(`${d.minParking.value} parking`);
-  if (d.floorMin) parts.push(`floor ${d.floorMin.value}+`);
-  if (d.floorMax) parts.push(`up to floor ${d.floorMax.value}`);
+  if (d.floorPreference) parts.push(`${d.floorPreference.value.map((b) => b.toLowerCase()).join("/")} floor`);
   if (d.possession) parts.push(LABEL[d.possession.value] ?? d.possession.value);
   const lines = [`AI call${state.name ? ` with ${state.name.value}` : ""}: ${parts.length ? parts.join(" · ") : "no requirements stated"}.`];
   if (state.otherNotes.length) lines.push(`Also said: "${state.otherNotes.join(" / ")}".`);

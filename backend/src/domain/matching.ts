@@ -1,8 +1,10 @@
 import type {
   Availability,
+  FloorBand,
   Furnishing,
   Possession,
   PropertyCategory,
+  PropertyType,
   RequirementField,
   TransactionType,
 } from "@prisma/client";
@@ -17,8 +19,10 @@ export interface Requirement {
   locations: string[];
   furnishing: Furnishing[];
   minParking: number | null;
-  floorMin: number | null;
-  floorMax: number | null;
+  /** Lower / middle / higher floors; empty = no preference. */
+  floorPreference: FloorBand[];
+  /** Apartment, villa…; empty = no preference. */
+  propertyTypes: PropertyType[];
   possession: Possession | null;
   possessionBy: Date | null;
   mandatory: RequirementField[];
@@ -34,6 +38,8 @@ export interface Listing {
   furnishing: Furnishing | null;
   parkingSpots: number | null;
   floor: number | null;
+  totalFloors: number | null;
+  propertyType: PropertyType | null;
   possession: Possession | null;
   possessionDate: Date | null;
 }
@@ -72,6 +78,7 @@ const WEIGHTS: Record<RequirementField, number> = {
   FURNISHING: 10,
   PARKING: 10,
   FLOOR: 5,
+  PROPERTY_TYPE: 10,
 };
 
 const OUTCOME_CREDIT: Record<Exclude<CheckOutcome, "n/a">, number> = {
@@ -123,16 +130,49 @@ function checkParking(r: Requirement, p: Listing): [CheckOutcome, string] {
     : ["mismatch", `Needs ${r.minParking} parking, listing has ${p.parkingSpots}`];
 }
 
+const BAND_LABEL: Record<FloorBand, string> = { LOWER: "lower", MIDDLE: "middle", HIGHER: "higher" };
+
+/**
+ * Which third of the building a floor is in: ground and the bottom third are LOWER, the top
+ * third HIGHER. Null when the floor or the building's height isn't recorded (or they disagree),
+ * so the band is never guessed.
+ */
+export function floorBandOf(floor: number | null, totalFloors: number | null): FloorBand | null {
+  if (floor == null || totalFloors == null || totalFloors <= 0 || floor > totalFloors) return null;
+  if (floor * 3 <= totalFloors) return "LOWER";
+  if (floor * 3 > totalFloors * 2) return "HIGHER";
+  return "MIDDLE";
+}
+
 function checkFloor(r: Requirement, p: Listing): [CheckOutcome, string] {
-  if (r.floorMin == null && r.floorMax == null) return ["n/a", "No floor preference"];
-  if (p.floor == null) return ["unknown", "Listing floor not recorded"];
-  if (r.floorMin != null && p.floor < r.floorMin) {
-    return ["mismatch", `Floor ${p.floor} is below ${r.floorMin}`];
+  if (r.floorPreference.length === 0) return ["n/a", "No floor preference"];
+  const wanted = r.floorPreference.map((b) => BAND_LABEL[b]).join("/");
+  if (p.floor == null) return ["unknown", `Floor not recorded — unverified (client wants ${wanted} floors)`];
+  const band = floorBandOf(p.floor, p.totalFloors);
+  if (band == null) {
+    return ["unknown", `Floor ${p.floor}, but the building's total floors aren't recorded — ${wanted} floor unverified`];
   }
-  if (r.floorMax != null && p.floor > r.floorMax) {
-    return ["mismatch", `Floor ${p.floor} is above ${r.floorMax}`];
-  }
-  return ["match", `Floor ${p.floor} in range`];
+  const where = `Floor ${p.floor} of ${p.totalFloors} is a ${BAND_LABEL[band]} floor`;
+  return r.floorPreference.includes(band) ? ["match", where] : ["mismatch", `${where}; client wants ${wanted}`];
+}
+
+const TYPE_LABEL: Record<PropertyType, string> = {
+  APARTMENT: "Apartment",
+  INDEPENDENT_HOUSE: "Independent house",
+  VILLA: "Villa",
+  PENTHOUSE: "Penthouse",
+  BUILDER_FLOOR: "Builder floor",
+  COMMERCIAL: "Commercial",
+  PLOT: "Plot",
+  OTHER: "Other",
+};
+
+function checkPropertyType(r: Requirement, p: Listing): [CheckOutcome, string] {
+  if (r.propertyTypes.length === 0) return ["n/a", "No property type preference"];
+  if (p.propertyType == null) return ["unknown", "Listing property type not recorded"];
+  return r.propertyTypes.includes(p.propertyType)
+    ? ["match", `${TYPE_LABEL[p.propertyType]} accepted`]
+    : ["mismatch", `${TYPE_LABEL[p.propertyType]} not in ${r.propertyTypes.map((t) => TYPE_LABEL[t]).join("/")}`];
 }
 
 function checkPossession(r: Requirement, p: Listing): [CheckOutcome, string] {
@@ -164,6 +204,7 @@ const CHECKERS: Record<RequirementField, (r: Requirement, p: Listing) => [CheckO
   PARKING: checkParking,
   FLOOR: checkFloor,
   POSSESSION: checkPossession,
+  PROPERTY_TYPE: checkPropertyType,
 };
 
 /**

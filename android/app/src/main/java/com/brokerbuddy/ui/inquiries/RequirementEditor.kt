@@ -18,10 +18,12 @@ import androidx.compose.ui.unit.dp
 import com.brokerbuddy.core.form.FormField
 import com.brokerbuddy.core.form.RequirementForm
 import com.brokerbuddy.core.format.Money
+import com.brokerbuddy.core.model.FloorBand
 import com.brokerbuddy.core.model.Furnishing
 import com.brokerbuddy.core.model.InquiryStatus
 import com.brokerbuddy.core.model.Possession
 import com.brokerbuddy.core.model.PropertyCategory
+import com.brokerbuddy.core.model.PropertyType
 import com.brokerbuddy.core.model.RequirementField
 import com.brokerbuddy.core.model.TransactionType
 import com.brokerbuddy.ui.common.ChipSelector
@@ -101,7 +103,7 @@ fun RequirementEditor(
         FieldNote(FormField.TRANSACTION)
 
         BrandCard(Modifier.fillMaxWidth(), contentPadding = 4.dp) {
-            EditorRow(Icons.Outlined.Apartment, "Property type / BHK *") {
+            EditorRow(Icons.Outlined.Apartment, "BHK *") {
                 DropdownField("Choose", PropertyCategory.entries, form.category, { it.label }, { onChange(form.copy(category = it)) }, Modifier.fillMaxWidth())
                 FieldNote(FormField.CATEGORY)
             }
@@ -133,11 +135,13 @@ fun RequirementEditor(
             EditorRow(Icons.Outlined.LocalParking, "Parking") {
                 NumberField("Minimum spots", form.minParking, { onChange(form.copy(minParking = it)) }, Modifier.fillMaxWidth(), hint(FormField.PARKING), FormField.PARKING in errors)
             }
-            EditorRow(Icons.Outlined.Stairs, "Preferred floor") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    NumberField("From", form.floorMin, { onChange(form.copy(floorMin = it)) }, Modifier.weight(1f), hint(FormField.FLOOR_MIN), FormField.FLOOR_MIN in errors)
-                    NumberField("Maximum", form.floorMax, { onChange(form.copy(floorMax = it)) }, Modifier.weight(1f), hint(FormField.FLOOR_MAX), FormField.FLOOR_MAX in errors)
-                }
+            EditorRow(Icons.Outlined.Stairs, "Preferred floor (any selected is fine)") {
+                ChipSelector(FloorBand.entries, form.floorPreference, { it.label.removeSuffix(" floor") }) { onChange(form.copy(floorPreference = it)) }
+                FieldNote(FormField.FLOORS)
+            }
+            EditorRow(Icons.Outlined.Apartment, "Property type (any selected is fine)") {
+                ChipSelector(PropertyType.entries, form.propertyTypes, { it.label }) { onChange(form.copy(propertyTypes = it)) }
+                FieldNote(FormField.PROPERTY_TYPES)
             }
             EditorRow(Icons.Outlined.EventAvailable, "Possession") {
                 DropdownField("Any", Possession.entries, form.possession, { it.label }, { onChange(form.copy(possession = it)) }, Modifier.fillMaxWidth(), allowNone = true)

@@ -24,7 +24,16 @@ propertiesRouter.get("/", async (req, res) => {
     transactionType: q.transactionType,
     category: q.category,
     availability: q.availability,
+    propertyType: q.propertyType,
+    furnishing: q.furnishing,
   };
+  if (q.locality) where.locality = { contains: q.locality, mode: "insensitive" };
+  if (q.minPrice != null || q.maxPrice != null) {
+    where.price = {
+      ...(q.minPrice != null ? { gte: BigInt(q.minPrice) } : {}),
+      ...(q.maxPrice != null ? { lte: BigInt(q.maxPrice) } : {}),
+    };
+  }
   if (q.q) {
     where.OR = [
       { title: { contains: q.q, mode: "insensitive" } },
@@ -108,6 +117,8 @@ propertiesRouter.get("/:id/matches", async (req, res) => {
       status: "ACTIVE",
     },
     include: { client: { select: { id: true, name: true, primaryPhone: true, status: true } } },
+    // Equal scores keep this order (oldest requirement first), so the list doesn't reshuffle.
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: 2000,
   });
   const ranked = rankMatches(

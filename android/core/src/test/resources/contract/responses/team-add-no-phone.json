@@ -1,11 +1,11 @@
 {
   "member": {
-    "id": "cmujg8ts5000b7dl38n28nqz9",
+    "id": "cmujgxajr000b7ddvp0sh8dti",
     "name": "Sam Agent",
-    "email": "agent2-1790491222699@example.com",
+    "email": "agent2-1790492364191@example.com",
     "phone": null,
     "role": "AGENT",
-    "brokerageId": "cmujg8tj000037dl3isndguzo",
+    "brokerageId": "cmujgxab000037ddvpgg1ty0x",
     "active": true
   }
 }

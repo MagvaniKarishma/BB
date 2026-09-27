@@ -74,6 +74,27 @@ enum class RequirementField(val label: String) {
     PARKING("Parking"),
     FLOOR("Floor"),
     POSSESSION("Possession"),
+    PROPERTY_TYPE("Property type"),
+}
+
+/** Which part of the building a client wants: never an exact floor. */
+@Serializable
+enum class FloorBand(val label: String) {
+    LOWER("Lower floor"),
+    MIDDLE("Middle floor"),
+    HIGHER("Higher floor"),
+}
+
+@Serializable
+enum class PropertyType(val label: String) {
+    APARTMENT("Apartment"),
+    INDEPENDENT_HOUSE("Independent house"),
+    VILLA("Villa"),
+    PENTHOUSE("Penthouse"),
+    BUILDER_FLOOR("Builder floor"),
+    COMMERCIAL("Commercial"),
+    PLOT("Plot"),
+    OTHER("Other"),
 }
 
 @Serializable

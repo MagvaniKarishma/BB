@@ -8,10 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.Interceptor
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Protocol
 import okhttp3.Response
-import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import java.io.File
 import java.time.LocalDate
@@ -22,15 +19,20 @@ import java.time.ZoneId
  * network. Reads come from the bundled sample data (assets/demo/responses.json, never modified);
  * what the broker adds or edits in the demo is saved in the app's private storage
  * (files/demo/changes.json), separate from any real account, and survives restarts until
- * [reset]. Outside the demo, requests pass through untouched.
+ * [reset]. Property photos added in the demo are kept in files/demo/photos. Outside the demo,
+ * requests pass through untouched.
  */
 class DemoInterceptor(private val context: Context, private val sessionStore: SessionStore) : Interceptor {
     private val file: File get() = File(context.filesDir, "demo/changes.json")
+    private val photoDir: File get() = File(context.filesDir, "demo/photos")
+    private val photos by lazy { DemoPhotos(photoDir) { api } }
 
     private val api: DemoApi by lazy {
         val snapshot = context.assets.open("demo/responses.json").bufferedReader().use { it.readText() }
         val saved = runCatching { file.takeIf { it.exists() }?.readText() }.getOrNull()
-        DemoApi(snapshot, LocalDate.now(ZoneId.of("Asia/Kolkata")), DemoChanges.fromJson(saved), onChange = ::save)
+        DemoApi(snapshot, LocalDate.now(ZoneId.of("Asia/Kolkata")), DemoChanges.fromJson(saved), onChange = ::save).also { api ->
+            DemoPhotos(photoDir) { api }.pruneUnused()
+        }
     }
 
     /** The demo broker to sign in as. */
@@ -40,7 +42,10 @@ class DemoInterceptor(private val context: Context, private val sessionStore: Se
     suspend fun changeCount(): Int = withContext(Dispatchers.IO) { api.changes.count }
 
     /** Back to the original sample data: forgets every demo change (the sample data itself is untouched). */
-    suspend fun reset() = withContext(Dispatchers.IO) { api.reset() }
+    suspend fun reset() = withContext(Dispatchers.IO) {
+        api.reset()
+        photoDir.deleteRecursively()
+    }
 
     @Synchronized
     private fun save(changes: DemoChanges) {
@@ -63,18 +68,14 @@ class DemoInterceptor(private val context: Context, private val sessionStore: Se
         val request = chain.request()
         if (runBlocking { sessionStore.current().token } != DEMO_TOKEN) return chain.proceed(request)
         val url = request.url
+        val seg = url.pathSegments.dropWhile { it != "properties" }
+        if (seg.size >= 3 && seg[0] == "properties" && seg[2] == "photos") photos.handle(request, seg)?.let { return it }
         val params = (0 until url.querySize).map { url.queryParameterName(it) to url.queryParameterValue(it) }
-        // JSON bodies only; uploads (photos, recordings) aren't kept in the demo.
+        // JSON bodies only (photos are handled above; recordings aren't kept in the demo).
         val body = request.body?.takeIf { it.contentType()?.subtype == "json" }?.let { b ->
             Buffer().also { b.writeTo(it) }.readUtf8()
         }
         val reply = api.handle(request.method, url.pathSegments.joinToString("/"), params, body)
-        return Response.Builder()
-            .request(request)
-            .protocol(Protocol.HTTP_1_1)
-            .code(reply.status)
-            .message(if (reply.status in 200..299) "OK" else "Demo")
-            .body(reply.body.toResponseBody("application/json".toMediaType()))
-            .build()
+        return demoResponse(request, reply)
     }
 }

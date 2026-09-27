@@ -1,7 +1,10 @@
 package com.brokerbuddy.core.demo
 
+import com.brokerbuddy.core.match.Matching
 import com.brokerbuddy.core.model.ApiJson
+import com.brokerbuddy.core.model.Inquiry
 import com.brokerbuddy.core.model.MeResponse
+import com.brokerbuddy.core.model.Property
 import com.brokerbuddy.core.model.User
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -67,6 +70,29 @@ class DemoApi(
         onChange(changes)
     }
 
+    /**
+     * A photo the app has saved on the phone for [propertyId] (the app keeps the image file;
+     * this records it on the property). Errors (unknown property, too many photos) come back as
+     * the server would answer them, and the caller then discards the file.
+     */
+    @Synchronized
+    fun addPhoto(propertyId: String, photoId: String): Reply = when (val out = store.addPhoto(propertyId, photoId)) {
+        is DemoStore.Out.Err -> error(out.status, out.code, out.message, out.details)
+        is DemoStore.Out.Ok -> {
+            onChange(changes)
+            Reply(out.status, out.body.toString())
+        }
+    }
+
+    /** Is [photoId] one of [propertyId]'s photos? */
+    @Synchronized
+    fun hasPhoto(propertyId: String, photoId: String): Boolean =
+        store.propertiesAll().firstOrNull { it.str("id") == propertyId }?.let { photoId in store.photoIdsOf(it) } == true
+
+    /** Every photo id still in use (files for any others can be deleted). */
+    @Synchronized
+    fun photoIdsInUse(): Set<String> = store.propertiesAll().flatMap(store::photoIdsOf).toSet()
+
     /** [path] is the request's URL path (anything before "api/v1/" is ignored); [body] the JSON body of writes. */
     @Synchronized
     fun handle(method: String, path: String, params: List<Pair<String, String?>>, body: String? = null): Reply {
@@ -83,16 +109,14 @@ class DemoApi(
             seg.size == 2 && seg[0] == "clients" && seg[1] !in setOf("lookup", "check-duplicate") ->
                 store.clientDetail(seg[1])?.let { jsonOf("client" to it) }
             seg.size == 3 && seg[0] == "clients" && seg[2] == "notes" -> jsonOf("notes" to list(store.notesOf(seg[1])))
-            p == "properties" -> propertyList(param("transactionType"), param("availability"))
+            p == "properties" -> return ok(propertyList(::param, q))
             seg.size == 2 && seg[0] == "properties" -> store.propertiesAll().firstOrNull { it.str("id") == seg[1] }?.let { jsonOf("property" to it) }
-            seg.size == 3 && seg[0] == "properties" && seg[2] == "matches" && seg[1] in changes.created ->
-                jsonOf("propertyId" to s(seg[1]), "matches" to list(emptyList()))
+            seg.size == 3 && seg[0] == "properties" && seg[2] == "matches" -> propertyMatches(seg[1])
             p == "inquiries" -> inquiryList(param("transactionType"), param("category"), param("status"))
             seg.size == 2 && seg[0] == "inquiries" ->
                 store.inquiriesAll().firstOrNull { it.str("id") == seg[1] }?.let { jsonOf("inquiry" to store.inquiryItem(it).let { i -> JsonObject(i - "matchCount") }) }
             seg.size == 3 && seg[0] == "inquiries" && seg[2] == "history" && seg[1] in changes.created -> jsonOf("revisions" to list(emptyList()))
-            seg.size == 3 && seg[0] == "inquiries" && seg[2] == "matches" && seg[1] in changes.created ->
-                jsonOf("inquiryId" to s(seg[1]), "matches" to list(emptyList()))
+            seg.size == 3 && seg[0] == "inquiries" && seg[2] == "matches" -> inquiryMatches(seg[1])
             p == "reminders" -> reminderList(param("status"), param("kind"), param("clientId"))
             p == "voice-notes" && param("clientId") in changes.created -> jsonOf("voiceNotes" to list(emptyList()))
             p == "dashboard" -> dashboard()
@@ -126,21 +150,88 @@ class DemoApi(
         )
     }
 
-    private fun propertyList(type: String?, availability: String?): JsonElement {
-        val shown = store.propertiesAll().filter {
-            (type == null || it.str("transactionType") == type) && (availability == null || it.str("availability") == availability)
-        }
+    /** Same filters as the server's GET /properties. */
+    private fun propertyList(param: (String) -> String?, q: String): JsonElement {
+        fun eq(p: JsonObject, key: String) = param(key).let { it == null || p.str(key) == it }
+        val locality = param("locality")?.trim()?.lowercase()
+        val minPrice = param("minPrice")?.toLongOrNull()
+        val maxPrice = param("maxPrice")?.toLongOrNull()
+        val text = q.lowercase()
+        val shown = store.propertiesAll().filter { p ->
+            val price = p.str("price")?.toLongOrNull()
+            eq(p, "transactionType") && eq(p, "category") && eq(p, "availability") && eq(p, "propertyType") && eq(p, "furnishing") &&
+                (locality.isNullOrEmpty() || p.str("locality").orEmpty().lowercase().contains(locality)) &&
+                (minPrice == null || (price != null && price >= minPrice)) &&
+                (maxPrice == null || (price != null && price <= maxPrice)) &&
+                (text.isEmpty() || listOf("title", "locality", "building").any { p.str(it).orEmpty().lowercase().contains(text) })
+        }.sortedByDescending { it.str("updatedAt") }
         return jsonOf("total" to JsonPrimitive(shown.size), "page" to JsonPrimitive(1), "pageSize" to JsonPrimitive(maxOf(30, shown.size)), "properties" to list(shown))
     }
 
     private fun inquiryList(type: String?, category: String?, status: String?): JsonElement {
+        val properties = typedProperties()
         val shown = store.inquiriesAll().filter {
             (type == null || it.str("transactionType") == type) && (category == null || it.str("category") == category) &&
                 (status == null || it.str("status") == status) &&
                 // The list shows active requirements (as the server does) unless a status is asked for.
                 (status != null || it.str("status") == "ACTIVE")
-        }.sortedByDescending { it.str("updatedAt") }.map { store.inquiryItem(it) }
+        }.sortedByDescending { it.str("updatedAt") }.map { i ->
+            val count = typed(i, Inquiry.serializer())?.let { r ->
+                properties.count { (_, p) -> p.availability.name == "AVAILABLE" && Matching.evaluate(r, p).eligible }
+            } ?: 0
+            store.inquiryItem(i).plus("matchCount" to JsonPrimitive(count))
+        }
         return jsonOf("total" to JsonPrimitive(shown.size), "inquiries" to list(shown))
+    }
+
+    // ---------- matching (the server's rules, on the phone; follows every demo edit) ----------
+
+    private fun <T> typed(o: JsonObject, serializer: kotlinx.serialization.KSerializer<T>): T? =
+        runCatching { ApiJson.decodeFromJsonElement(serializer, o) }.getOrNull()
+
+    private fun typedProperties(): List<Pair<JsonObject, Property>> =
+        store.propertiesAll().mapNotNull { o -> typed(o, Property.serializer())?.let { o to it } }
+
+    private fun result(r: Matching.Result): Array<Pair<String, JsonElement?>> = arrayOf(
+        "eligible" to JsonPrimitive(r.eligible),
+        "score" to JsonPrimitive(r.score),
+        "checks" to list(r.checks.map { c ->
+            jsonOf("field" to s(c.field.name), "outcome" to s(c.outcome.wire), "mandatory" to JsonPrimitive(c.mandatory), "detail" to s(c.detail))
+        }),
+        "violations" to list(r.violations.map(::s)),
+        "needsVerification" to list(r.needsVerification.map { s(it.name) }),
+    )
+
+    /** Available properties for a requirement, best first; a must-have budget caps the price. */
+    private fun inquiryMatches(id: String): JsonElement? {
+        val raw = store.inquiriesAll().firstOrNull { it.str("id") == id } ?: return null
+        val r = typed(JsonObject(raw - "client" - "matchCount"), Inquiry.serializer()) ?: return null
+        val cap = r.budgetMax.takeIf { "BUDGET" in r.mandatory.map { f -> f.name } }
+        val candidates = typedProperties().filter { (_, p) ->
+            p.transactionType == r.transactionType && p.category == r.category && p.availability.name == "AVAILABLE" &&
+                (cap == null || p.price <= cap)
+        }.sortedBy { (o, _) -> o.str("createdAt") } // ties: oldest first, as on the server
+        val ranked = Matching.rank(candidates, { (_, p) -> Matching.evaluate(r, p) }, { (_, p) -> p.price })
+        return jsonOf("inquiryId" to s(id), "matches" to list(ranked.map { (pair, res) -> jsonOf("property" to pair.first, *result(res)) }))
+    }
+
+    /** Clients whose active requirement this property fits. */
+    private fun propertyMatches(id: String): JsonElement? {
+        val raw = store.propertiesAll().firstOrNull { it.str("id") == id } ?: return null
+        val p = typed(raw, Property.serializer()) ?: return null
+        val candidates = store.inquiriesAll().filter {
+            it.str("status") == "ACTIVE" && it.str("transactionType") == p.transactionType.name && it.str("category") == p.category.name
+        }.sortedBy { it.str("createdAt") } // ties: oldest first, as on the server
+            .mapNotNull { o -> typed(JsonObject(o - "client" - "matchCount"), Inquiry.serializer())?.let { o to it } }
+        val ranked = Matching.rank(candidates, { (_, r) -> Matching.evaluate(r, p) }, { 0L })
+        return jsonOf(
+            "propertyId" to s(id),
+            "matches" to list(ranked.map { (pair, res) ->
+                val o = pair.first
+                val client = o.str("clientId")?.let(store::clientRef)
+                jsonOf("inquiry" to JsonObject(o - "client" - "matchCount").plus("client" to client), *result(res))
+            }),
+        )
     }
 
     private fun reminderList(status: String?, kind: String?, clientId: String?): JsonElement =
@@ -192,6 +283,7 @@ class DemoApi(
             method == "POST" && p == "properties" -> store.createProperty(b)
             method == "PATCH" && seg.size == 2 && seg[0] == "properties" -> store.updateProperty(seg[1], b)
             method == "DELETE" && seg.size == 2 && seg[0] == "properties" -> store.deleteProperty(seg[1])
+            method == "DELETE" && seg.size == 4 && seg[0] == "properties" && seg[2] == "photos" -> store.removePhoto(seg[1], seg[3])
             method == "POST" && p == "reminders" -> store.createReminder(b)
             method == "PATCH" && seg.size == 2 && seg[0] == "reminders" -> store.updateReminder(seg[1], b)
             else -> null

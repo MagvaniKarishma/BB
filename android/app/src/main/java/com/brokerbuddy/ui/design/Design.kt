@@ -40,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
@@ -479,7 +480,7 @@ fun PropertyRow(property: Property, onClick: () -> Unit, modifier: Modifier = Mo
     BrandCard(modifier.fillMaxWidth(), onClick = onClick, contentPadding = 10.dp) {
         Row {
             Box(Modifier.size(width = 104.dp, height = 96.dp).clip(RoundedCornerShape(14.dp))) {
-                PropertyPhoto(p.id, p.photoIds.firstOrNull(), Modifier.fillMaxSize(), maxPx = 400)
+                PropertyPhoto(p.id, p.photoIds.firstOrNull(), Modifier.fillMaxSize().alpha(if (badge != null) 0.45f else 1f), maxPx = 400)
                 if (p.photoIds.size > 1) {
                     Text(
                         "${p.photoIds.size}",
@@ -496,9 +497,12 @@ fun PropertyRow(property: Property, onClick: () -> Unit, modifier: Modifier = Mo
                 }
                 Text(p.locality, style = MaterialTheme.typography.bodySmall, color = b.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(priceText(p), style = MaterialTheme.typography.titleSmall, color = b.link, maxLines = 1)
-                val facts = listOfNotNull(p.furnishing?.chipLabel(), p.bathrooms?.let { if (it == 1) "1 Bath" else "$it Baths" }).joinToString(" • ")
+                Text(
+                    listOf(p.category.label, if (p.transactionType == TransactionType.RENT) "For rent" else "For sale").joinToString(" • "),
+                    style = MaterialTheme.typography.bodySmall, color = b.navy, maxLines = 1,
+                )
+                val facts = listOfNotNull(p.furnishing?.chipLabel(), p.carpetAreaSqft?.let { "$it sq ft" }).joinToString(" • ")
                 if (facts.isNotEmpty()) Text(facts, style = MaterialTheme.typography.bodySmall, color = b.muted, maxLines = 1)
-                p.carpetAreaSqft?.let { Text("$it sq ft", style = MaterialTheme.typography.bodySmall, color = b.muted) }
             }
         }
     }

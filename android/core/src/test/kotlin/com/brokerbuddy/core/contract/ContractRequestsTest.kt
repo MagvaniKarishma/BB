@@ -21,7 +21,9 @@ import com.brokerbuddy.core.model.CreateClientFromMessage
 import com.brokerbuddy.core.model.CreateClientRequest
 import com.brokerbuddy.core.model.CreateMemberRequest
 import com.brokerbuddy.core.model.CreateReminderRequest
+import com.brokerbuddy.core.model.FloorBand
 import com.brokerbuddy.core.model.Furnishing
+import com.brokerbuddy.core.model.PropertyType
 import com.brokerbuddy.core.model.GreetingLanguage
 import com.brokerbuddy.core.model.GreetingScriptRequest
 import com.brokerbuddy.core.model.ImportChatRequest
@@ -71,13 +73,14 @@ class ContractRequestsTest {
 
     private val requirement = RequirementRequest(
         transactionType = TransactionType.RENT, category = PropertyCategory.BHK_2, budgetMin = 65_000, budgetMax = 75_000,
-        locations = listOf("Andheri West"), furnishing = listOf(Furnishing.SEMI_FURNISHED), minParking = 1, floorMin = 2,
+        locations = listOf("Andheri West"), furnishing = listOf(Furnishing.SEMI_FURNISHED), minParking = 1, floorPreference = listOf(FloorBand.MIDDLE, FloorBand.HIGHER), propertyTypes = listOf(PropertyType.APARTMENT),
         possession = Possession.READY_TO_MOVE, mandatory = listOf(RequirementField.BUDGET), notes = "Gated society",
         source = RequirementSource.MANUAL,
     )
     private val property = PropertyRequest(
         title = "2 BHK Apartment", transactionType = TransactionType.RENT, category = PropertyCategory.BHK_2, price = 70_000,
         deposit = 200_000, locality = "Andheri West", building = "Oberoi Splendor", carpetAreaSqft = 850, bathrooms = 2,
+        propertyType = PropertyType.APARTMENT, builtUpAreaSqft = 1000, amenities = listOf("Lift", "Gym"),
         furnishing = Furnishing.SEMI_FURNISHED, parkingSpots = 1, floor = 5, totalFloors = 15, possession = Possession.READY_TO_MOVE,
         availability = Availability.AVAILABLE, ownerName = "Mr Mehta", ownerPhone = "98111 22233",
     )

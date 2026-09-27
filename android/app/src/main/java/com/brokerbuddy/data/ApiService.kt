@@ -33,7 +33,9 @@ import com.brokerbuddy.core.model.UserEnvelope
 import com.brokerbuddy.core.model.MeResponse
 import com.brokerbuddy.core.model.MemberEnvelope
 import com.brokerbuddy.core.model.NullableClientEnvelope
+import com.brokerbuddy.core.model.Furnishing
 import com.brokerbuddy.core.model.PropertyCategory
+import com.brokerbuddy.core.model.PropertyType
 import com.brokerbuddy.core.model.PropertyEnvelope
 import com.brokerbuddy.core.model.PropertyList
 import com.brokerbuddy.core.model.PropertyMatches
@@ -182,6 +184,12 @@ interface ApiService {
         @Query("q") q: String? = null,
         @Query("transactionType") transactionType: TransactionType? = null,
         @Query("availability") availability: Availability? = null,
+        @Query("category") category: PropertyCategory? = null,
+        @Query("propertyType") propertyType: PropertyType? = null,
+        @Query("furnishing") furnishing: Furnishing? = null,
+        @Query("minPrice") minPrice: Long? = null,
+        @Query("maxPrice") maxPrice: Long? = null,
+        @Query("locality") locality: String? = null,
         @Query("page") page: Int = 1,
         @Query("pageSize") pageSize: Int = 50,
     ): PropertyList

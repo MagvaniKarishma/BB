@@ -16,8 +16,7 @@ data class RequirementDraft(
     val locations: List<Evidence<String>>? = null,
     val furnishing: Evidence<List<Furnishing>>? = null,
     val minParking: Evidence<Int>? = null,
-    val floorMin: Evidence<Int>? = null,
-    val floorMax: Evidence<Int>? = null,
+    val floorPreference: Evidence<List<FloorBand>>? = null,
     val possession: Evidence<Possession>? = null,
     val possessionBy: Evidence<String>? = null,
 )

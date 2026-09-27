@@ -1,4 +1,4 @@
-import type { Furnishing, PropertyCategory, TransactionType } from "@prisma/client";
+import type { FloorBand, Furnishing, PropertyCategory, TransactionType } from "@prisma/client";
 import type { Evidence, Extraction, RequirementDraft } from "./draft.js";
 import { verifyDraft } from "./draft.js";
 import { DIRECTIONAL, FRACTION_PREFIX, LOCALITIES, MONEY_UNITS, NUMBER_WORDS } from "./lexicon.js";
@@ -411,42 +411,43 @@ export function extractWithRules(transcript: string, options: ExtractOptions = {
     floorSpans.push(span);
     return true;
   };
-  for (const m of text.matchAll(rx(`${L}(${ORD})\\s*(?:${RANGE_SEP})\\s*(${ORD})\\s*(?:${FLOOR})${R}`))) {
-    const a = parseOrdinal(m[1]);
-    const b = parseOrdinal(m[2]);
-    if (a == null || b == null || !claimFloor(m)) continue;
-    draft.floorMin = ev(Math.min(a, b), m);
-    draft.floorMax = ev(Math.max(a, b), m);
-  }
-  for (const m of text.matchAll(rx(`${L}(${ORD})\\s*\\+?\\s*(?:${FLOOR})\\s*(?:(?:${LINK})\\s*)?(?:${ABOVE})${R}|${L}(?:above|upar|ऊपर)\\s*(${ORD})\\s*(?:${FLOOR})${R}|${L}(${ORD})\\s*\\+\\s*(?:${FLOOR})${R}`))) {
-    const n = parseOrdinal(m[1] ?? m[2] ?? m[3]);
-    if (n == null || !claimFloor(m)) continue;
-    draft.floorMin = ev(n, m);
-  }
-  for (const m of text.matchAll(rx(`${L}(${ORD})\\s*(?:${FLOOR})\\s*(?:${BELOW})${R}|${L}(?:below|under|neeche|नीचे)\\s*(${ORD})\\s*(?:${FLOOR})${R}`))) {
-    const n = parseOrdinal(m[1] ?? m[2]);
-    if (n == null || !claimFloor(m)) continue;
-    draft.floorMax = ev(n, m);
-  }
-  for (const m of text.matchAll(rx(`${L}(?:ground|ग्राउंड)\\s*(?:${FLOOR})${R}|${L}(?:तळमजला|talmajla)${R}`))) {
-    if (!claimFloor(m)) continue;
+  // Floor preference is only ever lower / middle / higher. An exact floor number is quoted in a
+  // warning for the broker, never turned into a requirement or guessed into a band.
+  const exactFloor = (m: RegExpMatchArray) => {
+    if (!claimFloor(m)) return;
+    warnings.push(`Mentioned "${m[0].trim()}" — choose Lower / Middle / Higher floor if it matters (exact floors aren't saved)`);
+  };
+  for (const m of text.matchAll(rx(`${L}(${ORD})\\s*(?:${RANGE_SEP})\\s*(${ORD})\\s*(?:${FLOOR})${R}`))) exactFloor(m);
+  for (const m of text.matchAll(rx(`${L}(${ORD})\\s*\\+?\\s*(?:${FLOOR})\\s*(?:(?:${LINK})\\s*)?(?:${ABOVE})${R}|${L}(?:above|upar|ऊपर)\\s*(${ORD})\\s*(?:${FLOOR})${R}|${L}(${ORD})\\s*\\+\\s*(?:${FLOOR})${R}`))) exactFloor(m);
+  for (const m of text.matchAll(rx(`${L}(${ORD})\\s*(?:${FLOOR})\\s*(?:${BELOW})${R}|${L}(?:below|under|neeche|नीचे)\\s*(${ORD})\\s*(?:${FLOOR})${R}`))) exactFloor(m);
+
+  const bands: FloorBand[] = [];
+  let bandEvidence: RegExpMatchArray | null = null;
+  const band = (m: RegExpMatchArray, b: FloorBand, label: string) => {
+    if (!claimFloor(m)) return;
     const end = (m.index ?? 0) + m[0].length;
     if (rx(`^\\s*(?:[\\p{L}\\p{M}]+\\s+){0,1}?(?:${NEGATION})${R}`).test(after(end, 20))) {
-      draft.floorMin = ev(1, m);
-    } else {
-      warnings.push(`Mentioned "${m[0].trim()}" — set the floor range if the client wants only the ground floor`);
+      warnings.push(`Doesn't want "${m[0].trim()}" — set the floor preference if it matters`);
+      return;
     }
+    if (!bands.includes(b)) bands.push(b);
+    bandEvidence ??= m;
+    if (label) warnings.push(label);
+  };
+  for (const m of text.matchAll(rx(`${L}(?:ground|ग्राउंड)\\s*(?:${FLOOR})${R}|${L}(?:तळमजला|talmajla)${R}`))) {
+    band(m, "LOWER", `Read "${m[0].trim()}" as a lower floor`);
   }
-  for (const m of text.matchAll(rx(`${L}(${ORD})\\s*(?:${FLOOR})${R}`))) {
-    if (!claimFloor(m)) continue;
-    warnings.push(`Mentioned "${m[0].trim()}" without "above"/"up to" — set a floor range if it is a requirement`);
+  for (const m of text.matchAll(rx(`${L}(?:${alt(["high", "higher", "upper", "top", "upar wala", "upar ka", "upar wali", "ऊंचा", "ऊँचा", "ऊंची", "ऊँची", "ऊपर वाला", "ऊपर का", "ऊपर की", "ऊपरी", "वरचा", "वरचा"])})\\s*(?:${FLOOR})s?${R}`))) {
+    band(m, "HIGHER", "");
   }
-  if (rx(`${L}(?:${alt(["high", "higher", "upar wala", "upar ka", "upar wali", "ऊंचा", "ऊँचा", "ऊपर वाला", "ऊपर का", "ऊपरी", "वरचा", "वरचा"])})\\s*(?:${FLOOR})${R}`).test(text)) {
-    warnings.push("Prefers a higher floor but gave no number — set the minimum floor if needed");
+  for (const m of text.matchAll(rx(`${L}(?:${alt(["middle", "mid", "beech ka", "beech wala", "beech ki", "बीच का", "बीच की", "बीच वाला", "मधला", "मधली"])})\\s*(?:${FLOOR})s?${R}`))) {
+    band(m, "MIDDLE", "");
   }
-  if (rx(`${L}(?:${alt(["low", "lower", "neeche wala", "neeche ka", "नीचे वाला", "नीचे का", "खालचा"])})\\s*(?:${FLOOR})${R}`).test(text)) {
-    warnings.push("Prefers a lower floor but gave no number — set the maximum floor if needed");
+  for (const m of text.matchAll(rx(`${L}(?:${alt(["low", "lower", "neeche wala", "neeche ka", "neeche ki", "नीचे वाला", "नीचे का", "नीचे की", "खालचा", "खालचा"])})\\s*(?:${FLOOR})s?${R}`))) {
+    band(m, "LOWER", "");
   }
+  if (bands.length && bandEvidence) draft.floorPreference = ev(bands, bandEvidence);
+  for (const m of text.matchAll(rx(`${L}(${ORD})\\s*(?:${FLOOR})${R}`))) exactFloor(m);
 
   // --- possession ---
   const ready = [...text.matchAll(rx(`${L}(?:${READY})${R}`))];

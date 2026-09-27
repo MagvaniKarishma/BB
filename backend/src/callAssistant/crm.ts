@@ -34,8 +34,7 @@ export function draftToPatch(d: RequirementDraft) {
   if (d.locations?.length) patch.locations = d.locations.map((l) => l.value.slice(0, 80));
   if (d.furnishing) patch.furnishing = d.furnishing.value;
   if (d.minParking) patch.minParking = d.minParking.value;
-  if (d.floorMin) patch.floorMin = d.floorMin.value;
-  if (d.floorMax) patch.floorMax = d.floorMax.value;
+  if (d.floorPreference) patch.floorPreference = d.floorPreference.value;
   if (d.possession) patch.possession = d.possession.value;
   if (d.possessionBy) patch.possessionBy = d.possessionBy.value;
   return patch;
