@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tradetron": {
+      "type": "http",
+      "url": "https://mcp.tradetron.tech/mcp"
+    }
+  }
+}
